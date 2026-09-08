@@ -1,4 +1,5 @@
 import { MantineProvider } from '@mantine/core'
+import { ModalsProvider } from '@mantine/modals'
 import { Notifications } from '@mantine/notifications'
 import { useState, type ReactNode } from 'react'
 import { bootstrap } from './bootstrap'
@@ -11,7 +12,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <MantineProvider theme={theme} defaultColorScheme="auto">
       <Notifications position="top-center" />
-      <ServicesContext.Provider value={services}>{children}</ServicesContext.Provider>
+      <ModalsProvider>
+        <ServicesContext.Provider value={services}>{children}</ServicesContext.Provider>
+      </ModalsProvider>
     </MantineProvider>
   )
 }

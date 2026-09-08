@@ -8,14 +8,17 @@ Use `bun`, not `npm`:
 
 ```bash
 bun install
-bun run dev         # Vite dev server
-bun run build       # tsc build + vite production build
-bun run preview     # preview production build
-bun run lint        # eslint .
-bun run typecheck   # tsc -b --noEmit
+bun run dev             # Vite dev server
+bun run build           # tsc build + vite production build
+bun run preview         # preview production build
+bun run lint            # eslint . (includes architecture-boundary checks)
+bun run typecheck       # tsc -b --noEmit
+bun run format          # prettier --write .
+bun run format:check    # prettier --check .
+bun run generate-icons  # regenerate public/ PWA icons from public/favicon.svg
 ```
 
-Run lint, typecheck, and build before reporting a task complete. Report any manual/browser verification you did not perform.
+Run format, lint, typecheck, and build before reporting a task complete. Report any manual/browser verification you did not perform.
 
 ## Layering — follow strictly
 
@@ -27,16 +30,44 @@ src/app            → wires everything together (composition root)
 
 - `domain/` never imports React or Dexie.
 - `application/ports/` defines repository contracts; `infrastructure/` implements them.
-- UI screens/components never call Dexie tables directly — go through a `ui/hooks/*` hook or an `application` service, obtained via `useServices()` (`src/app/servicesContext.ts`).
+- UI screens/components never call Dexie tables directly — go through a `ui/hooks/*` hook or an `application` service, obtained via `useServices()` (`src/app/servicesContext.ts`). `ui/hooks/*` is the one place in `ui/` allowed to reach `infrastructure/db` directly (e.g. `useRecipes.ts`, `useSettings.ts`), so that reactive queries don't need a service round-trip.
 - `src/app/bootstrap.ts` wires dependencies explicitly. No DI framework.
+- These boundaries are enforced by `eslint-plugin-boundaries` (see `eslint.config.js`) — a small, coarse rule set (`domain`/`application`/`infrastructure`/`ui-hooks`/`ui`/`app`), not a full architectural policy. `bun run lint` fails on a violation.
 
 ## Conventions
 
-- Prefer existing Mantine components (`@mantine/core`, `@mantine/form`, `@mantine/dates`, `@mantine/notifications`) over building custom controls. Only add a domain component (e.g. `MealCard`) when it composes Mantine components for a specific app behavior.
-- Do not add a dependency without explaining why it's needed for a specific feature.
+- **Check what's already a dependency before adding a helper or a new library.** See "Libraries" below for what's already installed and what's earmarked for a later sprint — don't reach for a new package if one of those already covers the need, and don't add a library outside this list without explaining why in the moment.
+- Prefer existing Mantine components (`@mantine/core`, `@mantine/form`, `@mantine/dates`, `@mantine/notifications`, `@mantine/modals`) over building custom controls. Only add a domain component (e.g. `MealCard`) when it composes Mantine components for a specific app behavior.
+- Centralize confirmation dialogs (delete, replace-data, dependent-meal edits, list overwrites) through `@mantine/modals`' `modals.openConfirmModal` rather than each screen rolling its own modal-open state — see `SettingsScreen.tsx`'s restore-backup confirmation for the pattern.
 - No network dependency for core workflows — everything must work offline after first load.
 - Meal/plan dates are local calendar strings (`YYYY-MM-DD`), never UTC timestamps — see `src/domain/shared/LocalDate.ts`.
 - Never introduce pantry/inventory accounting implicitly — grocery lists are explicit, not derived stock tracking.
 - Preserve local data through schema changes: only add new `.version(n)` blocks in `src/infrastructure/db/migrations`, never edit a shipped version.
 - Unsaved recipe/plan edits live in a `@mantine/form` draft until Save — do not write every keystroke to IndexedDB.
 - No test runner in this project (by design, MVP stage).
+- Format with `bun run format` (Prettier); style is not a lint concern here.
+
+## Libraries
+
+Already installed, beyond the core stack (React/Mantine/Dexie/Zod/Day.js/vite-plugin-pwa):
+
+| Library                                                    | Used for                                                                                               |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `@mantine/modals`                                          | Centralized confirmation dialogs                                                                       |
+| `prettier`                                                 | Formatting (`bun run format`)                                                                          |
+| `eslint-plugin-boundaries` + `eslint-import-resolver-node` | Enforces the layering above                                                                            |
+| `@vite-pwa/assets-generator`                               | Regenerates `public/` PWA icons from one source SVG (`pwa-assets.config.ts`, `bun run generate-icons`) |
+
+Earmarked for a specific future sprint — add only when that sprint's work actually starts (see `docs/sprints/plan.md` and `docs/architecture.md`'s "Supportive libraries" section for the full rationale):
+
+| Library             | Add when                                        | Not for                                                                        |
+| ------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------ |
+| `fraction.js`       | Recipe quantity scaling (Sprint 2)              | Parsing full ingredient sentences                                              |
+| `convert-units`     | Grocery ingredient aggregation (Sprint 4)       | Inferring weight from "one onion" or cup-to-flour-weight conversions           |
+| `fuse.js`           | Recipe/component picker (Sprint 5)              | Merging ingredient identities — fuzzy search is a UI aid, not an identity rule |
+| `@mantine/dropzone` | Structured recipe/backup file import (Sprint 6) | —                                                                              |
+| `schema-dts`        | Schema.org `Recipe` import typing (Sprint 6)    | Runtime validation — keep using Zod for that                                   |
+
+Deliberately kept in reserve, not scheduled: `fflate` (only if backups need compression/photos), `DOMPurify` (only if we render imported HTML), `Papa Parse` (only for CSV import/export), `@dnd-kit/core` (only if drag-and-drop planning is added), `TanStack Virtual` (only if recipe lists get large enough to need it), `Immer` (only if immutable plan-editing genuinely gets unwieldy without it).
+
+Prefer native browser APIs over a wrapper package for: IDs (`crypto.randomUUID()`), JSON backup download (`Blob` + object URL), file reading (`File.text()`), number formatting (`Intl.NumberFormat`), clipboard (Clipboard API), sharing (Web Share API, with a copy/download fallback), and storage persistence (`navigator.storage.persist()` / `.estimate()`).

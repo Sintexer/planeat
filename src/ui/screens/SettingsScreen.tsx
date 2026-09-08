@@ -1,19 +1,9 @@
-import {
-  Title,
-  Text,
-  Stack,
-  NumberInput,
-  Button,
-  Group,
-  Divider,
-  FileButton,
-  Modal,
-} from '@mantine/core'
+import { Title, Text, Stack, NumberInput, Button, Group, Divider, FileButton } from '@mantine/core'
 import { useForm } from '@mantine/form'
-import { useDisclosure } from '@mantine/hooks'
+import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import dayjs from 'dayjs'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useServices } from '../../app/servicesContext'
 import { useSettings } from '../hooks/useSettings'
 
@@ -51,32 +41,37 @@ export function SettingsScreen() {
     notifications.show({ message: 'Backup exported', color: 'green' })
   }
 
-  const [pendingRestore, setPendingRestore] = useState<unknown>(null)
-  const [confirmOpened, { open: openConfirm, close: closeConfirm }] = useDisclosure(false)
-
-  const handleFilePicked = async (file: File | null) => {
-    if (!file) return
+  const restoreBackup = async (parsed: unknown) => {
     try {
-      const parsed = JSON.parse(await file.text())
-      setPendingRestore(parsed)
-      openConfirm()
-    } catch {
-      notifications.show({ message: 'That file is not valid JSON', color: 'red' })
-    }
-  }
-
-  const handleConfirmRestore = async () => {
-    try {
-      await backupService.restoreBackup(pendingRestore)
+      await backupService.restoreBackup(parsed)
       notifications.show({ message: 'Backup restored', color: 'green' })
     } catch (error) {
       notifications.show({
         message: error instanceof Error ? error.message : 'Could not restore backup',
         color: 'red',
       })
-    } finally {
-      setPendingRestore(null)
-      closeConfirm()
+    }
+  }
+
+  // Centralized via @mantine/modals so every "replace/remove existing data" confirmation
+  // in the app (backups, recipe deletion, dependent-meal edits, list overwrites) shares one pattern.
+  const handleFilePicked = async (file: File | null) => {
+    if (!file) return
+    try {
+      const parsed = JSON.parse(await file.text())
+      modals.openConfirmModal({
+        title: 'Restore backup',
+        children: (
+          <Text>
+            This replaces all local recipes and settings with the contents of this file. Continue?
+          </Text>
+        ),
+        labels: { confirm: 'Replace local data', cancel: 'Cancel' },
+        confirmProps: { color: 'red' },
+        onConfirm: () => restoreBackup(parsed),
+      })
+    } catch {
+      notifications.show({ message: 'That file is not valid JSON', color: 'red' })
     }
   }
 
@@ -117,20 +112,6 @@ export function SettingsScreen() {
           )}
         </FileButton>
       </Group>
-
-      <Modal opened={confirmOpened} onClose={closeConfirm} title="Restore backup">
-        <Stack gap="md">
-          <Text>This replaces all local recipes and settings with the contents of this file. Continue?</Text>
-          <Group justify="flex-end">
-            <Button variant="default" onClick={closeConfirm}>
-              Cancel
-            </Button>
-            <Button color="red" onClick={handleConfirmRestore}>
-              Replace local data
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
     </Stack>
   )
 }

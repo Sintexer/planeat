@@ -44,14 +44,14 @@ A **recipe** describes how to produce food. It can act as a complete dish, main,
 
 Required fields:
 
-| Field | Example |
-|---|---|
-| Name | Chicken cutlets |
-| Yield | 12 pieces |
-| Ingredients | Chicken 600 g, onion 1 piece… |
-| Meal types | Lunch, dinner |
-| Roles | Main |
-| Reuse policy | Batch-friendly |
+| Field        | Example                       |
+| ------------ | ----------------------------- |
+| Name         | Chicken cutlets               |
+| Yield        | 12 pieces                     |
+| Ingredients  | Chicken 600 g, onion 1 piece… |
+| Meal types   | Lunch, dinner                 |
+| Roles        | Main                          |
+| Reuse policy | Batch-friendly                |
 
 Additional fields:
 
@@ -228,15 +228,15 @@ Users can switch to **“All recipes”** whenever needed.
 
 ### Initial preferences
 
-| Situation | Behavior |
-|---|---|
-| Same breakfast repeated within the plan | Strong warning / lower suggestion ranking |
-| Same soup for three lunches | Acceptable |
-| Same main with different sides | Acceptable |
-| Identical dinner on consecutive days | Warning / lower ranking |
-| Recipe used in the previous week | Prefer alternatives where available |
-| Multiple demanding preparations on one day | Warning |
-| Non-quick preparation on a quick-only day | Warning |
+| Situation                                  | Behavior                                  |
+| ------------------------------------------ | ----------------------------------------- |
+| Same breakfast repeated within the plan    | Strong warning / lower suggestion ranking |
+| Same soup for three lunches                | Acceptable                                |
+| Same main with different sides             | Acceptable                                |
+| Identical dinner on consecutive days       | Warning / lower ranking                   |
+| Recipe used in the previous week           | Prefer alternatives where available       |
+| Multiple demanding preparations on one day | Warning                                   |
+| Non-quick preparation on a quick-only day  | Warning                                   |
 
 These are preferences for manual planning, not save-blocking rules. Quantity and source-dependency errors remain distinct validation problems.
 
@@ -461,6 +461,8 @@ Quantity and label fields become editable on tap.
 - No runtime backend or paid service.
 - No automated test tooling for MVP.
 
+Supportive libraries beyond this core stack (Mantine modals, quantity/search/import helpers, dev tooling) are tracked in `docs/architecture.md`'s "Supportive libraries" section and `AGENTS.md`'s "Libraries" table, each tied to the sprint that introduces it — not duplicated here to avoid the two going out of sync.
+
 Use explicit layers, but keep the application a single codebase.
 
 ```text
@@ -492,6 +494,7 @@ src/
 ### Responsibilities
 
 **Domain**
+
 - Quantities and scaling.
 - Batch allocations.
 - Compatibility rules.
@@ -501,6 +504,7 @@ src/
 No React or Dexie dependencies.
 
 **Application**
+
 - “Add meal component.”
 - “Move preparation.”
 - “Generate grocery list.”
@@ -508,12 +512,14 @@ No React or Dexie dependencies.
 - Coordinates domain operations and persistence.
 
 **Infrastructure**
+
 - Dexie tables and migrations.
 - JSON-LD parsing.
 - Backup files.
 - Service worker setup.
 
 **UI**
+
 - Screens, forms, feedback, navigation.
 - Does not contain ingredient arithmetic.
 
@@ -537,41 +543,41 @@ Use explicit quantities:
 
 ```ts
 type Quantity = {
-  value: number;
-  unit: string; // g, ml, piece, recipe-serving, etc.
-};
+  value: number
+  unit: string // g, ml, piece, recipe-serving, etc.
+}
 ```
 
 Only perform conversions that are known. A recipe-specific serving must not be treated as interchangeable with another recipe’s serving.
 
-| Table | Important fields |
-|---|---|
-| `ingredients` | `id`, canonical name, aliases, category, common-item flag |
-| `simpleFoods` | `id`, ingredient ID, default portion, roles, tags, enabled |
-| `recipes` | `id`, name, yield, default portion, ingredient lines, instructions, roles, meal types, effort, times, reuse policy, freezer-friendly, tags, source |
-| `recipePairings` | recipe ID, compatible recipe/simple-food ID, relationship |
-| `mealFavorites` | `id`, name, component definitions and quantities |
-| `plans` | `id`, start date, day count, people count, preferences, revision |
-| `mealSlots` | `id`, plan ID, date, meal type, excluded flag, note |
-| `mealComponents` | `id`, slot ID, source reference, allocated quantity, role |
-| `prepSessions` | `id`, plan ID, date, optional time/label |
-| `cookingEvents` | `id`, plan ID, session ID, recipe ID, recipe snapshot, output quantity, scheduled preparation |
-| `groceryLists` | `id`, title, status, source plan ID/revision, timestamps |
-| `groceryItems` | `id`, list ID, label, ingredient ID if known, quantity/text, checked, origin, manual-edit metadata |
-| `settings` | week start, default preferences, schema/application settings |
+| Table            | Important fields                                                                                                                                   |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ingredients`    | `id`, canonical name, aliases, category, common-item flag                                                                                          |
+| `simpleFoods`    | `id`, ingredient ID, default portion, roles, tags, enabled                                                                                         |
+| `recipes`        | `id`, name, yield, default portion, ingredient lines, instructions, roles, meal types, effort, times, reuse policy, freezer-friendly, tags, source |
+| `recipePairings` | recipe ID, compatible recipe/simple-food ID, relationship                                                                                          |
+| `mealFavorites`  | `id`, name, component definitions and quantities                                                                                                   |
+| `plans`          | `id`, start date, day count, people count, preferences, revision                                                                                   |
+| `mealSlots`      | `id`, plan ID, date, meal type, excluded flag, note                                                                                                |
+| `mealComponents` | `id`, slot ID, source reference, allocated quantity, role                                                                                          |
+| `prepSessions`   | `id`, plan ID, date, optional time/label                                                                                                           |
+| `cookingEvents`  | `id`, plan ID, session ID, recipe ID, recipe snapshot, output quantity, scheduled preparation                                                      |
+| `groceryLists`   | `id`, title, status, source plan ID/revision, timestamps                                                                                           |
+| `groceryItems`   | `id`, list ID, label, ingredient ID if known, quantity/text, checked, origin, manual-edit metadata                                                 |
+| `settings`       | week start, default preferences, schema/application settings                                                                                       |
 
 ### Meal component source
 
 ```ts
 type ComponentSource =
   | {
-      type: "cooking-event";
-      cookingEventId: string;
+      type: 'cooking-event'
+      cookingEventId: string
     }
   | {
-      type: "simple-food";
-      simpleFoodId: string;
-    };
+      type: 'simple-food'
+      simpleFoodId: string
+    }
 ```
 
 A fresh dish and a reused batch use the same source model. The difference is whether one cooking event supplies one meal or several.
@@ -592,13 +598,13 @@ This is necessary for safe list updates.
 
 ```ts
 type BackupFile = {
-  format: "family-menu-planner";
-  schemaVersion: number;
-  exportedAt: string;
+  format: 'family-menu-planner'
+  schemaVersion: number
+  exportedAt: string
   data: {
     // Local tables
-  };
-};
+  }
+}
 ```
 
 For MVP, restore can **replace all local data after confirmation**. Merge-importing two household databases is a separate future feature.
@@ -613,20 +619,20 @@ Moved to [`docs/sprints/plan.md`](docs/sprints/plan.md).
 
 # 8. Deferred roadmap
 
-| Feature | Foundation already provided |
-|---|---|
-| Automatic weekly generation | Roles, compatibility, preferences, cooking events, allocations |
-| Actual cooked/eaten tracking | Separate cooking events and meal components |
-| Refrigerator/freezer inventory | Planned output can later be distinguished from actual batches |
-| Cross-week leftovers | Explicit batch references |
-| Nutrition and individual portions | Quantified yields and component allocations |
-| Diet/allergen constraints | Canonical ingredients and recipe metadata |
-| Novelty/untried-recipe limits | Recipe history and tags |
-| Reliable URL importing | Separate importer interface |
-| Cross-device synchronization | Stable IDs and repository boundary |
-| Pantry subtraction and package sizes | Ingredient catalog and grocery-generation service |
-| Photos and richer import formats | Local recipe storage and importer boundary |
-| Recipe-library coverage research | Meal types, roles, and reusable combinations |
+| Feature                              | Foundation already provided                                    |
+| ------------------------------------ | -------------------------------------------------------------- |
+| Automatic weekly generation          | Roles, compatibility, preferences, cooking events, allocations |
+| Actual cooked/eaten tracking         | Separate cooking events and meal components                    |
+| Refrigerator/freezer inventory       | Planned output can later be distinguished from actual batches  |
+| Cross-week leftovers                 | Explicit batch references                                      |
+| Nutrition and individual portions    | Quantified yields and component allocations                    |
+| Diet/allergen constraints            | Canonical ingredients and recipe metadata                      |
+| Novelty/untried-recipe limits        | Recipe history and tags                                        |
+| Reliable URL importing               | Separate importer interface                                    |
+| Cross-device synchronization         | Stable IDs and repository boundary                             |
+| Pantry subtraction and package sizes | Ingredient catalog and grocery-generation service              |
+| Photos and richer import formats     | Local recipe storage and importer boundary                     |
+| Recipe-library coverage research     | Meal types, roles, and reusable combinations                   |
 
 ## Two provisional details
 
