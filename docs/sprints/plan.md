@@ -142,4 +142,4 @@ At this point, the app already provides a useful manual planning workflow.
 
 ## Status
 
-Sprint 1 is in progress: PWA shell, Dexie persistence, and navigation shell exist; backup export/restore and real settings are still open (see `SPEC.md` for the full product rules this plan implements).
+Sprint 1 is done: PWA shell, Dexie persistence, navigation shell, editable household-size setting, and JSON backup export/validated restore all exist (see `SPEC.md` for the full product rules this plan implements). Not verified in this session: installing on an actual Android device, and interactive browser testing (no browser automation tool available) — see the task notes for the manual checks still needed.

@@ -1,12 +1,136 @@
-import { Title, Text } from '@mantine/core'
+import {
+  Title,
+  Text,
+  Stack,
+  NumberInput,
+  Button,
+  Group,
+  Divider,
+  FileButton,
+  Modal,
+} from '@mantine/core'
+import { useForm } from '@mantine/form'
+import { useDisclosure } from '@mantine/hooks'
+import { notifications } from '@mantine/notifications'
+import dayjs from 'dayjs'
+import { useEffect, useState } from 'react'
+import { useServices } from '../../app/servicesContext'
+import { useSettings } from '../hooks/useSettings'
+
+interface SettingsForm {
+  householdSize: number
+}
 
 export function SettingsScreen() {
+  const { settingsRepository, backupService } = useServices()
+  const settings = useSettings()
+
+  const form = useForm<SettingsForm>({
+    initialValues: { householdSize: 2 },
+  })
+
+  useEffect(() => {
+    if (settings) form.setValues({ householdSize: settings.householdSize })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings])
+
+  const handleSubmit = form.onSubmit(async (values) => {
+    await settingsRepository.update({ householdSize: values.householdSize })
+    notifications.show({ message: 'Settings saved', color: 'green' })
+  })
+
+  const handleExport = async () => {
+    const backup = await backupService.createBackup()
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `planeat-backup-${dayjs().format('YYYY-MM-DD')}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+    notifications.show({ message: 'Backup exported', color: 'green' })
+  }
+
+  const [pendingRestore, setPendingRestore] = useState<unknown>(null)
+  const [confirmOpened, { open: openConfirm, close: closeConfirm }] = useDisclosure(false)
+
+  const handleFilePicked = async (file: File | null) => {
+    if (!file) return
+    try {
+      const parsed = JSON.parse(await file.text())
+      setPendingRestore(parsed)
+      openConfirm()
+    } catch {
+      notifications.show({ message: 'That file is not valid JSON', color: 'red' })
+    }
+  }
+
+  const handleConfirmRestore = async () => {
+    try {
+      await backupService.restoreBackup(pendingRestore)
+      notifications.show({ message: 'Backup restored', color: 'green' })
+    } catch (error) {
+      notifications.show({
+        message: error instanceof Error ? error.message : 'Could not restore backup',
+        color: 'red',
+      })
+    } finally {
+      setPendingRestore(null)
+      closeConfirm()
+    }
+  }
+
   return (
-    <>
-      <Title order={2} mb="xs">
-        Settings
-      </Title>
-      <Text c="dimmed">Nothing to configure yet.</Text>
-    </>
+    <Stack gap="md">
+      <Title order={2}>Settings</Title>
+
+      <form onSubmit={handleSubmit}>
+        <Group align="flex-end">
+          <NumberInput
+            flex={1}
+            label="Household size"
+            min={1}
+            disabled={!settings}
+            {...form.getInputProps('householdSize')}
+          />
+          <Button type="submit" disabled={!settings}>
+            Save
+          </Button>
+        </Group>
+      </form>
+
+      <Divider label="Backup" labelPosition="left" />
+
+      <Text c="dimmed" size="sm">
+        Export a backup file, or restore one — restoring replaces all local data.
+      </Text>
+
+      <Group>
+        <Button variant="default" onClick={handleExport}>
+          Export backup
+        </Button>
+        <FileButton onChange={handleFilePicked} accept="application/json">
+          {(props) => (
+            <Button variant="default" {...props}>
+              Restore from backup
+            </Button>
+          )}
+        </FileButton>
+      </Group>
+
+      <Modal opened={confirmOpened} onClose={closeConfirm} title="Restore backup">
+        <Stack gap="md">
+          <Text>This replaces all local recipes and settings with the contents of this file. Continue?</Text>
+          <Group justify="flex-end">
+            <Button variant="default" onClick={closeConfirm}>
+              Cancel
+            </Button>
+            <Button color="red" onClick={handleConfirmRestore}>
+              Replace local data
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+    </Stack>
   )
 }
