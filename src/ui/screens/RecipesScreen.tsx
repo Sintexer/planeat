@@ -1,53 +1,54 @@
-import { Title, Text, Stack, Card, Group, TextInput, Button } from '@mantine/core'
-import { useForm } from '@mantine/form'
-import { notifications } from '@mantine/notifications'
-import { useServices } from '../../app/servicesContext'
+import { Badge, Button, Card, Group, Stack, Text, Title } from '@mantine/core'
+import { Link } from 'react-router'
 import { useRecipes } from '../hooks/useRecipes'
-
-interface NewRecipeForm {
-  name: string
-}
+import { formatQuantity } from '../../domain/shared/formatQuantity'
+import { EFFORT_LABELS, RECIPE_ROLE_LABELS } from '../../domain/shared/MealEnums'
 
 export function RecipesScreen() {
-  const { recipeService } = useServices()
   const recipes = useRecipes()
-
-  const form = useForm<NewRecipeForm>({
-    initialValues: { name: '' },
-    validate: {
-      name: (value) => (value.trim().length === 0 ? 'Name is required' : null),
-    },
-  })
-
-  const handleSubmit = form.onSubmit(async (values) => {
-    await recipeService.createRecipe({ name: values.name.trim(), servings: 2 })
-    form.reset()
-    notifications.show({ message: 'Recipe added', color: 'green' })
-  })
 
   return (
     <Stack gap="md">
-      <Title order={2}>Recipes</Title>
+      <Group justify="space-between" align="center">
+        <Title order={2}>Recipes</Title>
+        <Button component={Link} to="/recipes/new">
+          New recipe
+        </Button>
+      </Group>
 
-      <form onSubmit={handleSubmit}>
-        <Group align="flex-end">
-          <TextInput
-            flex={1}
-            label="New recipe"
-            placeholder="e.g. Weeknight pasta"
-            {...form.getInputProps('name')}
-          />
-          <Button type="submit">Add</Button>
-        </Group>
-      </form>
+      <Group gap="xs">
+        <Button component={Link} to="/recipes/simple-foods" variant="light" size="compact-sm">
+          Simple foods
+        </Button>
+        <Button component={Link} to="/recipes/ingredients" variant="light" size="compact-sm">
+          Ingredients
+        </Button>
+      </Group>
 
       {recipes === undefined && <Text c="dimmed">Loading…</Text>}
       {recipes?.length === 0 && <Text c="dimmed">No recipes yet.</Text>}
 
       <Stack gap="xs">
         {recipes?.map((recipe) => (
-          <Card key={recipe.id} withBorder padding="sm">
+          <Card
+            key={recipe.id}
+            withBorder
+            padding="sm"
+            component={Link}
+            to={`/recipes/${recipe.id}`}
+            style={{ textDecoration: 'none', color: 'inherit' }}
+          >
             <Text fw={500}>{recipe.name}</Text>
+            <Text size="sm" c="dimmed">
+              Yield {formatQuantity(recipe.yield)} · {EFFORT_LABELS[recipe.effort]}
+            </Text>
+            <Group gap={4} mt={6}>
+              {recipe.roles.map((role) => (
+                <Badge key={role} size="sm" variant="light">
+                  {RECIPE_ROLE_LABELS[role]}
+                </Badge>
+              ))}
+            </Group>
           </Card>
         ))}
       </Stack>

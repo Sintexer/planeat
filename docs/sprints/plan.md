@@ -179,4 +179,6 @@ At this point, the app already provides a useful manual planning workflow.
 
 Sprint 1 is done: PWA shell, Dexie persistence, navigation shell, editable household-size setting, and JSON backup export/validated restore all exist (see `SPEC.md` for the full product rules this plan implements). Not verified in this session: installing on an actual Android device, and interactive browser testing (no browser automation tool available) — see the task notes for the manual checks still needed.
 
-Sprint 1.5 is done: `@mantine/modals`, `eslint-plugin-boundaries`, Prettier, and `@vite-pwa/assets-generator` are installed and wired in; `fraction.js`, `convert-units`, `fuse.js`, `@mantine/dropzone`, and `schema-dts` are recorded as future-sprint dependencies but intentionally not installed yet.
+Sprint 1.5 is done: `@mantine/modals`, `eslint-plugin-boundaries`, Prettier, and `@vite-pwa/assets-generator` are installed and wired in; `convert-units`, `fuse.js`, `@mantine/dropzone`, and `schema-dts` are recorded as future-sprint dependencies but intentionally not installed yet. `fraction.js` was installed in Sprint 2.
+
+Sprint 2 is done: full recipe create/edit/detail with ingredient catalog (aliases, create-or-link), quantity scaling preview via `QuantityService`/`fraction.js`, simple foods with an enable-in-suggestions checklist, Dexie schema v2, and backup format version 2.

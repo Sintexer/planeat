@@ -1,9 +1,9 @@
-import type { Recipe, RecipeId } from '../../domain/recipes/Recipe'
+import type { Recipe, RecipeId, RecipeWriteInput } from '../../domain/recipes/Recipe'
 
 export interface RecipeRepository {
-  create(input: Pick<Recipe, 'name' | 'servings'>): Promise<Recipe>
+  create(input: RecipeWriteInput): Promise<Recipe>
   getAll(): Promise<Recipe[]>
   getById(id: RecipeId): Promise<Recipe | undefined>
-  update(id: RecipeId, changes: Partial<Pick<Recipe, 'name' | 'servings'>>): Promise<void>
+  update(id: RecipeId, changes: Partial<RecipeWriteInput>): Promise<void>
   remove(id: RecipeId): Promise<void>
 }

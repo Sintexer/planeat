@@ -9,6 +9,14 @@
 - `vite-plugin-pwa` configured with a prompted-update flow; production build precaches the app shell.
 - ESLint + TypeScript strict checks; `docs/`, `AGENTS.md`.
 
-## Next — recipe library sprint
+## Done — recipe library (Sprint 2)
 
-See `docs/sprints/` for sprint-by-sprint breakdowns as they're planned.
+- Full recipe create/edit/detail with yields, roles, meal types, effort, reuse, freezer metadata, instructions.
+- Ingredient catalog with aliases and create-or-link from the recipe editor.
+- Simple foods + enable-in-suggestions checklist.
+- Quantity scaling preview (`fraction.js` behind `QuantityService`).
+- Dexie schema v2 and backup format version 2.
+
+## Next — weekly planning (Sprint 3)
+
+See `docs/sprints/plan.md`.

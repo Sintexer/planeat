@@ -63,7 +63,8 @@ export function SettingsScreen() {
         title: 'Restore backup',
         children: (
           <Text>
-            This replaces all local recipes and settings with the contents of this file. Continue?
+            This replaces all local recipes, ingredients, simple foods, and settings with the
+            contents of this file. Continue?
           </Text>
         ),
         labels: { confirm: 'Replace local data', cancel: 'Cancel' },

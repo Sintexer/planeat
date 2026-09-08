@@ -11,19 +11,34 @@ export class DexieBackupRepository implements BackupRepository {
   }
 
   async exportAll(): Promise<BackupFile['data']> {
-    const [recipes, settings] = await Promise.all([
+    const [recipes, settings, ingredients, simpleFoods] = await Promise.all([
       this.db.recipes.toArray(),
       this.db.settings.toArray(),
+      this.db.ingredients.toArray(),
+      this.db.simpleFoods.toArray(),
     ])
-    return { recipes, settings }
+    return { recipes, settings, ingredients, simpleFoods }
   }
 
   async replaceAll(data: BackupFile['data']): Promise<void> {
-    await this.db.transaction('rw', this.db.recipes, this.db.settings, async () => {
-      await this.db.recipes.clear()
-      await this.db.settings.clear()
-      await this.db.recipes.bulkAdd(data.recipes)
-      await this.db.settings.bulkAdd(data.settings.length > 0 ? data.settings : [DEFAULT_SETTINGS])
-    })
+    await this.db.transaction(
+      'rw',
+      this.db.recipes,
+      this.db.settings,
+      this.db.ingredients,
+      this.db.simpleFoods,
+      async () => {
+        await this.db.recipes.clear()
+        await this.db.settings.clear()
+        await this.db.ingredients.clear()
+        await this.db.simpleFoods.clear()
+        await this.db.recipes.bulkAdd(data.recipes)
+        await this.db.settings.bulkAdd(
+          data.settings.length > 0 ? data.settings : [DEFAULT_SETTINGS],
+        )
+        await this.db.ingredients.bulkAdd(data.ingredients)
+        await this.db.simpleFoods.bulkAdd(data.simpleFoods)
+      },
+    )
   }
 }

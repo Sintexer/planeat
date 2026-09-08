@@ -1,5 +1,5 @@
 import type { RecipeRepository } from '../../../application/ports/RecipeRepository'
-import type { Recipe, RecipeId } from '../../../domain/recipes/Recipe'
+import type { Recipe, RecipeId, RecipeWriteInput } from '../../../domain/recipes/Recipe'
 import type { AppDatabase } from '../database'
 
 export class DexieRecipeRepository implements RecipeRepository {
@@ -9,12 +9,11 @@ export class DexieRecipeRepository implements RecipeRepository {
     this.db = db
   }
 
-  async create(input: Pick<Recipe, 'name' | 'servings'>): Promise<Recipe> {
+  async create(input: RecipeWriteInput): Promise<Recipe> {
     const now = Date.now()
     const recipe: Recipe = {
       id: crypto.randomUUID(),
-      name: input.name,
-      servings: input.servings,
+      ...input,
       createdAt: now,
       updatedAt: now,
     }
@@ -30,7 +29,7 @@ export class DexieRecipeRepository implements RecipeRepository {
     return this.db.recipes.get(id)
   }
 
-  async update(id: RecipeId, changes: Partial<Pick<Recipe, 'name' | 'servings'>>): Promise<void> {
+  async update(id: RecipeId, changes: Partial<RecipeWriteInput>): Promise<void> {
     await this.db.recipes.update(id, { ...changes, updatedAt: Date.now() })
   }
 

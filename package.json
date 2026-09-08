@@ -27,6 +27,7 @@
     "dayjs": "^1.11.23",
     "dexie": "^4.4.5",
     "dexie-react-hooks": "^4.4.0",
+    "fraction.js": "^5.3.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router": "^8.3.1",
