@@ -1,5 +1,5 @@
-import type { CookingEvent } from '../../domain/plans/CookingEvent'
-import type { MealComponent } from '../../domain/plans/MealComponent'
+import type { CookingEvent, CookingEventId } from '../../domain/plans/CookingEvent'
+import type { MealComponent, MealComponentId } from '../../domain/plans/MealComponent'
 import type { MealSlot, MealSlotId } from '../../domain/plans/MealSlot'
 import type { Plan, PlanId } from '../../domain/plans/Plan'
 import type { PlanGraph } from '../../domain/plans/PlanGraph'
@@ -9,8 +9,9 @@ import type { Quantity } from '../../domain/shared/Quantity'
 import type { RecipeRole } from '../../domain/shared/MealEnums'
 import type { SimpleFoodId } from '../../domain/simpleFoods/SimpleFood'
 import type { RecipeId } from '../../domain/recipes/Recipe'
+import type { MealType } from '../../domain/shared/MealEnums'
 
-export interface PlaceRecipeInput {
+export interface AddCookingEventComponentInput {
   slotId: MealSlotId
   recipeId: RecipeId
   recipeSnapshot: Recipe
@@ -20,11 +21,25 @@ export interface PlaceRecipeInput {
   scheduledDate: LocalDate
 }
 
-export interface PlaceSimpleFoodInput {
+export interface LinkCookingEventComponentInput {
+  slotId: MealSlotId
+  cookingEventId: CookingEventId
+  allocatedQuantity: Quantity
+  role?: RecipeRole
+}
+
+export interface AddSimpleFoodComponentInput {
   slotId: MealSlotId
   simpleFoodId: SimpleFoodId
   allocatedQuantity: Quantity
   role?: RecipeRole
+}
+
+export interface CookingEventDependent {
+  componentId: MealComponentId
+  slotId: MealSlotId
+  date: LocalDate
+  mealType: MealType
 }
 
 export interface PlanRepository {
@@ -34,12 +49,32 @@ export interface PlanRepository {
   createPlanWithSlots(plan: Plan, slots: MealSlot[]): Promise<void>
   getSlot(slotId: MealSlotId): Promise<MealSlot | undefined>
   setSlotExcluded(slotId: MealSlotId, excluded: boolean): Promise<void>
-  /** Clears components (and orphaned cooking events) for the slot, then places a recipe. */
-  placeRecipe(planId: PlanId, input: PlaceRecipeInput): Promise<void>
-  /** Clears components (and orphaned cooking events) for the slot, then places a simple food. */
-  placeSimpleFood(planId: PlanId, input: PlaceSimpleFoodInput): Promise<void>
+
+  addCookingEventComponent(
+    planId: PlanId,
+    input: AddCookingEventComponentInput,
+  ): Promise<MealComponent>
+  linkCookingEventComponent(
+    planId: PlanId,
+    input: LinkCookingEventComponentInput,
+  ): Promise<MealComponent>
+  addSimpleFoodComponent(planId: PlanId, input: AddSimpleFoodComponentInput): Promise<MealComponent>
+  updateComponentAllocation(
+    planId: PlanId,
+    componentId: MealComponentId,
+    allocatedQuantity: Quantity,
+  ): Promise<void>
+  removeComponent(planId: PlanId, componentId: MealComponentId): Promise<void>
+  updateCookingEvent(
+    planId: PlanId,
+    eventId: CookingEventId,
+    patch: { outputQuantity?: Quantity; scheduledDate?: LocalDate },
+  ): Promise<void>
+  listCookingEventDependents(eventId: CookingEventId): Promise<CookingEventDependent[]>
+  getComponent(componentId: MealComponentId): Promise<MealComponent | undefined>
+
   clearSlot(planId: PlanId, slotId: MealSlotId): Promise<void>
   bumpRevision(planId: PlanId): Promise<void>
   listComponentsForSlot(slotId: MealSlotId): Promise<MealComponent[]>
-  getCookingEvent(id: string): Promise<CookingEvent | undefined>
+  getCookingEvent(id: CookingEventId): Promise<CookingEvent | undefined>
 }

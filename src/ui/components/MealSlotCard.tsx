@@ -1,58 +1,50 @@
-import { ActionIcon, Badge, Group, Paper, Stack, Text, Menu } from '@mantine/core'
+import { ActionIcon, Badge, Group, Paper, Stack, Text, Menu, UnstyledButton } from '@mantine/core'
 import { IconDots, IconX } from '@tabler/icons-react'
-import { modals } from '@mantine/modals'
-import type { CookingEvent } from '../../domain/plans/CookingEvent'
-import type { MealComponent } from '../../domain/plans/MealComponent'
-import type { MealSlot } from '../../domain/plans/MealSlot'
 import { formatQuantity } from '../../domain/shared/formatQuantity'
 import { MEAL_TYPE_LABELS } from '../../domain/shared/MealEnums'
-import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
-
-export interface SlotDisplay {
-  slot: MealSlot
-  component: MealComponent | undefined
-  cookingEvent: CookingEvent | undefined
-  simpleFood: SimpleFood | undefined
-}
+import { componentLabel, type SlotComponentDisplay, type SlotDisplay } from '../plans/slotDisplay'
 
 interface MealSlotCardProps {
   display: SlotDisplay
-  onPlace: () => void
+  onOpen: () => void
   onClear: () => void
   onExclude: () => void
   onUnexclude: () => void
 }
 
-function dishLabel(display: SlotDisplay): string | undefined {
-  if (display.cookingEvent) {
-    return display.cookingEvent.recipeSnapshot.name
-  }
-  if (display.simpleFood) {
-    return display.simpleFood.name
-  }
-  return undefined
+function ComponentLine({ item, mealDate }: { item: SlotComponentDisplay; mealDate: string }) {
+  const label = componentLabel(item)
+  const qty = formatQuantity(item.component.allocatedQuantity)
+  const isLeftover = item.cookingEvent !== undefined && item.cookingEvent.scheduledDate !== mealDate
+
+  return (
+    <Group gap={6} wrap="nowrap" align="flex-start">
+      <Stack gap={0} style={{ minWidth: 0, flex: 1 }}>
+        <Text size="sm" lineClamp={2}>
+          {label}
+        </Text>
+        <Text size="xs" c="dimmed">
+          {qty}
+        </Text>
+      </Stack>
+      {isLeftover && (
+        <Badge color="teal" variant="light" size="xs">
+          Leftover
+        </Badge>
+      )}
+    </Group>
+  )
 }
 
 export function MealSlotCard({
   display,
-  onPlace,
+  onOpen,
   onClear,
   onExclude,
   onUnexclude,
 }: MealSlotCardProps) {
-  const { slot, component } = display
-  const label = dishLabel(display)
-  const qty = component ? formatQuantity(component.allocatedQuantity) : undefined
-
-  const confirmClear = () => {
-    modals.openConfirmModal({
-      title: 'Clear meal',
-      children: <Text size="sm">Remove the dish from this slot?</Text>,
-      labels: { confirm: 'Clear', cancel: 'Cancel' },
-      confirmProps: { color: 'red' },
-      onConfirm: onClear,
-    })
-  }
+  const { slot, components } = display
+  const hasComponents = components.length > 0
 
   if (slot.excluded) {
     return (
@@ -74,7 +66,7 @@ export function MealSlotCard({
             </Menu.Target>
             <Menu.Dropdown>
               <Menu.Item onClick={onUnexclude}>Include again</Menu.Item>
-              <Menu.Item onClick={onPlace}>Place a dish</Menu.Item>
+              <Menu.Item onClick={onOpen}>Edit meal</Menu.Item>
             </Menu.Dropdown>
           </Menu>
         </Group>
@@ -85,27 +77,22 @@ export function MealSlotCard({
   return (
     <Paper withBorder p="sm">
       <Group justify="space-between" wrap="nowrap" align="flex-start">
-        <Stack gap={2} style={{ minWidth: 0, flex: 1 }}>
-          <Text size="sm" fw={600}>
-            {MEAL_TYPE_LABELS[slot.mealType]}
-          </Text>
-          {label ? (
-            <>
-              <Text size="sm" lineClamp={2}>
-                {label}
-              </Text>
-              {qty && (
-                <Text size="xs" c="dimmed">
-                  {qty}
-                </Text>
-              )}
-            </>
-          ) : (
-            <Text size="sm" c="dimmed" fs="italic">
-              Unplanned
+        <UnstyledButton onClick={onOpen} style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+          <Stack gap={6}>
+            <Text size="sm" fw={600}>
+              {MEAL_TYPE_LABELS[slot.mealType]}
             </Text>
-          )}
-        </Stack>
+            {hasComponents ? (
+              components.map((item) => (
+                <ComponentLine key={item.component.id} item={item} mealDate={slot.date} />
+              ))
+            ) : (
+              <Text size="sm" c="dimmed" fs="italic">
+                Unplanned
+              </Text>
+            )}
+          </Stack>
+        </UnstyledButton>
         <Menu position="bottom-end" withinPortal>
           <Menu.Target>
             <ActionIcon variant="subtle" aria-label="Slot actions">
@@ -113,9 +100,9 @@ export function MealSlotCard({
             </ActionIcon>
           </Menu.Target>
           <Menu.Dropdown>
-            <Menu.Item onClick={onPlace}>{label ? 'Replace dish' : 'Place a dish'}</Menu.Item>
-            {label && (
-              <Menu.Item color="red" leftSection={<IconX size={14} />} onClick={confirmClear}>
+            <Menu.Item onClick={onOpen}>{hasComponents ? 'Edit meal' : 'Add dish'}</Menu.Item>
+            {hasComponents && (
+              <Menu.Item color="red" leftSection={<IconX size={14} />} onClick={onClear}>
                 Clear
               </Menu.Item>
             )}

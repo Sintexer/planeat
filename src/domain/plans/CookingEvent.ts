@@ -8,7 +8,7 @@ export type CookingEventId = string
 export interface CookingEvent {
   id: CookingEventId
   planId: PlanId
-  /** Prep sessions arrive in Sprint 5; always null for now. */
+  /** Prep sessions remain deferred; always null for now. */
   sessionId: null
   recipeId: RecipeId
   recipeSnapshot: Recipe

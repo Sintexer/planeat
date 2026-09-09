@@ -1,9 +1,21 @@
 import type { PlanGraph } from '../../domain/plans/PlanGraph'
+import type { CookingEvent } from '../../domain/plans/CookingEvent'
+import type { MealComponent } from '../../domain/plans/MealComponent'
+import type { MealSlot } from '../../domain/plans/MealSlot'
 import type { LocalDate } from '../../domain/shared/LocalDate'
-import type { MealType } from '../../domain/shared/MealEnums'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
-import type { SlotDisplay } from '../components/MealSlotCard'
 import { MEAL_TYPES } from '../../domain/shared/MealEnums'
+
+export interface SlotComponentDisplay {
+  component: MealComponent
+  cookingEvent: CookingEvent | undefined
+  simpleFood: SimpleFood | undefined
+}
+
+export interface SlotDisplay {
+  slot: MealSlot
+  components: SlotComponentDisplay[]
+}
 
 export function buildSlotDisplays(
   graph: PlanGraph,
@@ -18,16 +30,20 @@ export function buildSlotDisplays(
   })
 
   return sorted.map((slot) => {
-    const component = graph.components.find((c) => c.slotId === slot.id)
-    let cookingEvent = undefined
-    let simpleFood = undefined
-    if (component?.source.type === 'cooking-event') {
-      const eventId = component.source.cookingEventId
-      cookingEvent = graph.cookingEvents.find((e) => e.id === eventId)
-    } else if (component?.source.type === 'simple-food') {
-      simpleFood = simpleFoodsById.get(component.source.simpleFoodId)
-    }
-    return { slot, component, cookingEvent, simpleFood }
+    const slotComponents = graph.components.filter((c) => c.slotId === slot.id)
+    const components: SlotComponentDisplay[] = slotComponents.map((component) => {
+      let cookingEvent: CookingEvent | undefined
+      let simpleFood: SimpleFood | undefined
+      if (component.source.type === 'cooking-event') {
+        const eventId = component.source.cookingEventId
+        cookingEvent = graph.cookingEvents.find((e) => e.id === eventId)
+      } else if (component.source.type === 'simple-food') {
+        const foodId = component.source.simpleFoodId
+        simpleFood = simpleFoodsById.get(foodId)
+      }
+      return { component, cookingEvent, simpleFood }
+    })
+    return { slot, components }
   })
 }
 
@@ -47,4 +63,10 @@ export function formatPlanDayHeading(date: LocalDate): string {
   return `${weekday} ${date}`
 }
 
-export type { MealType }
+export function componentLabel(item: SlotComponentDisplay): string {
+  if (item.cookingEvent) return item.cookingEvent.recipeSnapshot.name
+  if (item.simpleFood) return item.simpleFood.name
+  return 'Unknown item'
+}
+
+export type { MealType } from '../../domain/shared/MealEnums'

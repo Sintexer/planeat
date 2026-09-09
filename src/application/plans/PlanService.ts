@@ -1,23 +1,61 @@
-import type { PlanRepository } from '../ports/PlanRepository'
+import type { CookingEventDependent, PlanRepository } from '../ports/PlanRepository'
 import type { RecipeRepository } from '../ports/RecipeRepository'
 import type { SettingsRepository } from '../ports/SettingsRepository'
 import type { SimpleFoodRepository } from '../ports/SimpleFoodRepository'
 import type { QuantityService } from '../quantities/QuantityService'
 import type { MealSlot, MealSlotId } from '../../domain/plans/MealSlot'
+import type { MealComponent, MealComponentId } from '../../domain/plans/MealComponent'
+import type { CookingEvent, CookingEventId } from '../../domain/plans/CookingEvent'
 import type { Plan, PlanId } from '../../domain/plans/Plan'
 import type { PlanGraph } from '../../domain/plans/PlanGraph'
-import { MEAL_TYPES } from '../../domain/shared/MealEnums'
+import {
+  checkReusePolicy,
+  componentsForCookingEvent,
+  listEligibleCookingEvents,
+  remainingSameUnit,
+} from '../../domain/plans/CookingEventAllocation'
+import { MEAL_TYPES, type RecipeRole } from '../../domain/shared/MealEnums'
 import {
   addDays,
   enumeratePlanDates,
   startOfWeek,
   type LocalDate,
 } from '../../domain/shared/LocalDate'
+import type { Quantity } from '../../domain/shared/Quantity'
 import type { RecipeId } from '../../domain/recipes/Recipe'
 import type { SimpleFoodId } from '../../domain/simpleFoods/SimpleFood'
 
 export type PlanError =
-  'not-found' | 'slot-not-found' | 'recipe-not-found' | 'simple-food-not-found' | 'invalid-quantity'
+  | 'not-found'
+  | 'slot-not-found'
+  | 'recipe-not-found'
+  | 'simple-food-not-found'
+  | 'cooking-event-not-found'
+  | 'component-not-found'
+  | 'invalid-quantity'
+  | 'over-allocated'
+  | 'reuse-forbidden'
+  | 'before-prep'
+  | 'incompatible-quantity'
+
+export type PlanResult<T = void> = { ok: true; value: T } | { ok: false; error: PlanError }
+
+export interface AddNewCookingEventOptions {
+  outputQuantity?: Quantity
+  allocatedQuantity?: Quantity
+  scheduledDate?: LocalDate
+  role?: RecipeRole
+}
+
+export interface LinkExistingCookingEventOptions {
+  allocatedQuantity: Quantity
+  role?: RecipeRole
+}
+
+export interface AddSimpleFoodOptions {
+  allocatedQuantity?: Quantity
+  role?: RecipeRole
+}
 
 export class PlanService {
   private readonly plans: PlanRepository
@@ -105,8 +143,6 @@ export class PlanService {
     if (excluded) {
       await this.plans.clearSlot(slot.planId, slotId)
       await this.plans.setSlotExcluded(slotId, true)
-      // clearSlot already bumped revision; setExcluded alone doesn't — but clear did.
-      // If slot was already empty, clear still bumps. Good.
     } else {
       await this.plans.setSlotExcluded(slotId, false)
       await this.plans.bumpRevision(slot.planId)
@@ -114,67 +150,287 @@ export class PlanService {
     return { ok: true }
   }
 
-  async placeRecipe(
+  async addNewCookingEventComponent(
     slotId: MealSlotId,
     recipeId: RecipeId,
-  ): Promise<{ ok: true } | { ok: false; error: PlanError }> {
-    const slot = await this.plans.getSlot(slotId)
-    if (!slot) return { ok: false, error: 'slot-not-found' }
-
-    const plan = await this.plans.getById(slot.planId)
-    if (!plan) return { ok: false, error: 'not-found' }
+    options: AddNewCookingEventOptions = {},
+  ): Promise<{ ok: true; component: MealComponent } | { ok: false; error: PlanError }> {
+    const ctx = await this.slotPlanContext(slotId)
+    if (!ctx.ok) return ctx
 
     const recipe = await this.recipes.getById(recipeId)
     if (!recipe) return { ok: false, error: 'recipe-not-found' }
 
-    const outputQuantity = this.quantities.scale(recipe.defaultPortionPerPerson, plan.peopleCount)
-    if (!outputQuantity || !Number.isFinite(outputQuantity.value) || outputQuantity.value <= 0) {
+    const defaultQty = this.quantities.scale(recipe.defaultPortionPerPerson, ctx.plan.peopleCount)
+    if (!defaultQty || !Number.isFinite(defaultQty.value) || defaultQty.value <= 0) {
       return { ok: false, error: 'invalid-quantity' }
     }
 
-    const primaryRole = recipe.roles[0]
+    const outputQuantity = options.outputQuantity ?? defaultQty
+    const allocatedQuantity = options.allocatedQuantity ?? defaultQty
+    const scheduledDate = options.scheduledDate ?? ctx.slot.date
+    const role = options.role ?? recipe.roles[0]
 
-    await this.plans.placeRecipe(plan.id, {
-      slotId,
-      recipeId: recipe.id,
-      recipeSnapshot: recipe,
-      outputQuantity,
-      allocatedQuantity: outputQuantity,
-      role: primaryRole,
-      scheduledDate: slot.date,
-    })
-    return { ok: true }
-  }
-
-  async placeSimpleFood(
-    slotId: MealSlotId,
-    simpleFoodId: SimpleFoodId,
-  ): Promise<{ ok: true } | { ok: false; error: PlanError }> {
-    const slot = await this.plans.getSlot(slotId)
-    if (!slot) return { ok: false, error: 'slot-not-found' }
-
-    const plan = await this.plans.getById(slot.planId)
-    if (!plan) return { ok: false, error: 'not-found' }
-
-    const simpleFood = await this.simpleFoods.getById(simpleFoodId)
-    if (!simpleFood) return { ok: false, error: 'simple-food-not-found' }
-
-    const allocatedQuantity = this.quantities.scale(simpleFood.defaultPortion, plan.peopleCount)
     if (
-      !allocatedQuantity ||
-      !Number.isFinite(allocatedQuantity.value) ||
-      allocatedQuantity.value <= 0
+      !this.isValidPositiveQuantity(outputQuantity) ||
+      !this.isValidPositiveQuantity(allocatedQuantity)
     ) {
       return { ok: false, error: 'invalid-quantity' }
     }
 
-    await this.plans.placeSimpleFood(plan.id, {
+    const reuse = checkReusePolicy(recipe.reusePolicy, scheduledDate, ctx.slot.date)
+    if (reuse !== 'ok') return { ok: false, error: reuse }
+
+    if (outputQuantity.unit !== allocatedQuantity.unit) {
+      if (!this.quantities.canConvert(outputQuantity, allocatedQuantity)) {
+        return { ok: false, error: 'incompatible-quantity' }
+      }
+    }
+
+    const cmp = this.quantities.compare(allocatedQuantity, outputQuantity)
+    if (cmp === null) return { ok: false, error: 'incompatible-quantity' }
+    if (cmp > 0) return { ok: false, error: 'over-allocated' }
+
+    const component = await this.plans.addCookingEventComponent(ctx.plan.id, {
+      slotId,
+      recipeId: recipe.id,
+      recipeSnapshot: recipe,
+      outputQuantity,
+      allocatedQuantity,
+      role,
+      scheduledDate,
+    })
+    return { ok: true, component }
+  }
+
+  async linkExistingCookingEvent(
+    slotId: MealSlotId,
+    cookingEventId: CookingEventId,
+    options: LinkExistingCookingEventOptions,
+  ): Promise<{ ok: true; component: MealComponent } | { ok: false; error: PlanError }> {
+    const ctx = await this.slotPlanContext(slotId)
+    if (!ctx.ok) return ctx
+
+    const graph = await this.plans.getGraph(ctx.plan.id)
+    if (!graph) return { ok: false, error: 'not-found' }
+
+    const event = graph.cookingEvents.find((e) => e.id === cookingEventId)
+    if (!event) return { ok: false, error: 'cooking-event-not-found' }
+
+    if (!this.isValidPositiveQuantity(options.allocatedQuantity)) {
+      return { ok: false, error: 'invalid-quantity' }
+    }
+
+    const reuse = checkReusePolicy(
+      event.recipeSnapshot.reusePolicy,
+      event.scheduledDate,
+      ctx.slot.date,
+    )
+    if (reuse !== 'ok') return { ok: false, error: reuse }
+
+    const allocCheck = this.checkAllocation(event, graph.components, options.allocatedQuantity)
+    if (allocCheck !== 'ok') return { ok: false, error: allocCheck }
+
+    const role = options.role ?? event.recipeSnapshot.roles[0]
+    const component = await this.plans.linkCookingEventComponent(ctx.plan.id, {
+      slotId,
+      cookingEventId,
+      allocatedQuantity: options.allocatedQuantity,
+      role,
+    })
+    return { ok: true, component }
+  }
+
+  async addSimpleFoodComponent(
+    slotId: MealSlotId,
+    simpleFoodId: SimpleFoodId,
+    options: AddSimpleFoodOptions = {},
+  ): Promise<{ ok: true; component: MealComponent } | { ok: false; error: PlanError }> {
+    const ctx = await this.slotPlanContext(slotId)
+    if (!ctx.ok) return ctx
+
+    const simpleFood = await this.simpleFoods.getById(simpleFoodId)
+    if (!simpleFood) return { ok: false, error: 'simple-food-not-found' }
+
+    const defaultQty = this.quantities.scale(simpleFood.defaultPortion, ctx.plan.peopleCount)
+    const allocatedQuantity = options.allocatedQuantity ?? defaultQty
+    if (!allocatedQuantity || !this.isValidPositiveQuantity(allocatedQuantity)) {
+      return { ok: false, error: 'invalid-quantity' }
+    }
+
+    const role = options.role ?? simpleFood.roles[0]
+    const component = await this.plans.addSimpleFoodComponent(ctx.plan.id, {
       slotId,
       simpleFoodId: simpleFood.id,
       allocatedQuantity,
-      role: simpleFood.roles[0],
+      role,
+    })
+    return { ok: true, component }
+  }
+
+  async updateComponentAllocation(
+    componentId: MealComponentId,
+    allocatedQuantity: Quantity,
+  ): Promise<{ ok: true } | { ok: false; error: PlanError }> {
+    if (!this.isValidPositiveQuantity(allocatedQuantity)) {
+      return { ok: false, error: 'invalid-quantity' }
+    }
+
+    const component = await this.plans.getComponent(componentId)
+    if (!component) return { ok: false, error: 'component-not-found' }
+
+    const slot = await this.plans.getSlot(component.slotId)
+    if (!slot) return { ok: false, error: 'slot-not-found' }
+
+    const graph = await this.plans.getGraph(slot.planId)
+    if (!graph) return { ok: false, error: 'not-found' }
+
+    if (component.source.type === 'cooking-event') {
+      const cookingEventId = component.source.cookingEventId
+      const event = graph.cookingEvents.find((e) => e.id === cookingEventId)
+      if (!event) return { ok: false, error: 'cooking-event-not-found' }
+
+      const reuse = checkReusePolicy(
+        event.recipeSnapshot.reusePolicy,
+        event.scheduledDate,
+        slot.date,
+      )
+      if (reuse !== 'ok') return { ok: false, error: reuse }
+
+      const allocCheck = this.checkAllocation(
+        event,
+        graph.components,
+        allocatedQuantity,
+        componentId,
+      )
+      if (allocCheck !== 'ok') return { ok: false, error: allocCheck }
+    }
+
+    await this.plans.updateComponentAllocation(slot.planId, componentId, allocatedQuantity)
+    return { ok: true }
+  }
+
+  async removeComponent(
+    componentId: MealComponentId,
+  ): Promise<
+    | { ok: true; removedSharedEvent: boolean; dependentsLeft: CookingEventDependent[] }
+    | { ok: false; error: PlanError }
+  > {
+    const component = await this.plans.getComponent(componentId)
+    if (!component) return { ok: false, error: 'component-not-found' }
+
+    const slot = await this.plans.getSlot(component.slotId)
+    if (!slot) return { ok: false, error: 'slot-not-found' }
+
+    let dependentsLeft: CookingEventDependent[] = []
+    let removedSharedEvent = false
+    if (component.source.type === 'cooking-event') {
+      const dependents = await this.plans.listCookingEventDependents(
+        component.source.cookingEventId,
+      )
+      dependentsLeft = dependents.filter((d) => d.componentId !== componentId)
+      removedSharedEvent = dependentsLeft.length > 0
+    }
+
+    await this.plans.removeComponent(slot.planId, componentId)
+    return { ok: true, removedSharedEvent, dependentsLeft }
+  }
+
+  async removeCookingEventEverywhere(
+    cookingEventId: CookingEventId,
+  ): Promise<{ ok: true } | { ok: false; error: PlanError }> {
+    const event = await this.plans.getCookingEvent(cookingEventId)
+    if (!event) return { ok: false, error: 'cooking-event-not-found' }
+
+    const dependents = await this.plans.listCookingEventDependents(cookingEventId)
+    for (const dep of dependents) {
+      await this.plans.removeComponent(event.planId, dep.componentId)
+    }
+    return { ok: true }
+  }
+
+  async updateCookingEvent(
+    eventId: CookingEventId,
+    patch: { outputQuantity?: Quantity; scheduledDate?: LocalDate },
+  ): Promise<{ ok: true } | { ok: false; error: PlanError }> {
+    const event = await this.plans.getCookingEvent(eventId)
+    if (!event) return { ok: false, error: 'cooking-event-not-found' }
+
+    const graph = await this.plans.getGraph(event.planId)
+    if (!graph) return { ok: false, error: 'not-found' }
+
+    const nextOutput = patch.outputQuantity ?? event.outputQuantity
+    const nextDate = patch.scheduledDate ?? event.scheduledDate
+
+    if (patch.outputQuantity !== undefined && !this.isValidPositiveQuantity(patch.outputQuantity)) {
+      return { ok: false, error: 'invalid-quantity' }
+    }
+
+    const linked = componentsForCookingEvent(graph.components, eventId)
+    for (const component of linked) {
+      const slot = graph.slots.find((s) => s.id === component.slotId)
+      if (!slot) continue
+      const reuse = checkReusePolicy(event.recipeSnapshot.reusePolicy, nextDate, slot.date)
+      if (reuse !== 'ok') return { ok: false, error: reuse }
+    }
+
+    if (patch.outputQuantity !== undefined) {
+      const allocs = linked.map((c) => c.allocatedQuantity)
+      const remaining = this.remainingForEvent({ ...event, outputQuantity: nextOutput }, allocs)
+      if (remaining === null) return { ok: false, error: 'incompatible-quantity' }
+      if (remaining.value < -1e-9) return { ok: false, error: 'over-allocated' }
+    }
+
+    await this.plans.updateCookingEvent(event.planId, eventId, {
+      outputQuantity: patch.outputQuantity,
+      scheduledDate: patch.scheduledDate,
     })
     return { ok: true }
+  }
+
+  async listCookingEventDependents(
+    eventId: CookingEventId,
+  ): Promise<{ ok: true; dependents: CookingEventDependent[] } | { ok: false; error: PlanError }> {
+    const event = await this.plans.getCookingEvent(eventId)
+    if (!event) return { ok: false, error: 'cooking-event-not-found' }
+    const dependents = await this.plans.listCookingEventDependents(eventId)
+    return { ok: true, dependents }
+  }
+
+  async listEligibleCookingEventsForSlot(
+    slotId: MealSlotId,
+    recipeId: RecipeId,
+  ): Promise<{ ok: true; events: CookingEvent[] } | { ok: false; error: PlanError }> {
+    const ctx = await this.slotPlanContext(slotId)
+    if (!ctx.ok) return ctx
+
+    const graph = await this.plans.getGraph(ctx.plan.id)
+    if (!graph) return { ok: false, error: 'not-found' }
+
+    const remainingByEventId = new Map<CookingEventId, Quantity | null>()
+    for (const event of graph.cookingEvents) {
+      const allocs = componentsForCookingEvent(graph.components, event.id).map(
+        (c) => c.allocatedQuantity,
+      )
+      remainingByEventId.set(event.id, this.remainingForEvent(event, allocs))
+    }
+
+    const events = listEligibleCookingEvents(
+      graph.cookingEvents,
+      recipeId,
+      ctx.slot.date,
+      remainingByEventId,
+    )
+    return { ok: true, events }
+  }
+
+  remainingForCookingEvent(graph: PlanGraph, eventId: CookingEventId): Quantity | null {
+    const event = graph.cookingEvents.find((e) => e.id === eventId)
+    if (!event) return null
+    const allocs = componentsForCookingEvent(graph.components, eventId).map(
+      (c) => c.allocatedQuantity,
+    )
+    return this.remainingForEvent(event, allocs)
   }
 
   async clearSlot(slotId: MealSlotId): Promise<{ ok: true } | { ok: false; error: PlanError }> {
@@ -184,8 +440,106 @@ export class PlanService {
     return { ok: true }
   }
 
+  /** Shared cooking events referenced by this slot that also feed other slots. */
+  async listSharedDependentsForSlot(slotId: MealSlotId): Promise<
+    | {
+        ok: true
+        shared: Array<{
+          eventId: CookingEventId
+          name: string
+          dependents: CookingEventDependent[]
+        }>
+      }
+    | { ok: false; error: PlanError }
+  > {
+    const slot = await this.plans.getSlot(slotId)
+    if (!slot) return { ok: false, error: 'slot-not-found' }
+
+    const components = await this.plans.listComponentsForSlot(slotId)
+    const shared: Array<{
+      eventId: CookingEventId
+      name: string
+      dependents: CookingEventDependent[]
+    }> = []
+
+    const seen = new Set<string>()
+    for (const component of components) {
+      if (component.source.type !== 'cooking-event') continue
+      const eventId = component.source.cookingEventId
+      if (seen.has(eventId)) continue
+      seen.add(eventId)
+
+      const dependents = await this.plans.listCookingEventDependents(eventId)
+      const others = dependents.filter((d) => d.slotId !== slotId)
+      if (others.length === 0) continue
+
+      const event = await this.plans.getCookingEvent(eventId)
+      shared.push({
+        eventId,
+        name: event?.recipeSnapshot.name ?? 'Preparation',
+        dependents,
+      })
+    }
+
+    return { ok: true, shared }
+  }
+
   /** Neighbor week start date for prev/next navigation. */
   adjacentWeekStart(startDate: LocalDate, direction: -1 | 1): LocalDate {
     return addDays(startDate, direction * 7)
+  }
+
+  private async slotPlanContext(
+    slotId: MealSlotId,
+  ): Promise<{ ok: true; slot: MealSlot; plan: Plan } | { ok: false; error: PlanError }> {
+    const slot = await this.plans.getSlot(slotId)
+    if (!slot) return { ok: false, error: 'slot-not-found' }
+    const plan = await this.plans.getById(slot.planId)
+    if (!plan) return { ok: false, error: 'not-found' }
+    return { ok: true, slot, plan }
+  }
+
+  private isValidPositiveQuantity(q: Quantity): boolean {
+    return Number.isFinite(q.value) && q.value > 0 && q.unit.length > 0
+  }
+
+  private checkAllocation(
+    event: CookingEvent,
+    components: readonly MealComponent[],
+    additional: Quantity,
+    excludeComponentId?: string,
+  ): 'ok' | 'over-allocated' | 'incompatible-quantity' {
+    // Prefer convert-aware path when units differ.
+    if (additional.unit !== event.outputQuantity.unit) {
+      if (!this.quantities.canConvert(event.outputQuantity, additional)) {
+        return 'incompatible-quantity'
+      }
+    }
+
+    const linked = componentsForCookingEvent(components, event.id, excludeComponentId)
+    let used: Quantity | null = { value: 0, unit: event.outputQuantity.unit }
+    for (const c of linked) {
+      used = this.quantities.add(used, c.allocatedQuantity)
+      if (!used) return 'incompatible-quantity'
+    }
+    const remaining = this.quantities.subtract(event.outputQuantity, used)
+    if (!remaining) return 'incompatible-quantity'
+    const cmp = this.quantities.compare(additional, remaining)
+    if (cmp === null) return 'incompatible-quantity'
+    if (cmp > 0) return 'over-allocated'
+    return 'ok'
+  }
+
+  private remainingForEvent(event: CookingEvent, allocations: Quantity[]): Quantity | null {
+    if (allocations.length === 0) return { ...event.outputQuantity }
+    const sameUnit = remainingSameUnit(event.outputQuantity, allocations)
+    if (sameUnit) return sameUnit
+
+    let used: Quantity | null = { value: 0, unit: event.outputQuantity.unit }
+    for (const q of allocations) {
+      used = this.quantities.add(used, q)
+      if (!used) return null
+    }
+    return this.quantities.subtract(event.outputQuantity, used)
   }
 }

@@ -87,6 +87,62 @@ export class QuantityService {
     }
   }
 
+  /**
+   * Subtract `b` from `a` when units are compatible.
+   * Result uses `a.unit`. Returns null when either side is null or units cannot convert.
+   */
+  subtract(a: Quantity | null, b: Quantity | null): Quantity | null {
+    if (a === null || b === null) return null
+    if (a.unit === b.unit) {
+      return {
+        value: new Fraction(a.value).sub(b.value).valueOf(),
+        unit: a.unit,
+      }
+    }
+    const fromA = toConvertUnit(a.unit)
+    const fromB = toConvertUnit(b.unit)
+    if (!fromA || !fromB) return null
+    try {
+      const bInA = convert(b.value)
+        .from(fromB as convert.Unit)
+        .to(fromA as convert.Unit)
+      return {
+        value: new Fraction(a.value).sub(bInA).valueOf(),
+        unit: a.unit,
+      }
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Compare two quantities when units are compatible.
+   * Returns -1 / 0 / 1, or null when either side is null or units cannot convert.
+   */
+  compare(a: Quantity | null, b: Quantity | null): -1 | 0 | 1 | null {
+    if (a === null || b === null) return null
+    if (a.unit === b.unit) {
+      const diff = new Fraction(a.value).sub(b.value).valueOf()
+      if (diff < 0) return -1
+      if (diff > 0) return 1
+      return 0
+    }
+    const fromA = toConvertUnit(a.unit)
+    const fromB = toConvertUnit(b.unit)
+    if (!fromA || !fromB) return null
+    try {
+      const bInA = convert(b.value)
+        .from(fromB as convert.Unit)
+        .to(fromA as convert.Unit)
+      const diff = new Fraction(a.value).sub(bInA).valueOf()
+      if (diff < 0) return -1
+      if (diff > 0) return 1
+      return 0
+    } catch {
+      return null
+    }
+  }
+
   format(quantity: Quantity | null): string {
     if (quantity === null) return 'quantity unspecified'
     const fraction = new Fraction(quantity.value)

@@ -186,3 +186,5 @@ Sprint 2 is done: full recipe create/edit/detail with ingredient catalog (aliase
 Sprint 3 is done: navigable seven-day plans with materialized breakfast/lunch/dinner slots, exclusions, single-item placement (recipe snapshot via cooking event, or simple food), Today/Week screens, week-start setting, Dexie schema v3, and backup format version 3.
 
 Sprint 4 is done: standalone grocery lists generated from plans (cooking events + simple foods), `convert-units` aggregation via `QuantityService.add`/`canConvert`, common ingredients prechecked, pragmatic update-existing merge, Lists UI, Week “Generate groceries” with update/create modal, Dexie schema v4, and backup format version 4.
+
+Sprint 5 core (batch reuse) is done: multi-component meal editor, explicit cook-new vs use-existing prep, allocation/reuse checks, unused-output warnings, dependency-aware remove/clear/exclude. Schema remains v4. Still deferred: prep sessions / effort units, favorites, pairings, fuse.js, soft prompts.
