@@ -69,6 +69,64 @@ const simpleFoodSchema = z.object({
 const settingsSchema = z.object({
   id: z.literal('app-settings'),
   householdSize: z.number(),
+  weekStartDay: z.union([
+    z.literal(0),
+    z.literal(1),
+    z.literal(2),
+    z.literal(3),
+    z.literal(4),
+    z.literal(5),
+    z.literal(6),
+  ]),
+})
+
+const planSchema = z.object({
+  id: z.string(),
+  startDate: z.string(),
+  dayCount: z.literal(7),
+  peopleCount: z.number(),
+  revision: z.number(),
+  preferences: z.object({}),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+})
+
+const mealSlotSchema = z.object({
+  id: z.string(),
+  planId: z.string(),
+  date: z.string(),
+  mealType: z.enum(MEAL_TYPES),
+  excluded: z.boolean(),
+  note: z.string().optional(),
+})
+
+const componentSourceSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('cooking-event'),
+    cookingEventId: z.string(),
+  }),
+  z.object({
+    type: z.literal('simple-food'),
+    simpleFoodId: z.string(),
+  }),
+])
+
+const mealComponentSchema = z.object({
+  id: z.string(),
+  slotId: z.string(),
+  source: componentSourceSchema,
+  allocatedQuantity: quantitySchema,
+  role: z.enum(RECIPE_ROLES).optional(),
+})
+
+const cookingEventSchema = z.object({
+  id: z.string(),
+  planId: z.string(),
+  sessionId: z.null(),
+  recipeId: z.string(),
+  recipeSnapshot: recipeSchema,
+  outputQuantity: quantitySchema,
+  scheduledDate: z.string(),
 })
 
 export const backupFileSchema = z
@@ -81,6 +139,10 @@ export const backupFileSchema = z
       settings: z.array(settingsSchema),
       ingredients: z.array(ingredientSchema),
       simpleFoods: z.array(simpleFoodSchema),
+      plans: z.array(planSchema),
+      mealSlots: z.array(mealSlotSchema),
+      mealComponents: z.array(mealComponentSchema),
+      cookingEvents: z.array(cookingEventSchema),
     }),
   })
   .refine(
@@ -103,6 +165,13 @@ export const backupFileSchema = z
       return new Set(ids).size === ids.length
     },
     { message: 'Backup contains duplicate simple-food ids', path: ['data', 'simpleFoods'] },
+  )
+  .refine(
+    (backup) => {
+      const ids = backup.data.plans.map((plan) => plan.id)
+      return new Set(ids).size === ids.length
+    },
+    { message: 'Backup contains duplicate plan ids', path: ['data', 'plans'] },
   )
 
 /** Re-export for UI selects that want the same unit list as validation awareness. */

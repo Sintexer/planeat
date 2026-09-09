@@ -11,7 +11,18 @@ export class DexieSettingsRepository implements SettingsRepository {
 
   async get(): Promise<Settings> {
     const existing = await this.db.settings.get(DEFAULT_SETTINGS.id)
-    if (existing) return existing
+    if (existing) {
+      if (typeof (existing as Settings).weekStartDay !== 'number') {
+        const merged: Settings = {
+          ...DEFAULT_SETTINGS,
+          ...existing,
+          weekStartDay: DEFAULT_SETTINGS.weekStartDay,
+        }
+        await this.db.settings.put(merged)
+        return merged
+      }
+      return existing
+    }
     await this.db.settings.put(DEFAULT_SETTINGS)
     return DEFAULT_SETTINGS
   }

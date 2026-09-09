@@ -1,31 +1,57 @@
-import { Title, Text, Stack, NumberInput, Button, Group, Divider, FileButton } from '@mantine/core'
+import {
+  Title,
+  Text,
+  Stack,
+  NumberInput,
+  Button,
+  Group,
+  Divider,
+  FileButton,
+  Select,
+} from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import dayjs from 'dayjs'
 import { useEffect } from 'react'
 import { useServices } from '../../app/servicesContext'
+import { WEEKDAY_LABELS, type WeekStartDay } from '../../domain/shared/LocalDate'
 import { useSettings } from '../hooks/useSettings'
 
 interface SettingsForm {
   householdSize: number
+  weekStartDay: string
 }
+
+const weekStartOptions = ([0, 1, 2, 3, 4, 5, 6] as const).map((day) => ({
+  value: String(day),
+  label: WEEKDAY_LABELS[day],
+}))
 
 export function SettingsScreen() {
   const { settingsRepository, backupService } = useServices()
   const settings = useSettings()
 
   const form = useForm<SettingsForm>({
-    initialValues: { householdSize: 2 },
+    initialValues: { householdSize: 2, weekStartDay: '1' },
   })
 
   useEffect(() => {
-    if (settings) form.setValues({ householdSize: settings.householdSize })
+    if (settings) {
+      form.setValues({
+        householdSize: settings.householdSize,
+        weekStartDay: String(settings.weekStartDay),
+      })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings])
 
   const handleSubmit = form.onSubmit(async (values) => {
-    await settingsRepository.update({ householdSize: values.householdSize })
+    const weekStartDay = Number(values.weekStartDay) as WeekStartDay
+    await settingsRepository.update({
+      householdSize: values.householdSize,
+      weekStartDay,
+    })
     notifications.show({ message: 'Settings saved', color: 'green' })
   })
 
@@ -63,8 +89,8 @@ export function SettingsScreen() {
         title: 'Restore backup',
         children: (
           <Text>
-            This replaces all local recipes, ingredients, simple foods, and settings with the
-            contents of this file. Continue?
+            This replaces all local recipes, ingredients, simple foods, meal plans, and settings
+            with the contents of this file. Continue?
           </Text>
         ),
         labels: { confirm: 'Replace local data', cancel: 'Cancel' },
@@ -81,18 +107,23 @@ export function SettingsScreen() {
       <Title order={2}>Settings</Title>
 
       <form onSubmit={handleSubmit}>
-        <Group align="flex-end">
+        <Stack gap="sm">
           <NumberInput
-            flex={1}
             label="Household size"
             min={1}
             disabled={!settings}
             {...form.getInputProps('householdSize')}
           />
-          <Button type="submit" disabled={!settings}>
+          <Select
+            label="Week starts on"
+            data={weekStartOptions}
+            disabled={!settings}
+            {...form.getInputProps('weekStartDay')}
+          />
+          <Button type="submit" disabled={!settings} w="fit-content">
             Save
           </Button>
-        </Group>
+        </Stack>
       </form>
 
       <Divider label="Backup" labelPosition="left" />

@@ -20,8 +20,23 @@ Additive stores; existing recipe rows are upgraded in place (`servings` → `yie
 | `ingredients` | `id`        | `name`                 | Canonical name, aliases, category, `isCommon`                          |
 | `simpleFoods` | `id`        | `name`, `ingredientId` | Links an ingredient; default portion; `enabledInSuggestions` checklist |
 
+## Version 3
+
+Adds weekly planning tables; settings rows gain `weekStartDay` (default Monday = `1`).
+
+| Table            | Primary key | Indexes                            | Notes                                                                |
+| ---------------- | ----------- | ---------------------------------- | -------------------------------------------------------------------- |
+| `plans`          | `id`        | `startDate`                        | Seven-day plan; `peopleCount`, `revision`, empty `preferences`       |
+| `mealSlots`      | `id`        | `planId`, `[planId+date+mealType]` | One row per day × breakfast/lunch/dinner; `excluded` flag            |
+| `mealComponents` | `id`        | `slotId`                           | Source is cooking-event or simple-food; allocated quantity           |
+| `cookingEvents`  | `id`        | `planId`                           | Recipe snapshot + output quantity; `sessionId` always `null` for now |
+
 Schema changes must be added as new `.version(n)` blocks in `src/infrastructure/db/migrations/index.ts` — never edit a shipped version, so existing local data survives upgrades.
 
-Backup file format is independent: `CURRENT_BACKUP_FORMAT_VERSION` is **2** and includes `recipes`, `settings`, `ingredients`, and `simpleFoods`.
+Backup file format is independent: `CURRENT_BACKUP_FORMAT_VERSION` is **3** and includes `recipes`, `settings`, `ingredients`, `simpleFoods`, `plans`, `mealSlots`, `mealComponents`, and `cookingEvents`.
 
-Planning, groceries, and other domain tables are not yet modeled — add them here as they're implemented.
+Grocery lists and prep sessions are not yet modeled — add them here as they're implemented.
+
+## Starter library
+
+When `recipes` is empty at app bootstrap, `seedStarterLibraryIfEmpty` inserts a fixed catalog of ingredients, recipes, and simple foods (`src/infrastructure/db/seed/`). Rows use stable `seed-*` ids and are ordinary editable library data. If any recipe already exists, seeding is skipped.

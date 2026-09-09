@@ -182,3 +182,5 @@ Sprint 1 is done: PWA shell, Dexie persistence, navigation shell, editable house
 Sprint 1.5 is done: `@mantine/modals`, `eslint-plugin-boundaries`, Prettier, and `@vite-pwa/assets-generator` are installed and wired in; `convert-units`, `fuse.js`, `@mantine/dropzone`, and `schema-dts` are recorded as future-sprint dependencies but intentionally not installed yet. `fraction.js` was installed in Sprint 2.
 
 Sprint 2 is done: full recipe create/edit/detail with ingredient catalog (aliases, create-or-link), quantity scaling preview via `QuantityService`/`fraction.js`, simple foods with an enable-in-suggestions checklist, Dexie schema v2, and backup format version 2.
+
+Sprint 3 is done: navigable seven-day plans with materialized breakfast/lunch/dinner slots, exclusions, single-item placement (recipe snapshot via cooking event, or simple food), Today/Week screens, week-start setting, Dexie schema v3, and backup format version 3.

@@ -1,5 +1,6 @@
 import type Dexie from 'dexie'
 import type { Recipe } from '../../../domain/recipes/Recipe'
+import { DEFAULT_SETTINGS } from '../../../domain/shared/Settings'
 
 type LegacyRecipeV1 = {
   id: string
@@ -62,6 +63,32 @@ export function applyMigrations(dexie: Dexie): void {
       for (const row of rows) {
         if (isLegacyRecipeV1(row)) {
           await table.put(migrateLegacyRecipeV1(row))
+        }
+      }
+    })
+
+  dexie
+    .version(3)
+    .stores({
+      recipes: 'id, name',
+      settings: 'id',
+      ingredients: 'id, name',
+      simpleFoods: 'id, name, ingredientId',
+      plans: 'id, startDate',
+      mealSlots: 'id, planId, [planId+date+mealType]',
+      mealComponents: 'id, slotId',
+      cookingEvents: 'id, planId',
+    })
+    .upgrade(async (tx) => {
+      const settingsTable = tx.table('settings')
+      const rows = await settingsTable.toArray()
+      for (const row of rows) {
+        const record = row as Record<string, unknown>
+        if (typeof record.weekStartDay !== 'number') {
+          await settingsTable.put({
+            ...row,
+            weekStartDay: DEFAULT_SETTINGS.weekStartDay,
+          })
         }
       }
     })

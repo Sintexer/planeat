@@ -17,6 +17,13 @@
 - Quantity scaling preview (`fraction.js` behind `QuantityService`).
 - Dexie schema v2 and backup format version 2.
 
-## Next — weekly planning (Sprint 3)
+## Done — weekly planning (Sprint 3)
+
+- Navigable seven-day plans (one per week start), configurable week-start day.
+- Breakfast/lunch/dinner slots with empty vs excluded styling.
+- Single-item placement: recipe (cooking event + snapshot) or simple food.
+- Today and Week screens; Dexie schema v3 and backup format version 3.
+
+## Next — grocery-list objects (Sprint 4)
 
 See `docs/sprints/plan.md`.

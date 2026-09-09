@@ -11,33 +11,70 @@ export class DexieBackupRepository implements BackupRepository {
   }
 
   async exportAll(): Promise<BackupFile['data']> {
-    const [recipes, settings, ingredients, simpleFoods] = await Promise.all([
+    const [
+      recipes,
+      settings,
+      ingredients,
+      simpleFoods,
+      plans,
+      mealSlots,
+      mealComponents,
+      cookingEvents,
+    ] = await Promise.all([
       this.db.recipes.toArray(),
       this.db.settings.toArray(),
       this.db.ingredients.toArray(),
       this.db.simpleFoods.toArray(),
+      this.db.plans.toArray(),
+      this.db.mealSlots.toArray(),
+      this.db.mealComponents.toArray(),
+      this.db.cookingEvents.toArray(),
     ])
-    return { recipes, settings, ingredients, simpleFoods }
+    return {
+      recipes,
+      settings,
+      ingredients,
+      simpleFoods,
+      plans,
+      mealSlots,
+      mealComponents,
+      cookingEvents,
+    }
   }
 
   async replaceAll(data: BackupFile['data']): Promise<void> {
     await this.db.transaction(
       'rw',
-      this.db.recipes,
-      this.db.settings,
-      this.db.ingredients,
-      this.db.simpleFoods,
+      [
+        this.db.recipes,
+        this.db.settings,
+        this.db.ingredients,
+        this.db.simpleFoods,
+        this.db.plans,
+        this.db.mealSlots,
+        this.db.mealComponents,
+        this.db.cookingEvents,
+      ],
       async () => {
         await this.db.recipes.clear()
         await this.db.settings.clear()
         await this.db.ingredients.clear()
         await this.db.simpleFoods.clear()
+        await this.db.plans.clear()
+        await this.db.mealSlots.clear()
+        await this.db.mealComponents.clear()
+        await this.db.cookingEvents.clear()
+
         await this.db.recipes.bulkAdd(data.recipes)
         await this.db.settings.bulkAdd(
           data.settings.length > 0 ? data.settings : [DEFAULT_SETTINGS],
         )
         await this.db.ingredients.bulkAdd(data.ingredients)
         await this.db.simpleFoods.bulkAdd(data.simpleFoods)
+        await this.db.plans.bulkAdd(data.plans)
+        await this.db.mealSlots.bulkAdd(data.mealSlots)
+        await this.db.mealComponents.bulkAdd(data.mealComponents)
+        await this.db.cookingEvents.bulkAdd(data.cookingEvents)
       },
     )
   }
