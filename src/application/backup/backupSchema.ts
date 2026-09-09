@@ -66,18 +66,25 @@ const simpleFoodSchema = z.object({
   updatedAt: z.number(),
 })
 
+const weekStartDaySchema = z.union([
+  z.literal(0),
+  z.literal(1),
+  z.literal(2),
+  z.literal(3),
+  z.literal(4),
+  z.literal(5),
+  z.literal(6),
+])
+
 const settingsSchema = z.object({
   id: z.literal('app-settings'),
   householdSize: z.number(),
-  weekStartDay: z.union([
-    z.literal(0),
-    z.literal(1),
-    z.literal(2),
-    z.literal(3),
-    z.literal(4),
-    z.literal(5),
-    z.literal(6),
-  ]),
+  weekStartDay: weekStartDaySchema,
+  maxBatchPrepUnits: z.number(),
+  preferredBatchPrepDays: z.array(weekStartDaySchema),
+  quickMealsOnlyDays: z.array(weekStartDaySchema),
+  avoidMultipleDemandingPreps: z.boolean(),
+  favorVegetablesDaily: z.boolean(),
 })
 
 const planSchema = z.object({
@@ -122,11 +129,52 @@ const mealComponentSchema = z.object({
 const cookingEventSchema = z.object({
   id: z.string(),
   planId: z.string(),
-  sessionId: z.null(),
+  sessionId: z.string(),
   recipeId: z.string(),
   recipeSnapshot: recipeSchema,
   outputQuantity: quantitySchema,
   scheduledDate: z.string(),
+})
+
+const prepSessionSchema = z.object({
+  id: z.string(),
+  planId: z.string(),
+  date: z.string(),
+  time: z.string().nullable().optional(),
+  label: z.string().nullable().optional(),
+})
+
+const favoriteComponentSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('recipe'),
+    recipeId: z.string(),
+    allocatedQuantity: quantitySchema,
+    role: z.enum(RECIPE_ROLES).optional(),
+  }),
+  z.object({
+    type: z.literal('simple-food'),
+    simpleFoodId: z.string(),
+    allocatedQuantity: quantitySchema,
+    role: z.enum(RECIPE_ROLES).optional(),
+  }),
+])
+
+const mealFavoriteSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  components: z.array(favoriteComponentSchema),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+})
+
+const recipePairingSchema = z.object({
+  id: z.string(),
+  recipeId: z.string(),
+  target: z.discriminatedUnion('type', [
+    z.object({ type: z.literal('recipe'), id: z.string() }),
+    z.object({ type: z.literal('simple-food'), id: z.string() }),
+  ]),
+  relationship: z.literal('pairs-with'),
 })
 
 const groceryListSchema = z.object({
@@ -164,8 +212,11 @@ export const backupFileSchema = z
       mealSlots: z.array(mealSlotSchema),
       mealComponents: z.array(mealComponentSchema),
       cookingEvents: z.array(cookingEventSchema),
+      prepSessions: z.array(prepSessionSchema),
       groceryLists: z.array(groceryListSchema),
       groceryItems: z.array(groceryItemSchema),
+      mealFavorites: z.array(mealFavoriteSchema),
+      recipePairings: z.array(recipePairingSchema),
     }),
   })
   .refine(
@@ -209,6 +260,27 @@ export const backupFileSchema = z
       return new Set(ids).size === ids.length
     },
     { message: 'Backup contains duplicate grocery-item ids', path: ['data', 'groceryItems'] },
+  )
+  .refine(
+    (backup) => {
+      const ids = backup.data.prepSessions.map((session) => session.id)
+      return new Set(ids).size === ids.length
+    },
+    { message: 'Backup contains duplicate prep-session ids', path: ['data', 'prepSessions'] },
+  )
+  .refine(
+    (backup) => {
+      const ids = backup.data.mealFavorites.map((favorite) => favorite.id)
+      return new Set(ids).size === ids.length
+    },
+    { message: 'Backup contains duplicate meal-favorite ids', path: ['data', 'mealFavorites'] },
+  )
+  .refine(
+    (backup) => {
+      const ids = backup.data.recipePairings.map((pairing) => pairing.id)
+      return new Set(ids).size === ids.length
+    },
+    { message: 'Backup contains duplicate recipe-pairing ids', path: ['data', 'recipePairings'] },
   )
 
 /** Re-export for UI selects that want the same unit list as validation awareness. */

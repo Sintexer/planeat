@@ -1,2 +1,2 @@
-/** Version of the backup file format itself — independent of the Dexie schema version. */
-export const CURRENT_BACKUP_FORMAT_VERSION = 4
+/** Bump whenever the backup Zod schema / exported tables change. */
+export const CURRENT_BACKUP_FORMAT_VERSION = 5

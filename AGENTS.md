@@ -59,14 +59,14 @@ Already installed, beyond the core stack (React/Mantine/Dexie/Zod/Day.js/vite-pl
 | `@vite-pwa/assets-generator`                               | Regenerates `public/` PWA icons from one source SVG (`pwa-assets.config.ts`, `bun run generate-icons`) |
 | `fraction.js`                                              | Recipe quantity scaling via `QuantityService`                                                          |
 | `convert-units`                                            | Compatible mass/volume aggregation via `QuantityService.add` / `canConvert`                            |
+| `fuse.js`                                                  | Fuzzy recipe/component picker search and ranking (never ingredient identity merge)                     |
 
 Earmarked for a specific future sprint — add only when that sprint's work actually starts (see `docs/sprints/plan.md` and `docs/architecture.md`'s "Supportive libraries" section for the full rationale):
 
-| Library             | Add when                                        | Not for                                                                        |
-| ------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------ |
-| `fuse.js`           | Recipe/component picker (Sprint 5)              | Merging ingredient identities — fuzzy search is a UI aid, not an identity rule |
-| `@mantine/dropzone` | Structured recipe/backup file import (Sprint 6) | —                                                                              |
-| `schema-dts`        | Schema.org `Recipe` import typing (Sprint 6)    | Runtime validation — keep using Zod for that                                   |
+| Library             | Add when                                        | Not for                                      |
+| ------------------- | ----------------------------------------------- | -------------------------------------------- |
+| `@mantine/dropzone` | Structured recipe/backup file import (Sprint 6) | —                                            |
+| `schema-dts`        | Schema.org `Recipe` import typing (Sprint 6)    | Runtime validation — keep using Zod for that |
 
 Deliberately kept in reserve, not scheduled: `fflate` (only if backups need compression/photos), `DOMPurify` (only if we render imported HTML), `Papa Parse` (only for CSV import/export), `@dnd-kit/core` (only if drag-and-drop planning is added), `TanStack Virtual` (only if recipe lists get large enough to need it), `Immer` (only if immutable plan-editing genuinely gets unwieldy without it).
 

@@ -29,13 +29,13 @@ Adds weekly planning tables; settings rows gain `weekStartDay` (default Monday =
 | `plans`          | `id`        | `startDate`                        | Seven-day plan; `peopleCount`, `revision`, empty `preferences`                |
 | `mealSlots`      | `id`        | `planId`, `[planId+date+mealType]` | One row per day × breakfast/lunch/dinner; `excluded` flag                     |
 | `mealComponents` | `id`        | `slotId`                           | Source is cooking-event or simple-food; allocated quantity; multiple per slot |
-| `cookingEvents`  | `id`        | `planId`                           | Recipe snapshot + output quantity; `sessionId` always `null` for now          |
+| `cookingEvents`  | `id`        | `planId`                           | Recipe snapshot + output quantity; `sessionId` filled in v5 migration         |
 
 Schema changes must be added as new `.version(n)` blocks in `src/infrastructure/db/migrations/index.ts` — never edit a shipped version, so existing local data survives upgrades.
 
 Backup file format is independent: `CURRENT_BACKUP_FORMAT_VERSION` is **3** and includes `recipes`, `settings`, `ingredients`, `simpleFoods`, `plans`, `mealSlots`, `mealComponents`, and `cookingEvents`.
 
-Grocery lists are modeled in version 4. Prep sessions / favorites / pairings are not yet modeled — add them here as they're implemented.
+Grocery lists are modeled in version 4. Prep sessions / favorites / pairings are in version 5.
 
 ## Version 4
 
@@ -48,7 +48,19 @@ Standalone grocery lists generated from plans (pragmatic update keeps manual ite
 
 Backup format version **4** adds `groceryLists` and `groceryItems`.
 
-Prep sessions, meal favorites, and recipe pairings are not yet modeled — add them here as they're implemented. Schema stays at **v4** for the Sprint 5 core batch-reuse vertical (shared cooking events need no new tables).
+## Version 5
+
+Sprint 5 remainder: auto prep sessions, favorites, pairings, planning preference settings.
+
+| Table            | Primary key | Indexes                   | Notes                                                                |
+| ---------------- | ----------- | ------------------------- | -------------------------------------------------------------------- |
+| `prepSessions`   | `id`        | `planId`, `[planId+date]` | Auto one session per plan date; optional unused `time` / `label`     |
+| `mealFavorites`  | `id`        | `name`                    | Named component templates (recipe/simple-food refs + quantities)     |
+| `recipePairings` | `id`        | `recipeId`                | Explicit `pairs-with` links to recipe or simple-food                 |
+| `cookingEvents`  | `id`        | `planId`, `sessionId`     | `sessionId` is a real prep-session id after migration                |
+| `settings`       | `id`        | —                         | Adds max batch-prep units, preferred/quick days, veg/demanding prefs |
+
+Backup format version **5** adds `prepSessions`, `mealFavorites`, `recipePairings` and requires string `sessionId` on cooking events.
 
 ## Starter library
 

@@ -3,21 +3,32 @@ import {
   Button,
   Checkbox,
   Modal,
+  SegmentedControl,
   Stack,
   Text,
   TextInput,
   UnstyledButton,
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
+import Fuse from 'fuse.js'
 import { useMemo, useState } from 'react'
 import { useServices } from '../../app/servicesContext'
 import type { CookingEvent } from '../../domain/plans/CookingEvent'
+import {
+  rankComponentSuggestions,
+  type SuggestionCandidate,
+} from '../../domain/plans/componentSuggestions'
 import type { MealSlot } from '../../domain/plans/MealSlot'
 import type { PlanGraph } from '../../domain/plans/PlanGraph'
 import type { Quantity } from '../../domain/shared/Quantity'
 import { formatQuantity } from '../../domain/shared/formatQuantity'
+import { addDays } from '../../domain/shared/LocalDate'
+import { useMealFavorites } from '../hooks/useMealFavorites'
+import { usePairings } from '../hooks/usePairings'
 import { useRecipes } from '../hooks/useRecipes'
+import { useSettings } from '../hooks/useSettings'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
+import { usePlanByStartDate } from '../hooks/usePlanByStartDate'
 import { QuantityFields } from './QuantityFields'
 
 type Step =
@@ -64,6 +75,21 @@ function errorMessage(error: string): string {
   }
 }
 
+function reasonLabel(reason: SuggestionCandidate['reason']): string | null {
+  switch (reason) {
+    case 'pairing':
+      return 'Pairs well'
+    case 'favorite':
+      return 'From a favorite'
+    case 'role':
+      return 'Good role fit'
+    case 'variety':
+      return 'Variety / veg'
+    default:
+      return null
+  }
+}
+
 export function AddComponentFlow({
   opened,
   onClose,
@@ -74,8 +100,15 @@ export function AddComponentFlow({
   const { planService } = useServices()
   const recipes = useRecipes()
   const simpleFoods = useSimpleFoods()
+  const favorites = useMealFavorites()
+  const pairings = usePairings()
+  const settings = useSettings()
+  const previousWeekStart = addDays(graph.plan.startDate, -7)
+  const previousWeek = usePlanByStartDate(previousWeekStart)
+
   const [query, setQuery] = useState('')
   const [showAll, setShowAll] = useState(false)
+  const [browseMode, setBrowseMode] = useState<'suggested' | 'all'>('suggested')
   const [step, setStep] = useState<Step>({ kind: 'pick' })
   const [allocValue, setAllocValue] = useState<number | ''>('')
   const [allocUnit, setAllocUnit] = useState('piece')
@@ -85,26 +118,66 @@ export function AddComponentFlow({
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(undefined)
   const [busy, setBusy] = useState(false)
 
-  const filteredRecipes = useMemo(() => {
-    if (!recipes) return []
-    const q = query.trim().toLowerCase()
-    return recipes.filter((r) => {
-      if (q && !r.name.toLowerCase().includes(q)) return false
-      if (!showAll && !r.mealTypes.includes(slot.mealType)) return false
-      return true
-    })
-  }, [recipes, query, showAll, slot.mealType])
+  const previousWeekRecipeIds = useMemo(() => {
+    const ids = new Set<string>()
+    if (!previousWeek) return ids
+    for (const event of previousWeek.cookingEvents) {
+      ids.add(event.recipeId)
+    }
+    return ids
+  }, [previousWeek])
 
-  const filteredSimpleFoods = useMemo(() => {
-    if (!simpleFoods) return []
-    const q = query.trim().toLowerCase()
-    return simpleFoods.filter((s) => {
-      if (!s.enabledInSuggestions) return false
-      if (q && !s.name.toLowerCase().includes(q)) return false
-      if (!showAll && !s.mealTypes.includes(slot.mealType)) return false
-      return true
+  const ranked = useMemo(() => {
+    if (!recipes || !simpleFoods || !favorites || !pairings || !settings) return []
+    return rankComponentSuggestions({
+      slotMealType: slot.mealType,
+      graph,
+      slotId: slot.id,
+      recipes,
+      simpleFoods,
+      pairings,
+      favorites,
+      settings,
+      previousWeekRecipeIds,
+      query,
     })
-  }, [simpleFoods, query, showAll, slot.mealType])
+  }, [
+    recipes,
+    simpleFoods,
+    favorites,
+    pairings,
+    settings,
+    graph,
+    slot,
+    previousWeekRecipeIds,
+    query,
+  ])
+
+  const displayed = useMemo(() => {
+    let list = ranked
+    if (browseMode === 'all' && !showAll) {
+      list = list.filter((c) => c.mealTypes.includes(slot.mealType))
+    }
+    if (browseMode === 'suggested') {
+      list = list.filter((c) => c.score > 0).slice(0, 30)
+      if (list.length === 0) {
+        list = ranked.filter((c) => showAll || c.mealTypes.includes(slot.mealType)).slice(0, 20)
+      }
+    }
+
+    const q = query.trim()
+    if (!q) return list
+
+    const fuse = new Fuse(list, {
+      keys: ['name'],
+      threshold: 0.4,
+      includeScore: true,
+    })
+    return fuse.search(q).map((result) => {
+      const fuseBoost = 1 - (result.score ?? 1)
+      return { ...result.item, score: result.item.score + fuseBoost * 50 }
+    })
+  }, [ranked, browseMode, showAll, slot.mealType, query])
 
   const handleClose = () => {
     onClose()
@@ -133,7 +206,6 @@ export function AddComponentFlow({
       value: recipe.defaultPortionPerPerson.value * graph.plan.peopleCount,
       unit: recipe.defaultPortionPerPerson.unit,
     }
-    // Use service scale via known people count — keep local default for form
     setAllocValue(defaultQty.value)
     setAllocUnit(defaultQty.unit)
     setOutputValue(defaultQty.value)
@@ -258,51 +330,52 @@ export function AddComponentFlow({
               onChange={(e) => setQuery(e.currentTarget.value)}
               data-autofocus
             />
-            <Checkbox
-              label="Show all meal types"
-              checked={showAll}
-              onChange={(e) => setShowAll(e.currentTarget.checked)}
+            <SegmentedControl
+              fullWidth
+              value={browseMode}
+              onChange={(value) => setBrowseMode(value as 'suggested' | 'all')}
+              data={[
+                { label: 'Suggested', value: 'suggested' },
+                { label: 'All', value: 'all' },
+              ]}
             />
-            <Text size="sm" fw={600}>
-              Recipes
-            </Text>
-            {filteredRecipes.length === 0 && (
+            {browseMode === 'all' && (
+              <Checkbox
+                label="Show all meal types"
+                checked={showAll}
+                onChange={(e) => setShowAll(e.currentTarget.checked)}
+              />
+            )}
+            {displayed.length === 0 && (
               <Text size="sm" c="dimmed">
-                No matching recipes.
+                No matching items.
               </Text>
             )}
             <Stack gap={4}>
-              {filteredRecipes.map((recipe) => (
-                <UnstyledButton
-                  key={recipe.id}
-                  onClick={() => void pickRecipe(recipe.id, recipe.name)}
-                  p="xs"
-                  style={{ borderRadius: 4 }}
-                >
-                  <Text size="sm">{recipe.name}</Text>
-                </UnstyledButton>
-              ))}
-            </Stack>
-            <Text size="sm" fw={600} mt="xs">
-              Simple foods
-            </Text>
-            {filteredSimpleFoods.length === 0 && (
-              <Text size="sm" c="dimmed">
-                No matching simple foods.
-              </Text>
-            )}
-            <Stack gap={4}>
-              {filteredSimpleFoods.map((food) => (
-                <UnstyledButton
-                  key={food.id}
-                  disabled={busy}
-                  onClick={() => void pickSimpleFood(food.id)}
-                  p="xs"
-                  style={{ borderRadius: 4 }}
-                >
-                  <Text size="sm">{food.name}</Text>
-                </UnstyledButton>
-              ))}
+              {displayed.map((item) => {
+                const hint = reasonLabel(item.reason)
+                return (
+                  <UnstyledButton
+                    key={`${item.kind}-${item.id}`}
+                    disabled={busy}
+                    onClick={() => {
+                      if (item.kind === 'recipe') {
+                        void pickRecipe(item.id, item.name)
+                      } else {
+                        void pickSimpleFood(item.id)
+                      }
+                    }}
+                    p="xs"
+                    style={{ borderRadius: 4 }}
+                  >
+                    <Text size="sm">{item.name}</Text>
+                    <Text size="xs" c="dimmed">
+                      {item.kind === 'recipe' ? 'Recipe' : 'Simple food'}
+                      {hint ? ` · ${hint}` : ''}
+                    </Text>
+                  </UnstyledButton>
+                )
+              })}
             </Stack>
           </>
         )}
@@ -360,51 +433,53 @@ export function AddComponentFlow({
 
         {step.kind === 'use-existing' && (
           <>
+            <Text size="sm">Choose prep with remaining output:</Text>
             <Stack gap={4}>
               {step.events.map((event) => {
                 const remaining = step.remainingById.get(event.id)
+                const selected = selectedEventId === event.id
                 return (
                   <UnstyledButton
                     key={event.id}
                     onClick={() => {
                       setSelectedEventId(event.id)
-                      if (remaining && remaining.value > 0) {
-                        setAllocValue(remaining.value)
-                        setAllocUnit(remaining.unit)
-                      } else {
-                        setAllocValue(event.outputQuantity.value)
-                        setAllocUnit(event.outputQuantity.unit)
-                      }
+                      setAllocValue(
+                        remaining && remaining.value > 0
+                          ? remaining.value
+                          : event.outputQuantity.value,
+                      )
+                      setAllocUnit(event.outputQuantity.unit)
                     }}
                     p="xs"
                     style={{
                       borderRadius: 4,
-                      outline:
-                        selectedEventId === event.id
-                          ? '2px solid var(--mantine-color-blue-5)'
-                          : undefined,
+                      border: selected
+                        ? '1px solid var(--mantine-color-blue-5)'
+                        : '1px solid transparent',
                     }}
                   >
-                    <Text size="sm" fw={500}>
-                      Prep {event.scheduledDate}
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                      Output {formatQuantity(event.outputQuantity)}
-                      {remaining ? ` · remaining ${formatQuantity(remaining)}` : ''}
+                    <Text size="sm">
+                      {event.scheduledDate} · {formatQuantity(event.outputQuantity)} total
+                      {remaining ? ` · ${formatQuantity(remaining)} left` : ''}
                     </Text>
                   </UnstyledButton>
                 )
               })}
             </Stack>
             <QuantityFields
-              valueLabel="Allocate to this meal"
+              valueLabel="Allocated to this meal"
               value={allocValue}
               unit={allocUnit}
               onValueChange={setAllocValue}
               onUnitChange={setAllocUnit}
               min={0.001}
             />
-            <Button loading={busy} onClick={() => void confirmUseExisting()}>
+            {!selectedEventId && <Alert color="yellow">Select a prep event.</Alert>}
+            <Button
+              loading={busy}
+              disabled={!selectedEventId}
+              onClick={() => void confirmUseExisting()}
+            >
               Add
             </Button>
             <Button
@@ -416,19 +491,6 @@ export function AddComponentFlow({
               Back
             </Button>
           </>
-        )}
-
-        {step.kind === 'pick' && (
-          <Button variant="default" onClick={handleClose}>
-            Cancel
-          </Button>
-        )}
-
-        {step.kind === 'source' && (
-          <Alert color="gray" variant="light">
-            Fresh-only and same-day recipes can only be used on their prep day. Batch-friendly
-            recipes can feed later meals in this plan.
-          </Alert>
         )}
       </Stack>
     </Modal>

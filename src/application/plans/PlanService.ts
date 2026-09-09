@@ -24,6 +24,7 @@ import {
 import type { Quantity } from '../../domain/shared/Quantity'
 import type { RecipeId } from '../../domain/recipes/Recipe'
 import type { SimpleFoodId } from '../../domain/simpleFoods/SimpleFood'
+import type { FavoriteComponent } from '../../domain/favorites/MealFavorite'
 
 export type PlanError =
   | 'not-found'
@@ -37,6 +38,7 @@ export type PlanError =
   | 'reuse-forbidden'
   | 'before-prep'
   | 'incompatible-quantity'
+  | 'favorite-missing-ref'
 
 export type PlanResult<T = void> = { ok: true; value: T } | { ok: false; error: PlanError }
 
@@ -266,6 +268,54 @@ export class PlanService {
       role,
     })
     return { ok: true, component }
+  }
+
+  /**
+   * Validate all favorite component refs, then apply cook-new / simple-food adds.
+   * All-or-nothing: no writes if any ref is missing.
+   */
+  async insertFavoriteComponents(
+    slotId: MealSlotId,
+    components: FavoriteComponent[],
+  ): Promise<{ ok: true } | { ok: false; error: PlanError; missingLabel?: string }> {
+    if (components.length === 0) return { ok: false, error: 'invalid-quantity' }
+
+    for (const component of components) {
+      if (component.type === 'recipe') {
+        const recipe = await this.recipes.getById(component.recipeId)
+        if (!recipe) {
+          return { ok: false, error: 'favorite-missing-ref', missingLabel: component.recipeId }
+        }
+      } else {
+        const food = await this.simpleFoods.getById(component.simpleFoodId)
+        if (!food) {
+          return {
+            ok: false,
+            error: 'favorite-missing-ref',
+            missingLabel: component.simpleFoodId,
+          }
+        }
+      }
+    }
+
+    for (const component of components) {
+      if (component.type === 'recipe') {
+        const result = await this.addNewCookingEventComponent(slotId, component.recipeId, {
+          allocatedQuantity: component.allocatedQuantity,
+          outputQuantity: component.allocatedQuantity,
+          role: component.role,
+        })
+        if (!result.ok) return result
+      } else {
+        const result = await this.addSimpleFoodComponent(slotId, component.simpleFoodId, {
+          allocatedQuantity: component.allocatedQuantity,
+          role: component.role,
+        })
+        if (!result.ok) return result
+      }
+    }
+
+    return { ok: true }
   }
 
   async updateComponentAllocation(

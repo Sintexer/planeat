@@ -17,6 +17,7 @@ export function usePlanByStartDate(startDate: LocalDate | undefined): PlanGraph 
     const components =
       slotIds.length === 0 ? [] : await db.mealComponents.where('slotId').anyOf(slotIds).toArray()
     const cookingEvents = await db.cookingEvents.where('planId').equals(plan.id).toArray()
-    return { plan, slots, components, cookingEvents }
+    const prepSessions = await db.prepSessions.where('planId').equals(plan.id).toArray()
+    return { plan, slots, components, cookingEvents, prepSessions }
   }, [startDate])
 }

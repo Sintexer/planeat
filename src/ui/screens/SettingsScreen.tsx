@@ -8,6 +8,8 @@ import {
   Divider,
   FileButton,
   Select,
+  MultiSelect,
+  Switch,
 } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
@@ -21,6 +23,11 @@ import { useSettings } from '../hooks/useSettings'
 interface SettingsForm {
   householdSize: number
   weekStartDay: string
+  maxBatchPrepUnits: number
+  preferredBatchPrepDays: string[]
+  quickMealsOnlyDays: string[]
+  avoidMultipleDemandingPreps: boolean
+  favorVegetablesDaily: boolean
 }
 
 const weekStartOptions = ([0, 1, 2, 3, 4, 5, 6] as const).map((day) => ({
@@ -28,12 +35,22 @@ const weekStartOptions = ([0, 1, 2, 3, 4, 5, 6] as const).map((day) => ({
   label: WEEKDAY_LABELS[day],
 }))
 
+const weekdayMultiOptions = weekStartOptions
+
 export function SettingsScreen() {
   const { settingsRepository, backupService } = useServices()
   const settings = useSettings()
 
   const form = useForm<SettingsForm>({
-    initialValues: { householdSize: 2, weekStartDay: '1' },
+    initialValues: {
+      householdSize: 2,
+      weekStartDay: '1',
+      maxBatchPrepUnits: 2,
+      preferredBatchPrepDays: [],
+      quickMealsOnlyDays: [],
+      avoidMultipleDemandingPreps: true,
+      favorVegetablesDaily: false,
+    },
   })
 
   useEffect(() => {
@@ -41,6 +58,11 @@ export function SettingsScreen() {
       form.setValues({
         householdSize: settings.householdSize,
         weekStartDay: String(settings.weekStartDay),
+        maxBatchPrepUnits: settings.maxBatchPrepUnits,
+        preferredBatchPrepDays: settings.preferredBatchPrepDays.map(String),
+        quickMealsOnlyDays: settings.quickMealsOnlyDays.map(String),
+        avoidMultipleDemandingPreps: settings.avoidMultipleDemandingPreps,
+        favorVegetablesDaily: settings.favorVegetablesDaily,
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -51,6 +73,11 @@ export function SettingsScreen() {
     await settingsRepository.update({
       householdSize: values.householdSize,
       weekStartDay,
+      maxBatchPrepUnits: values.maxBatchPrepUnits,
+      preferredBatchPrepDays: values.preferredBatchPrepDays.map(Number) as WeekStartDay[],
+      quickMealsOnlyDays: values.quickMealsOnlyDays.map(Number) as WeekStartDay[],
+      avoidMultipleDemandingPreps: values.avoidMultipleDemandingPreps,
+      favorVegetablesDaily: values.favorVegetablesDaily,
     })
     notifications.show({ message: 'Settings saved', color: 'green' })
   })
@@ -79,8 +106,6 @@ export function SettingsScreen() {
     }
   }
 
-  // Centralized via @mantine/modals so every "replace/remove existing data" confirmation
-  // in the app (backups, recipe deletion, dependent-meal edits, list overwrites) shares one pattern.
   const handleFilePicked = async (file: File | null) => {
     if (!file) return
     try {
@@ -90,7 +115,7 @@ export function SettingsScreen() {
         children: (
           <Text>
             This replaces all local recipes, ingredients, simple foods, meal plans, grocery lists,
-            and settings with the contents of this file. Continue?
+            favorites, pairings, and settings with the contents of this file. Continue?
           </Text>
         ),
         labels: { confirm: 'Replace local data', cancel: 'Cancel' },
@@ -120,6 +145,41 @@ export function SettingsScreen() {
             disabled={!settings}
             {...form.getInputProps('weekStartDay')}
           />
+
+          <Divider label="Planning preferences" labelPosition="left" />
+
+          <NumberInput
+            label="Maximum batch-prep units"
+            description="Half-unit steps. Two dishes in one session count as 1.5."
+            min={0.5}
+            step={0.5}
+            decimalScale={1}
+            disabled={!settings}
+            {...form.getInputProps('maxBatchPrepUnits')}
+          />
+          <MultiSelect
+            label="Preferred batch-prep days"
+            data={weekdayMultiOptions}
+            disabled={!settings}
+            {...form.getInputProps('preferredBatchPrepDays')}
+          />
+          <MultiSelect
+            label="Quick-meals-only days"
+            data={weekdayMultiOptions}
+            disabled={!settings}
+            {...form.getInputProps('quickMealsOnlyDays')}
+          />
+          <Switch
+            label="Avoid multiple demanding preparations on one day"
+            disabled={!settings}
+            {...form.getInputProps('avoidMultipleDemandingPreps', { type: 'checkbox' })}
+          />
+          <Switch
+            label="Favor vegetables daily"
+            disabled={!settings}
+            {...form.getInputProps('favorVegetablesDaily', { type: 'checkbox' })}
+          />
+
           <Button type="submit" disabled={!settings} w="fit-content">
             Save
           </Button>

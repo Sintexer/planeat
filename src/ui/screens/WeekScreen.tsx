@@ -6,10 +6,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useServices } from '../../app/servicesContext'
 import type { MealSlot } from '../../domain/plans/MealSlot'
+import { effortUnitsForDate, formatPrepLabel } from '../../domain/plans/prepDaySummary'
+import { evaluatePlanSoftPrompts, previousWeekStart } from '../../domain/plans/softPrompts'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
 import { addDays, startOfWeek, todayLocalDate, type LocalDate } from '../../domain/shared/LocalDate'
 import { MealEditor } from '../components/MealEditor'
 import { MealSlotCard } from '../components/MealSlotCard'
+import { SoftPromptAlerts } from '../components/SoftPromptAlerts'
 import { usePlan } from '../hooks/usePlan'
 import { usePlanByStartDate } from '../hooks/usePlanByStartDate'
 import { useSettings } from '../hooks/useSettings'
@@ -43,6 +46,21 @@ export function WeekScreen() {
   const loading = routePlanId
     ? fromRoute === undefined
     : settings === undefined || fromStartDate === undefined || fromStartDate === null
+
+  const prevWeekGraph = usePlanByStartDate(
+    graph ? previousWeekStart(graph.plan.startDate) : undefined,
+  )
+
+  const softPrompts = useMemo(() => {
+    if (!graph || !settings) return []
+    const previousIds = new Set<string>()
+    if (prevWeekGraph) {
+      for (const event of prevWeekGraph.cookingEvents) {
+        previousIds.add(event.recipeId)
+      }
+    }
+    return evaluatePlanSoftPrompts(graph, settings, previousIds)
+  }, [graph, settings, prevWeekGraph])
 
   const simpleFoodsById = useMemo(() => {
     const map = new Map<string, SimpleFood>()
@@ -194,21 +212,36 @@ export function WeekScreen() {
 
       <Button onClick={() => void handleGenerateGroceries()}>Generate groceries</Button>
 
-      {[...byDate.entries()].map(([date, dayDisplays]) => (
-        <Stack key={date} gap="xs">
-          <Text fw={600}>{formatPlanDayHeading(date as LocalDate)}</Text>
-          {dayDisplays.map((display) => (
-            <MealSlotCard
-              key={display.slot.id}
-              display={display}
-              onOpen={() => setEditorSlot(display.slot)}
-              onClear={() => void confirmClearSlot(planService, display.slot.id)}
-              onExclude={() => void confirmExcludeSlot(planService, display.slot.id)}
-              onUnexclude={() => void handleUnexclude(display.slot.id)}
-            />
-          ))}
-        </Stack>
-      ))}
+      <SoftPromptAlerts prompts={softPrompts.filter((p) => !p.date)} />
+
+      {[...byDate.entries()].map(([date, dayDisplays]) => {
+        const localDate = date as LocalDate
+        const prepLabel = formatPrepLabel(effortUnitsForDate(graph, localDate))
+        const dayPrompts = softPrompts.filter((p) => p.date === localDate)
+        return (
+          <Stack key={date} gap="xs">
+            <Group justify="space-between" align="baseline">
+              <Text fw={600}>{formatPlanDayHeading(localDate)}</Text>
+              {prepLabel && (
+                <Text size="sm" c="dimmed">
+                  {prepLabel}
+                </Text>
+              )}
+            </Group>
+            <SoftPromptAlerts prompts={dayPrompts} omitDatePrefix />
+            {dayDisplays.map((display) => (
+              <MealSlotCard
+                key={display.slot.id}
+                display={display}
+                onOpen={() => setEditorSlot(display.slot)}
+                onClear={() => void confirmClearSlot(planService, display.slot.id)}
+                onExclude={() => void confirmExcludeSlot(planService, display.slot.id)}
+                onUnexclude={() => void handleUnexclude(display.slot.id)}
+              />
+            ))}
+          </Stack>
+        )
+      })}
 
       {editorSlot && (
         <MealEditor

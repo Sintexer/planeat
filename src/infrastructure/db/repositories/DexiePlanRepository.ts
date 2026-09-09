@@ -10,6 +10,7 @@ import type { MealComponent, MealComponentId } from '../../../domain/plans/MealC
 import type { MealSlot, MealSlotId } from '../../../domain/plans/MealSlot'
 import type { Plan, PlanId } from '../../../domain/plans/Plan'
 import type { PlanGraph } from '../../../domain/plans/PlanGraph'
+import type { PrepSession, PrepSessionId } from '../../../domain/plans/PrepSession'
 import type { LocalDate } from '../../../domain/shared/LocalDate'
 import type { Quantity } from '../../../domain/shared/Quantity'
 import type { AppDatabase } from '../database'
@@ -40,8 +41,9 @@ export class DexiePlanRepository implements PlanRepository {
         ? []
         : await this.db.mealComponents.where('slotId').anyOf(slotIds).toArray()
     const cookingEvents = await this.db.cookingEvents.where('planId').equals(id).toArray()
+    const prepSessions = await this.db.prepSessions.where('planId').equals(id).toArray()
 
-    return { plan, slots, components, cookingEvents }
+    return { plan, slots, components, cookingEvents, prepSessions }
   }
 
   async createPlanWithSlots(plan: Plan, slots: MealSlot[]): Promise<void> {
@@ -81,13 +83,15 @@ export class DexiePlanRepository implements PlanRepository {
       this.db.mealSlots,
       this.db.mealComponents,
       this.db.cookingEvents,
+      this.db.prepSessions,
       async () => {
         await this.db.mealSlots.update(input.slotId, { excluded: false })
 
+        const sessionId = await this.ensureSessionInTx(planId, input.scheduledDate)
         const cookingEvent: CookingEvent = {
           id: crypto.randomUUID(),
           planId,
-          sessionId: null,
+          sessionId,
           recipeId: input.recipeId,
           recipeSnapshot: structuredClone(input.recipeSnapshot),
           outputQuantity: input.outputQuantity,
@@ -179,6 +183,7 @@ export class DexiePlanRepository implements PlanRepository {
       this.db.plans,
       this.db.mealComponents,
       this.db.cookingEvents,
+      this.db.prepSessions,
       async () => {
         const component = await this.db.mealComponents.get(componentId)
         if (!component) return
@@ -203,14 +208,34 @@ export class DexiePlanRepository implements PlanRepository {
     eventId: CookingEventId,
     patch: { outputQuantity?: Quantity; scheduledDate?: LocalDate },
   ): Promise<void> {
-    await this.db.transaction('rw', this.db.plans, this.db.cookingEvents, async () => {
-      const updates: Partial<CookingEvent> = {}
-      if (patch.outputQuantity !== undefined) updates.outputQuantity = patch.outputQuantity
-      if (patch.scheduledDate !== undefined) updates.scheduledDate = patch.scheduledDate
-      if (Object.keys(updates).length === 0) return
-      await this.db.cookingEvents.update(eventId, updates)
-      await this.bumpRevisionInTx(planId)
-    })
+    await this.db.transaction(
+      'rw',
+      this.db.plans,
+      this.db.cookingEvents,
+      this.db.prepSessions,
+      async () => {
+        const event = await this.db.cookingEvents.get(eventId)
+        if (!event) return
+
+        const updates: Partial<CookingEvent> = {}
+        if (patch.outputQuantity !== undefined) updates.outputQuantity = patch.outputQuantity
+
+        if (patch.scheduledDate !== undefined && patch.scheduledDate !== event.scheduledDate) {
+          const oldSessionId = event.sessionId
+          const nextSessionId = await this.ensureSessionInTx(planId, patch.scheduledDate)
+          updates.scheduledDate = patch.scheduledDate
+          updates.sessionId = nextSessionId
+          await this.db.cookingEvents.update(eventId, updates)
+          await this.deleteSessionIfOrphaned(oldSessionId)
+        } else if (Object.keys(updates).length > 0) {
+          await this.db.cookingEvents.update(eventId, updates)
+        } else {
+          return
+        }
+
+        await this.bumpRevisionInTx(planId)
+      },
+    )
   }
 
   async listCookingEventDependents(eventId: CookingEventId): Promise<CookingEventDependent[]> {
@@ -238,6 +263,7 @@ export class DexiePlanRepository implements PlanRepository {
       this.db.plans,
       this.db.mealComponents,
       this.db.cookingEvents,
+      this.db.prepSessions,
       async () => {
         await this.clearSlotContents(slotId)
         await this.bumpRevisionInTx(planId)
@@ -260,12 +286,41 @@ export class DexiePlanRepository implements PlanRepository {
     })
   }
 
+  private async ensureSessionInTx(planId: PlanId, date: LocalDate): Promise<PrepSessionId> {
+    const existing = await this.db.prepSessions
+      .where('[planId+date]')
+      .equals([planId, date])
+      .first()
+    if (existing) return existing.id
+
+    const session: PrepSession = {
+      id: crypto.randomUUID(),
+      planId,
+      date,
+      time: null,
+      label: null,
+    }
+    await this.db.prepSessions.add(session)
+    return session.id
+  }
+
+  private async deleteSessionIfOrphaned(sessionId: PrepSessionId): Promise<void> {
+    const stillUsed = await this.db.cookingEvents.where('sessionId').equals(sessionId).first()
+    if (!stillUsed) {
+      await this.db.prepSessions.delete(sessionId)
+    }
+  }
+
   private async deleteCookingEventIfOrphaned(eventId: CookingEventId): Promise<void> {
     const stillUsed = await this.db.mealComponents
       .filter((c) => c.source.type === 'cooking-event' && c.source.cookingEventId === eventId)
       .first()
     if (!stillUsed) {
+      const event = await this.db.cookingEvents.get(eventId)
       await this.db.cookingEvents.delete(eventId)
+      if (event) {
+        await this.deleteSessionIfOrphaned(event.sessionId)
+      }
     }
   }
 

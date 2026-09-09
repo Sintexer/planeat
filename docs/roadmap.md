@@ -31,11 +31,12 @@
 - Pragmatic update-existing merge (replace generated lines, keep manual items and matching checks).
 - Dexie schema v4, backup format version 4, `convert-units` behind `QuantityService.add`.
 
-## Done — Sprint 5 core (batch reuse)
+## Done — Sprint 5 (batch reuse + remainder)
 
 - Multi-component meal editor; cook-new vs use-existing prep; allocation / reuse enforcement; dependency-aware remove/clear.
-- Still deferred within Sprint 5: prep sessions / effort units, favorites, pairings, fuse.js, soft prompts.
+- Auto prep sessions by date with effort units (`Prep · 1.5`); meal favorites; recipe pairings; `fuse.js` Suggested picker; soft planning prompts via global Settings.
+- Dexie schema v5, backup format version 5.
 
-## Next — Sprint 5 remainder
+## Next — Sprint 6
 
-Favorites, pairings, prep sessions, fuse picker, soft prompts — see `docs/sprints/plan.md`.
+Structured recipe imports — see `docs/sprints/plan.md`.

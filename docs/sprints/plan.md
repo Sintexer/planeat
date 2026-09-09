@@ -179,7 +179,7 @@ At this point, the app already provides a useful manual planning workflow.
 
 Sprint 1 is done: PWA shell, Dexie persistence, navigation shell, editable household-size setting, and JSON backup export/validated restore all exist (see `SPEC.md` for the full product rules this plan implements). Not verified in this session: installing on an actual Android device, and interactive browser testing (no browser automation tool available) — see the task notes for the manual checks still needed.
 
-Sprint 1.5 is done: `@mantine/modals`, `eslint-plugin-boundaries`, Prettier, and `@vite-pwa/assets-generator` are installed and wired in; `fuse.js`, `@mantine/dropzone`, and `schema-dts` are recorded as future-sprint dependencies but intentionally not installed yet. `fraction.js` was installed in Sprint 2; `convert-units` in Sprint 4.
+Sprint 1.5 is done: `@mantine/modals`, `eslint-plugin-boundaries`, Prettier, and `@vite-pwa/assets-generator` are installed and wired in; `@mantine/dropzone` and `schema-dts` remain recorded for Sprint 6. `fraction.js` was installed in Sprint 2; `convert-units` in Sprint 4; `fuse.js` in Sprint 5.
 
 Sprint 2 is done: full recipe create/edit/detail with ingredient catalog (aliases, create-or-link), quantity scaling preview via `QuantityService`/`fraction.js`, simple foods with an enable-in-suggestions checklist, Dexie schema v2, and backup format version 2.
 
@@ -187,4 +187,4 @@ Sprint 3 is done: navigable seven-day plans with materialized breakfast/lunch/di
 
 Sprint 4 is done: standalone grocery lists generated from plans (cooking events + simple foods), `convert-units` aggregation via `QuantityService.add`/`canConvert`, common ingredients prechecked, pragmatic update-existing merge, Lists UI, Week “Generate groceries” with update/create modal, Dexie schema v4, and backup format version 4.
 
-Sprint 5 core (batch reuse) is done: multi-component meal editor, explicit cook-new vs use-existing prep, allocation/reuse checks, unused-output warnings, dependency-aware remove/clear/exclude. Schema remains v4. Still deferred: prep sessions / effort units, favorites, pairings, fuse.js, soft prompts.
+Sprint 5 is done: multi-component meal editor with batch reuse (core), plus remainder — auto-by-date prep sessions and effort units, meal favorites, recipe pairings, `fuse.js` Suggested/All picker, global planning preferences, and soft prompts. Dexie schema v5 and backup format version 5.

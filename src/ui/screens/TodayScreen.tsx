@@ -3,10 +3,18 @@ import { notifications } from '@mantine/notifications'
 import { useEffect, useMemo, useState } from 'react'
 import { useServices } from '../../app/servicesContext'
 import type { MealSlot } from '../../domain/plans/MealSlot'
+import {
+  cookingEventsOnDate,
+  effortUnitsForDate,
+  formatPrepLabel,
+} from '../../domain/plans/prepDaySummary'
+import { formatEffortUnits } from '../../domain/plans/prepEffort'
+import { evaluatePlanSoftPrompts, previousWeekStart } from '../../domain/plans/softPrompts'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
 import { startOfWeek, todayLocalDate } from '../../domain/shared/LocalDate'
 import { MealEditor } from '../components/MealEditor'
 import { MealSlotCard } from '../components/MealSlotCard'
+import { SoftPromptAlerts } from '../components/SoftPromptAlerts'
 import { usePlanByStartDate } from '../hooks/usePlanByStartDate'
 import { useSettings } from '../hooks/useSettings'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
@@ -34,6 +42,22 @@ export function TodayScreen() {
 
   const graph = graphOrNull ?? undefined
   const loading = settings === undefined || graphOrNull === undefined || graphOrNull === null
+
+  const prevWeekGraph = usePlanByStartDate(
+    graph ? previousWeekStart(graph.plan.startDate) : undefined,
+  )
+
+  const softPrompts = useMemo(() => {
+    if (!graph || !settings) return []
+    const previousIds = new Set<string>()
+    if (prevWeekGraph) {
+      for (const event of prevWeekGraph.cookingEvents) {
+        previousIds.add(event.recipeId)
+      }
+    }
+    const all = evaluatePlanSoftPrompts(graph, settings, previousIds)
+    return all.filter((p) => !p.date || p.date === today)
+  }, [graph, settings, prevWeekGraph, today])
 
   const simpleFoodsById = useMemo(() => {
     const map = new Map<string, SimpleFood>()
@@ -81,6 +105,28 @@ export function TodayScreen() {
       <Text c="dimmed" size="sm">
         {formatPlanDayHeading(today)}
       </Text>
+
+      <SoftPromptAlerts prompts={softPrompts} />
+
+      {(() => {
+        const todayEvents = cookingEventsOnDate(graph, today)
+        const units = effortUnitsForDate(graph, today)
+        const prepLabel = formatPrepLabel(units)
+        if (!prepLabel) return null
+        return (
+          <Stack gap="xs">
+            <Text fw={600}>Preparation today</Text>
+            <Text size="sm" c="dimmed">
+              {prepLabel} ({formatEffortUnits(units)} unit{units === 1 ? '' : 's'})
+            </Text>
+            {todayEvents.map((event) => (
+              <Text key={event.id} size="sm">
+                {event.recipeSnapshot.name}
+              </Text>
+            ))}
+          </Stack>
+        )
+      })()}
 
       <Stack gap="xs">
         {displays.map((display) => (

@@ -1,5 +1,9 @@
 import type { SettingsRepository } from '../../../application/ports/SettingsRepository'
-import { DEFAULT_SETTINGS, type Settings } from '../../../domain/shared/Settings'
+import {
+  DEFAULT_SETTINGS,
+  mergeSettingsDefaults,
+  type Settings,
+} from '../../../domain/shared/Settings'
 import type { AppDatabase } from '../database'
 
 export class DexieSettingsRepository implements SettingsRepository {
@@ -12,16 +16,18 @@ export class DexieSettingsRepository implements SettingsRepository {
   async get(): Promise<Settings> {
     const existing = await this.db.settings.get(DEFAULT_SETTINGS.id)
     if (existing) {
-      if (typeof (existing as Settings).weekStartDay !== 'number') {
-        const merged: Settings = {
-          ...DEFAULT_SETTINGS,
-          ...existing,
-          weekStartDay: DEFAULT_SETTINGS.weekStartDay,
-        }
+      const merged = mergeSettingsDefaults(existing)
+      if (
+        merged.maxBatchPrepUnits !== existing.maxBatchPrepUnits ||
+        merged.avoidMultipleDemandingPreps !== existing.avoidMultipleDemandingPreps ||
+        merged.favorVegetablesDaily !== existing.favorVegetablesDaily ||
+        typeof existing.weekStartDay !== 'number' ||
+        !Array.isArray(existing.preferredBatchPrepDays) ||
+        !Array.isArray(existing.quickMealsOnlyDays)
+      ) {
         await this.db.settings.put(merged)
-        return merged
       }
-      return existing
+      return merged
     }
     await this.db.settings.put(DEFAULT_SETTINGS)
     return DEFAULT_SETTINGS

@@ -1,6 +1,6 @@
 import type Dexie from 'dexie'
 import type { Recipe } from '../../../domain/recipes/Recipe'
-import { DEFAULT_SETTINGS } from '../../../domain/shared/Settings'
+import { DEFAULT_SETTINGS, mergeSettingsDefaults } from '../../../domain/shared/Settings'
 
 type LegacyRecipeV1 = {
   id: string
@@ -105,4 +105,57 @@ export function applyMigrations(dexie: Dexie): void {
     groceryLists: 'id, status, sourcePlanId',
     groceryItems: 'id, listId',
   })
+
+  dexie
+    .version(5)
+    .stores({
+      recipes: 'id, name',
+      settings: 'id',
+      ingredients: 'id, name',
+      simpleFoods: 'id, name, ingredientId',
+      plans: 'id, startDate',
+      mealSlots: 'id, planId, [planId+date+mealType]',
+      mealComponents: 'id, slotId',
+      cookingEvents: 'id, planId, sessionId',
+      prepSessions: 'id, planId, [planId+date]',
+      groceryLists: 'id, status, sourcePlanId',
+      groceryItems: 'id, listId',
+      mealFavorites: 'id, name',
+      recipePairings: 'id, recipeId',
+    })
+    .upgrade(async (tx) => {
+      const settingsTable = tx.table('settings')
+      for (const row of await settingsTable.toArray()) {
+        const record = row as Record<string, unknown>
+        if (record.id !== 'app-settings') continue
+        await settingsTable.put(
+          mergeSettingsDefaults(record as Parameters<typeof mergeSettingsDefaults>[0]),
+        )
+      }
+
+      const eventsTable = tx.table('cookingEvents')
+      const sessionsTable = tx.table('prepSessions')
+      const events = await eventsTable.toArray()
+      const sessionByKey = new Map<string, string>()
+
+      for (const event of events) {
+        const record = event as Record<string, unknown>
+        const planId = String(record.planId)
+        const scheduledDate = String(record.scheduledDate)
+        const key = `${planId}|${scheduledDate}`
+        let sessionId = sessionByKey.get(key)
+        if (!sessionId) {
+          sessionId = crypto.randomUUID()
+          sessionByKey.set(key, sessionId)
+          await sessionsTable.put({
+            id: sessionId,
+            planId,
+            date: scheduledDate,
+            time: null,
+            label: null,
+          })
+        }
+        await eventsTable.put({ ...record, sessionId })
+      }
+    })
 }

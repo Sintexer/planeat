@@ -16,7 +16,7 @@ When adding a recipe, choose **Cook new** or **Use existing prep** (eligible eve
 
 Grocery generation still counts each cooking event once, so a shared batch appears once on the list.
 
-Not in this slice: prep sessions / effort units, favorites, pairings, fuzzy search, soft planning prompts.
+Not in this slice originally; now shipped in Sprint 5 remainder: prep sessions / effort units, favorites, pairings, fuzzy search, soft planning prompts.
 
 ## Lists
 

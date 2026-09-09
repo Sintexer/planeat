@@ -4,6 +4,7 @@ import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import { useMemo, useState } from 'react'
 import { useServices } from '../../app/servicesContext'
+import type { FavoriteComponent } from '../../domain/favorites/MealFavorite'
 import type { CookingEventId } from '../../domain/plans/CookingEvent'
 import type { MealComponentId } from '../../domain/plans/MealComponent'
 import type { MealSlot } from '../../domain/plans/MealSlot'
@@ -12,6 +13,7 @@ import type { Quantity } from '../../domain/shared/Quantity'
 import { formatQuantity } from '../../domain/shared/formatQuantity'
 import { MEAL_TYPE_LABELS } from '../../domain/shared/MealEnums'
 import { hasUnallocatedRemainder } from '../../domain/plans/CookingEventAllocation'
+import { useMealFavorites } from '../hooks/useMealFavorites'
 import { componentLabel, type SlotComponentDisplay } from '../plans/slotDisplay'
 import { AddComponentFlow } from './AddComponentFlow'
 import { QuantityFields } from './QuantityFields'
@@ -36,6 +38,8 @@ function planErrorMessage(error: string): string {
       return 'Quantities use incompatible units.'
     case 'invalid-quantity':
       return 'Enter a valid positive quantity.'
+    case 'favorite-missing-ref':
+      return 'Favorite references a missing recipe or simple food.'
     default:
       return `Could not update (${error})`
   }
@@ -97,8 +101,10 @@ function openOverAllocationChoices(args: {
 }
 
 export function MealEditor({ opened, onClose, slot, graph, components }: MealEditorProps) {
-  const { planService } = useServices()
+  const { planService, mealFavoriteService } = useServices()
+  const favorites = useMealFavorites()
   const [addOpen, setAddOpen] = useState(false)
+  const [insertFavoriteOpen, setInsertFavoriteOpen] = useState(false)
   const [editComponentId, setEditComponentId] = useState<MealComponentId | undefined>()
   const [editEventId, setEditEventId] = useState<CookingEventId | undefined>()
   const [allocValue, setAllocValue] = useState<number | ''>('')
@@ -106,6 +112,92 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
   const [outputValue, setOutputValue] = useState<number | ''>('')
   const [outputUnit, setOutputUnit] = useState('piece')
   const [prepDate, setPrepDate] = useState(slot.date)
+
+  const toFavoriteComponents = (): FavoriteComponent[] => {
+    const result: FavoriteComponent[] = []
+    for (const item of components) {
+      if (item.cookingEvent) {
+        result.push({
+          type: 'recipe',
+          recipeId: item.cookingEvent.recipeId,
+          allocatedQuantity: item.component.allocatedQuantity,
+          role: item.component.role,
+        })
+      } else if (item.component.source.type === 'simple-food') {
+        result.push({
+          type: 'simple-food',
+          simpleFoodId: item.component.source.simpleFoodId,
+          allocatedQuantity: item.component.allocatedQuantity,
+          role: item.component.role,
+        })
+      }
+    }
+    return result
+  }
+
+  const saveAsFavorite = () => {
+    const favoriteComponents = toFavoriteComponents()
+    if (favoriteComponents.length === 0) {
+      notifications.show({ message: 'Add components before saving a favorite', color: 'yellow' })
+      return
+    }
+    modals.open({
+      title: 'Save as favorite',
+      children: (
+        <FavoriteNameForm
+          onSave={async (name) => {
+            const result = await mealFavoriteService.create(name, favoriteComponents)
+            if (!result.ok) {
+              const message =
+                result.error === 'duplicate-name'
+                  ? 'A favorite with that name already exists'
+                  : result.error === 'empty-name'
+                    ? 'Enter a name'
+                    : 'Could not save favorite'
+              notifications.show({ message, color: 'red' })
+              return
+            }
+            modals.closeAll()
+            notifications.show({ message: 'Favorite saved', color: 'green' })
+          }}
+        />
+      ),
+    })
+  }
+
+  const insertFavorite = async (favoriteId: string) => {
+    const favorite = favorites?.find((f) => f.id === favoriteId)
+    if (!favorite) return
+    const result = await planService.insertFavoriteComponents(slot.id, favorite.components)
+    if (!result.ok) {
+      notifications.show({
+        message:
+          result.error === 'favorite-missing-ref'
+            ? `Favorite references a missing item (${result.missingLabel ?? 'unknown'})`
+            : planErrorMessage(result.error),
+        color: 'red',
+      })
+      return
+    }
+    setInsertFavoriteOpen(false)
+    notifications.show({ message: `Inserted “${favorite.name}”`, color: 'green' })
+  }
+
+  const deleteFavorite = async (favoriteId: string, name: string) => {
+    modals.openConfirmModal({
+      title: 'Delete favorite',
+      children: <Text size="sm">Delete “{name}”? This cannot be undone.</Text>,
+      labels: { confirm: 'Delete', cancel: 'Cancel' },
+      confirmProps: { color: 'red' },
+      onConfirm: () => {
+        void mealFavoriteService.delete(favoriteId).then((result) => {
+          if (!result.ok) {
+            notifications.show({ message: 'Could not delete favorite', color: 'red' })
+          }
+        })
+      },
+    })
+  }
 
   const unusedWarnings = useMemo(() => {
     const seen = new Set<string>()
@@ -545,9 +637,52 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
           )}
 
           <Button onClick={() => setAddOpen(true)}>+ Component</Button>
+          {components.length > 0 && (
+            <Button variant="light" onClick={saveAsFavorite}>
+              Save as favorite
+            </Button>
+          )}
+          <Button variant="light" onClick={() => setInsertFavoriteOpen(true)}>
+            Insert favorite
+          </Button>
           <Button variant="default" onClick={onClose}>
             Done
           </Button>
+        </Stack>
+      </Modal>
+
+      <Modal
+        opened={insertFavoriteOpen}
+        onClose={() => setInsertFavoriteOpen(false)}
+        title="Insert favorite"
+        centered
+      >
+        <Stack gap="xs">
+          {(favorites?.length ?? 0) === 0 && (
+            <Text size="sm" c="dimmed">
+              No saved favorites yet.
+            </Text>
+          )}
+          {favorites?.map((favorite) => (
+            <Group key={favorite.id} justify="space-between" wrap="nowrap">
+              <Button
+                variant="subtle"
+                justify="flex-start"
+                style={{ flex: 1 }}
+                onClick={() => void insertFavorite(favorite.id)}
+              >
+                {favorite.name} ({favorite.components.length})
+              </Button>
+              <ActionIcon
+                variant="subtle"
+                color="red"
+                aria-label={`Delete ${favorite.name}`}
+                onClick={() => void deleteFavorite(favorite.id, favorite.name)}
+              >
+                <IconTrash size={16} />
+              </ActionIcon>
+            </Group>
+          ))}
         </Stack>
       </Modal>
 
@@ -560,5 +695,34 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
         onOverAllocated={handleOverAllocatedFromAdd}
       />
     </>
+  )
+}
+
+function FavoriteNameForm({ onSave }: { onSave: (name: string) => Promise<void> }) {
+  const [name, setName] = useState('')
+  const [busy, setBusy] = useState(false)
+  return (
+    <Stack gap="sm">
+      <TextInput
+        label="Name"
+        value={name}
+        onChange={(e) => setName(e.currentTarget.value)}
+        data-autofocus
+      />
+      <Group>
+        <Button
+          loading={busy}
+          onClick={() => {
+            setBusy(true)
+            void onSave(name).finally(() => setBusy(false))
+          }}
+        >
+          Save
+        </Button>
+        <Button variant="default" onClick={() => modals.closeAll()}>
+          Cancel
+        </Button>
+      </Group>
+    </Stack>
   )
 }
