@@ -1,5 +1,6 @@
-import { ActionIcon, Group, Stack, Text, Title, Loader } from '@mantine/core'
+import { ActionIcon, Button, Group, Stack, Text, Title, Loader } from '@mantine/core'
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
+import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
@@ -19,7 +20,7 @@ export function WeekScreen() {
   const { planId: routePlanId } = useParams()
   const navigate = useNavigate()
   const settings = useSettings()
-  const { planService } = useServices()
+  const { planService, groceryService } = useServices()
   const simpleFoods = useSimpleFoods()
 
   const today = todayLocalDate()
@@ -101,6 +102,71 @@ export function WeekScreen() {
     }
   }
 
+  const createGroceryList = async () => {
+    if (!graph) return
+    const result = await groceryService.generateFromPlan(graph.plan.id)
+    if (!result.ok) {
+      notifications.show({ message: `Could not generate list (${result.error})`, color: 'red' })
+      return
+    }
+    notifications.show({ message: 'Grocery list created', color: 'green' })
+    navigate(`/lists/${result.list.id}`)
+  }
+
+  const updateGroceryList = async (listId: string) => {
+    const result = await groceryService.updateFromPlan(listId)
+    if (!result.ok) {
+      notifications.show({ message: `Could not update list (${result.error})`, color: 'red' })
+      return
+    }
+    notifications.show({ message: 'Grocery list updated', color: 'green' })
+    navigate(`/lists/${result.list.id}`)
+  }
+
+  const handleGenerateGroceries = async () => {
+    if (!graph) return
+    const existing = await groceryService.findOpenListForPlan(graph.plan.id)
+    if (!existing) {
+      await createGroceryList()
+      return
+    }
+
+    const revisionDrift = existing.sourcePlanRevision !== graph.plan.revision
+    modals.open({
+      title: 'Grocery list already exists',
+      children: (
+        <Stack gap="sm">
+          <Text size="sm">
+            An open list “{existing.title}” is linked to this plan
+            {revisionDrift ? ', and the plan has changed since that list was generated.' : '.'}{' '}
+            Updating replaces generated lines (keeping checkmarks where ingredients match) and
+            leaves manual items alone. Creating new leaves the existing list untouched.
+          </Text>
+          <Button
+            onClick={() => {
+              modals.closeAll()
+              void updateGroceryList(existing.id)
+            }}
+          >
+            Update existing
+          </Button>
+          <Button
+            variant="light"
+            onClick={() => {
+              modals.closeAll()
+              void createGroceryList()
+            }}
+          >
+            Create new
+          </Button>
+          <Button variant="default" onClick={() => modals.closeAll()}>
+            Cancel
+          </Button>
+        </Stack>
+      ),
+    })
+  }
+
   if (loading) {
     return (
       <Stack gap="md" align="center" py="xl">
@@ -148,6 +214,8 @@ export function WeekScreen() {
           <IconChevronRight size={22} />
         </ActionIcon>
       </Group>
+
+      <Button onClick={() => void handleGenerateGroceries()}>Generate groceries</Button>
 
       {[...byDate.entries()].map(([date, dayDisplays]) => (
         <Stack key={date} gap="xs">

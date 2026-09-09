@@ -1,3 +1,5 @@
+import type { GroceryItem } from '../../domain/groceries/GroceryItem'
+import type { GroceryList } from '../../domain/groceries/GroceryList'
 import type { CookingEvent } from '../../domain/plans/CookingEvent'
 import type { MealComponent } from '../../domain/plans/MealComponent'
 import type { MealSlot } from '../../domain/plans/MealSlot'
@@ -18,6 +20,8 @@ export class AppDatabase extends Dexie {
   mealSlots!: EntityTable<MealSlot, 'id'>
   mealComponents!: EntityTable<MealComponent, 'id'>
   cookingEvents!: EntityTable<CookingEvent, 'id'>
+  groceryLists!: EntityTable<GroceryList, 'id'>
+  groceryItems!: EntityTable<GroceryItem, 'id'>
 
   constructor() {
     super('planeat')

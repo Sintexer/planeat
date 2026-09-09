@@ -10,7 +10,7 @@ Seven-day plan for the week containing today (or a specific `planId`), with prev
 
 ## Lists
 
-Grocery lists (Sprint 4).
+Standalone grocery lists (open/closed). Generate from a week plan: scaled cooking-event ingredients plus simple-food allocations, aggregated by compatible units. Common pantry ingredients start checked but stay visible. Manual items, quantity/label edits, and checkmarks are saved on the list — plan edits do not overwrite silently; use Update existing vs Create new from the week screen.
 
 ## Recipes
 

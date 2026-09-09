@@ -1,3 +1,5 @@
+import type { GroceryItem } from '../groceries/GroceryItem'
+import type { GroceryList } from '../groceries/GroceryList'
 import type { CookingEvent } from '../plans/CookingEvent'
 import type { MealComponent } from '../plans/MealComponent'
 import type { MealSlot } from '../plans/MealSlot'
@@ -20,5 +22,7 @@ export interface BackupFile {
     mealSlots: MealSlot[]
     mealComponents: MealComponent[]
     cookingEvents: CookingEvent[]
+    groceryLists: GroceryList[]
+    groceryItems: GroceryItem[]
   }
 }

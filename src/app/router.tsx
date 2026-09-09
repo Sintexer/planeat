@@ -1,5 +1,6 @@
 import { HashRouter, Navigate, Route, Routes } from 'react-router'
 import { AppLayout } from '../ui/layouts/AppLayout'
+import { GroceryListDetailScreen } from '../ui/screens/GroceryListDetailScreen'
 import { IngredientsScreen } from '../ui/screens/IngredientsScreen'
 import { ListsScreen } from '../ui/screens/ListsScreen'
 import { RecipeCreateScreen } from '../ui/screens/RecipeCreateScreen'
@@ -21,7 +22,7 @@ export function AppRouter() {
           <Route path="week" element={<WeekScreen />} />
           <Route path="week/:planId" element={<WeekScreen />} />
           <Route path="lists" element={<ListsScreen />} />
-          <Route path="lists/:listId" element={<ListsScreen />} />
+          <Route path="lists/:listId" element={<GroceryListDetailScreen />} />
           <Route path="recipes" element={<RecipesScreen />} />
           <Route path="recipes/new" element={<RecipeCreateScreen />} />
           <Route path="recipes/ingredients" element={<IngredientsScreen />} />

@@ -37,6 +37,19 @@ Backup file format is independent: `CURRENT_BACKUP_FORMAT_VERSION` is **3** and 
 
 Grocery lists and prep sessions are not yet modeled — add them here as they're implemented.
 
+## Version 4
+
+Standalone grocery lists generated from plans (pragmatic update keeps manual items and matching checkmarks).
+
+| Table          | Primary key | Indexes                  | Notes                                                                |
+| -------------- | ----------- | ------------------------ | -------------------------------------------------------------------- |
+| `groceryLists` | `id`        | `status`, `sourcePlanId` | `open` / `closed`; optional `sourcePlanId` + `sourcePlanRevision`    |
+| `groceryItems` | `id`        | `listId`                 | Generated or manual; `checked`; optional `ingredientId` + `quantity` |
+
+Backup format version **4** adds `groceryLists` and `groceryItems`.
+
+Prep sessions are not yet modeled — add them here as they're implemented.
+
 ## Starter library
 
 When `recipes` is empty at app bootstrap, `seedStarterLibraryIfEmpty` inserts a fixed catalog of ingredients, recipes, and simple foods (`src/infrastructure/db/seed/`). Rows use stable `seed-*` ids and are ordinary editable library data. If any recipe already exists, seeding is skipped.

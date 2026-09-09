@@ -20,6 +20,8 @@ export class DexieBackupRepository implements BackupRepository {
       mealSlots,
       mealComponents,
       cookingEvents,
+      groceryLists,
+      groceryItems,
     ] = await Promise.all([
       this.db.recipes.toArray(),
       this.db.settings.toArray(),
@@ -29,6 +31,8 @@ export class DexieBackupRepository implements BackupRepository {
       this.db.mealSlots.toArray(),
       this.db.mealComponents.toArray(),
       this.db.cookingEvents.toArray(),
+      this.db.groceryLists.toArray(),
+      this.db.groceryItems.toArray(),
     ])
     return {
       recipes,
@@ -39,6 +43,8 @@ export class DexieBackupRepository implements BackupRepository {
       mealSlots,
       mealComponents,
       cookingEvents,
+      groceryLists,
+      groceryItems,
     }
   }
 
@@ -54,6 +60,8 @@ export class DexieBackupRepository implements BackupRepository {
         this.db.mealSlots,
         this.db.mealComponents,
         this.db.cookingEvents,
+        this.db.groceryLists,
+        this.db.groceryItems,
       ],
       async () => {
         await this.db.recipes.clear()
@@ -64,6 +72,8 @@ export class DexieBackupRepository implements BackupRepository {
         await this.db.mealSlots.clear()
         await this.db.mealComponents.clear()
         await this.db.cookingEvents.clear()
+        await this.db.groceryLists.clear()
+        await this.db.groceryItems.clear()
 
         await this.db.recipes.bulkAdd(data.recipes)
         await this.db.settings.bulkAdd(
@@ -75,6 +85,8 @@ export class DexieBackupRepository implements BackupRepository {
         await this.db.mealSlots.bulkAdd(data.mealSlots)
         await this.db.mealComponents.bulkAdd(data.mealComponents)
         await this.db.cookingEvents.bulkAdd(data.cookingEvents)
+        await this.db.groceryLists.bulkAdd(data.groceryLists)
+        await this.db.groceryItems.bulkAdd(data.groceryItems)
       },
     )
   }

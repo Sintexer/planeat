@@ -58,12 +58,12 @@ Already installed, beyond the core stack (React/Mantine/Dexie/Zod/Day.js/vite-pl
 | `eslint-plugin-boundaries` + `eslint-import-resolver-node` | Enforces the layering above                                                                            |
 | `@vite-pwa/assets-generator`                               | Regenerates `public/` PWA icons from one source SVG (`pwa-assets.config.ts`, `bun run generate-icons`) |
 | `fraction.js`                                              | Recipe quantity scaling via `QuantityService`                                                          |
+| `convert-units`                                            | Compatible mass/volume aggregation via `QuantityService.add` / `canConvert`                            |
 
 Earmarked for a specific future sprint — add only when that sprint's work actually starts (see `docs/sprints/plan.md` and `docs/architecture.md`'s "Supportive libraries" section for the full rationale):
 
 | Library             | Add when                                        | Not for                                                                        |
 | ------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------ |
-| `convert-units`     | Grocery ingredient aggregation (Sprint 4)       | Inferring weight from "one onion" or cup-to-flour-weight conversions           |
 | `fuse.js`           | Recipe/component picker (Sprint 5)              | Merging ingredient identities — fuzzy search is a UI aid, not an identity rule |
 | `@mantine/dropzone` | Structured recipe/backup file import (Sprint 6) | —                                                                              |
 | `schema-dts`        | Schema.org `Recipe` import typing (Sprint 6)    | Runtime validation — keep using Zod for that                                   |

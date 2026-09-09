@@ -24,6 +24,13 @@
 - Single-item placement: recipe (cooking event + snapshot) or simple food.
 - Today and Week screens; Dexie schema v3 and backup format version 3.
 
-## Next — grocery-list objects (Sprint 4)
+## Done — grocery-list objects (Sprint 4)
+
+- Standalone open/closed grocery lists with checkable items.
+- Generate from week plan (cooking events + simple foods); common ingredients start checked.
+- Pragmatic update-existing merge (replace generated lines, keep manual items and matching checks).
+- Dexie schema v4, backup format version 4, `convert-units` behind `QuantityService.add`.
+
+## Next — components, batches, and favorite meals (Sprint 5)
 
 See `docs/sprints/plan.md`.

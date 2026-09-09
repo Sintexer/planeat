@@ -129,6 +129,27 @@ const cookingEventSchema = z.object({
   scheduledDate: z.string(),
 })
 
+const groceryListSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  status: z.enum(['open', 'closed']),
+  sourcePlanId: z.string().optional(),
+  sourcePlanRevision: z.number().optional(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+})
+
+const groceryItemSchema = z.object({
+  id: z.string(),
+  listId: z.string(),
+  label: z.string(),
+  ingredientId: z.string().optional(),
+  quantity: quantitySchema.nullable(),
+  checked: z.boolean(),
+  origin: z.enum(['generated', 'manual']),
+  quantityManuallyEdited: z.boolean(),
+})
+
 export const backupFileSchema = z
   .object({
     format: z.literal('family-menu-planner'),
@@ -143,6 +164,8 @@ export const backupFileSchema = z
       mealSlots: z.array(mealSlotSchema),
       mealComponents: z.array(mealComponentSchema),
       cookingEvents: z.array(cookingEventSchema),
+      groceryLists: z.array(groceryListSchema),
+      groceryItems: z.array(groceryItemSchema),
     }),
   })
   .refine(
@@ -172,6 +195,20 @@ export const backupFileSchema = z
       return new Set(ids).size === ids.length
     },
     { message: 'Backup contains duplicate plan ids', path: ['data', 'plans'] },
+  )
+  .refine(
+    (backup) => {
+      const ids = backup.data.groceryLists.map((list) => list.id)
+      return new Set(ids).size === ids.length
+    },
+    { message: 'Backup contains duplicate grocery-list ids', path: ['data', 'groceryLists'] },
+  )
+  .refine(
+    (backup) => {
+      const ids = backup.data.groceryItems.map((item) => item.id)
+      return new Set(ids).size === ids.length
+    },
+    { message: 'Backup contains duplicate grocery-item ids', path: ['data', 'groceryItems'] },
   )
 
 /** Re-export for UI selects that want the same unit list as validation awareness. */

@@ -24,6 +24,7 @@
     "@mantine/modals": "^9.6.0",
     "@mantine/notifications": "^9.6.0",
     "@tabler/icons-react": "^3.46.0",
+    "convert-units": "^2.3.4",
     "dayjs": "^1.11.23",
     "dexie": "^4.4.5",
     "dexie-react-hooks": "^4.4.0",
@@ -35,6 +36,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/convert-units": "^2.3.12",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
