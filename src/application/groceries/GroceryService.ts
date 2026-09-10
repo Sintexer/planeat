@@ -17,6 +17,20 @@ import type { IngredientId } from '../../domain/ingredients/Ingredient'
 export type GroceryError =
   'not-found' | 'list-closed' | 'plan-not-found' | 'empty-label' | 'item-not-found'
 
+export type GroceryLinePreview = {
+  ingredientId?: string
+  label: string
+  quantity: Quantity | null
+}
+
+export type GroceryUpdatePreview = {
+  added: GroceryLinePreview[]
+  removed: GroceryLinePreview[]
+  changed: { label: string; from: Quantity | null; to: Quantity | null }[]
+  manualKeptCount: number
+  checksPreservedCount: number
+}
+
 type RequirementLine = {
   ingredientId?: IngredientId
   label: string
@@ -116,6 +130,74 @@ export class GroceryService {
     const updated = await this.groceries.getList(listId)
     if (!updated) return { ok: false, error: 'not-found' }
     return { ok: true, list: updated }
+  }
+
+  async previewUpdateFromPlan(
+    listId: GroceryListId,
+  ): Promise<{ ok: true; preview: GroceryUpdatePreview } | { ok: false; error: GroceryError }> {
+    const existing = await this.groceries.getListWithItems(listId)
+    if (!existing) return { ok: false, error: 'not-found' }
+    if (existing.list.status === 'closed') return { ok: false, error: 'list-closed' }
+    if (!existing.list.sourcePlanId) return { ok: false, error: 'plan-not-found' }
+
+    const graph = await this.plans.getGraph(existing.list.sourcePlanId)
+    if (!graph) return { ok: false, error: 'plan-not-found' }
+
+    const nextLines = await this.buildRequirementLines(graph)
+    const previousGenerated = existing.items.filter((item) => item.origin === 'generated')
+    const previousByKey = new Map<string, GroceryLinePreview>()
+    for (const item of previousGenerated) {
+      previousByKey.set(lineMatchKey(item), {
+        ingredientId: item.ingredientId,
+        label: item.label,
+        quantity: item.quantity,
+      })
+    }
+
+    const nextByKey = new Map<string, GroceryLinePreview>()
+    for (const line of nextLines) {
+      nextByKey.set(lineMatchKey(line), {
+        ingredientId: line.ingredientId,
+        label: line.label,
+        quantity: line.quantity,
+      })
+    }
+
+    const added: GroceryLinePreview[] = []
+    const removed: GroceryLinePreview[] = []
+    const changed: GroceryUpdatePreview['changed'] = []
+
+    for (const [key, line] of nextByKey) {
+      const previous = previousByKey.get(key)
+      if (!previous) {
+        added.push(line)
+        continue
+      }
+      if (!quantitiesEqual(previous.quantity, line.quantity)) {
+        changed.push({ label: line.label, from: previous.quantity, to: line.quantity })
+      }
+    }
+    for (const [key, line] of previousByKey) {
+      if (!nextByKey.has(key)) removed.push(line)
+    }
+
+    const nextIngredientIds = new Set(
+      nextLines.map((line) => line.ingredientId).filter((id): id is string => Boolean(id)),
+    )
+    const checksPreservedCount = previousGenerated.filter(
+      (item) => item.checked && item.ingredientId !== undefined && nextIngredientIds.has(item.ingredientId),
+    ).length
+
+    return {
+      ok: true,
+      preview: {
+        added,
+        removed,
+        changed,
+        manualKeptCount: existing.items.filter((item) => item.origin === 'manual').length,
+        checksPreservedCount,
+      },
+    }
   }
 
   async addManualItem(
@@ -366,4 +448,14 @@ export class GroceryService {
     }
     await this.groceries.createItems(inputs)
   }
+}
+
+function lineMatchKey(line: { ingredientId?: string; label: string }): string {
+  return line.ingredientId ? `id:${line.ingredientId}` : `label:${line.label}`
+}
+
+function quantitiesEqual(a: Quantity | null, b: Quantity | null): boolean {
+  if (a === null && b === null) return true
+  if (a === null || b === null) return false
+  return a.unit === b.unit && a.value === b.value
 }

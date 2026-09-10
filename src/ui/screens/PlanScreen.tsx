@@ -32,7 +32,8 @@ import {
 import { evaluatePlanSoftPrompts, previousWeekStart } from '../../domain/plans/softPrompts'
 import { isDayPlanned } from '../../domain/plans/weekOverview'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
-import { formatQuantity } from '../../domain/shared/formatQuantity'
+import { useFormatQuantity } from '../localization/useFormatQuantity'
+import { useLocalization } from '../localization/LocalizationContext'
 import {
   addDays,
   enumeratePlanDates,
@@ -55,9 +56,9 @@ import { useSimpleFoods } from '../hooks/useSimpleFoods'
 import { confirmClearSlot, confirmExcludeSlot } from '../plans/slotConfirmations'
 import { buildSlotDisplays, type SlotDisplay } from '../plans/slotDisplay'
 
-function shortWeekday(date: LocalDate): string {
+function shortWeekday(date: LocalDate, locale: string): string {
   const [y, m, d] = date.split('-').map(Number)
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'short' })
+  return new Date(y, m - 1, d).toLocaleDateString(locale, { weekday: 'short' })
 }
 
 function dayNumber(date: LocalDate): number {
@@ -82,6 +83,8 @@ export function PlanScreen() {
   const { planService, groceryService } = useServices()
   const simpleFoods = useSimpleFoods()
   const recipes = useRecipes()
+  const formatQty = useFormatQuantity()
+  const { t, bcp47 } = useLocalization()
 
   const today = todayLocalDate()
   const weekStartFromSettings = settings ? startOfWeek(today, settings.weekStartDay) : undefined
@@ -234,23 +237,41 @@ export function PlanScreen() {
     }
 
     const revisionDrift = existing.sourcePlanRevision !== graph.plan.revision
+    const previewResult = await groceryService.previewUpdateFromPlan(existing.id)
+    const preview = previewResult.ok ? previewResult.preview : undefined
     modals.open({
-      title: 'Grocery list already exists',
+      title: t('grocery.updateTitle'),
       children: (
         <Stack gap="sm">
           <Text size="sm">
             An open list “{existing.title}” is linked to this plan
-            {revisionDrift ? ', and the plan has changed since that list was generated.' : '.'}{' '}
-            Updating replaces generated lines (keeping checkmarks where ingredients match) and
-            leaves manual items alone. Creating new leaves the existing list untouched.
+            {revisionDrift ? ', and the plan has changed since that list was generated.' : '.'}
           </Text>
+          <Text size="sm">{t('grocery.updateBody')}</Text>
+          {preview && (
+            <>
+              {preview.added.length > 0 && (
+                <Text size="sm">Added: {preview.added.map((line) => line.label).join(', ')}</Text>
+              )}
+              {preview.removed.length > 0 && (
+                <Text size="sm">Removed: {preview.removed.map((line) => line.label).join(', ')}</Text>
+              )}
+              {preview.changed.length > 0 && (
+                <Text size="sm">Quantity changes: {preview.changed.length}</Text>
+              )}
+              <Text size="sm" c="dimmed">
+                Manual items kept: {preview.manualKeptCount}. Checkmarks preserved:{' '}
+                {preview.checksPreservedCount}.
+              </Text>
+            </>
+          )}
           <Button
             onClick={() => {
               modals.closeAll()
               void updateGroceryList(existing.id)
             }}
           >
-            Update existing
+            {t('grocery.updateExisting')}
           </Button>
           <Button
             variant="light"
@@ -259,7 +280,7 @@ export function PlanScreen() {
               void createGroceryList()
             }}
           >
-            Create new
+            {t('grocery.createNew')}
           </Button>
           <Button variant="default" onClick={() => modals.closeAll()}>
             Cancel
@@ -383,7 +404,7 @@ export function PlanScreen() {
               key={date}
               onClick={() => setDayOverride(date)}
               style={{ flex: 1, minWidth: 0 }}
-              aria-label={`${shortWeekday(date)} ${dayNumber(date)}, ${planned ? 'planned' : 'empty'}`}
+              aria-label={`${shortWeekday(date, bcp47)} ${dayNumber(date)}, ${planned ? 'planned' : 'empty'}`}
             >
               <Stack gap={6} align="center">
                 <Text
@@ -392,7 +413,7 @@ export function PlanScreen() {
                   fw={active || planned ? 600 : 400}
                   style={isHistoryWeek || isPastDay ? { opacity: 0.75 } : undefined}
                 >
-                  {shortWeekday(date)}
+                  {shortWeekday(date, bcp47)}
                 </Text>
                 <Paper
                   radius="xl"
@@ -444,7 +465,7 @@ export function PlanScreen() {
         <Group gap={6} wrap="wrap">
           {remainingThisWeek.map((row) => (
             <Badge key={row.id} variant="light" color={accent} radius="xl" size="sm">
-              {row.name} · {formatQuantity(row.remaining)} remaining
+              {row.name} · {formatQty(row.remaining)} remaining
             </Badge>
           ))}
         </Group>
@@ -469,6 +490,12 @@ export function PlanScreen() {
 
         <SoftPromptAlerts prompts={weekPrompts} />
         <SoftPromptAlerts prompts={dayPrompts} omitDatePrefix />
+
+        {!isDayPlanned(graph, activeDay) && (
+          <Text size="sm" c="dimmed">
+            {t('slot.notPlanned')}
+          </Text>
+        )}
 
         <Stack gap={22}>
           {MEAL_TYPES.map((mealType) => {
