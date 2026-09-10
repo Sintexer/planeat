@@ -60,13 +60,10 @@ Already installed, beyond the core stack (React/Mantine/Dexie/Zod/Day.js/vite-pl
 | `fraction.js`                                              | Recipe quantity scaling via `QuantityService`                                                          |
 | `convert-units`                                            | Compatible mass/volume aggregation via `QuantityService.add` / `canConvert`                            |
 | `fuse.js`                                                  | Fuzzy recipe/component picker search and ranking (never ingredient identity merge)                     |
+| `@mantine/dropzone`                                        | Recipe import file drop target (always paired with a visible Choose file button)                       |
+| `schema-dts`                                               | Compile-time Schema.org `Recipe` typing for JSON-LD import (Zod remains runtime validation)            |
 
-Earmarked for a specific future sprint — add only when that sprint's work actually starts (see `docs/sprints/plan.md` and `docs/architecture.md`'s "Supportive libraries" section for the full rationale):
-
-| Library             | Add when                                        | Not for                                      |
-| ------------------- | ----------------------------------------------- | -------------------------------------------- |
-| `@mantine/dropzone` | Structured recipe/backup file import (Sprint 6) | —                                            |
-| `schema-dts`        | Schema.org `Recipe` import typing (Sprint 6)    | Runtime validation — keep using Zod for that |
+No further libraries are currently earmarked for a scheduled sprint.
 
 Deliberately kept in reserve, not scheduled: `fflate` (only if backups need compression/photos), `DOMPurify` (only if we render imported HTML), `Papa Parse` (only for CSV import/export), `@dnd-kit/core` (only if drag-and-drop planning is added), `TanStack Virtual` (only if recipe lists get large enough to need it), `Immer` (only if immutable plan-editing genuinely gets unwieldy without it).
 

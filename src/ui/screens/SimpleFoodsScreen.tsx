@@ -13,11 +13,11 @@ import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import { IconTrash } from '@tabler/icons-react'
-import { Link } from 'react-router'
 import { useServices } from '../../app/servicesContext'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
 import { formatQuantity } from '../../domain/shared/formatQuantity'
 import { QuantityFields } from '../components/QuantityFields'
+import { ScreenHeader } from '../components/ScreenHeader'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
 
 interface NewSimpleFoodForm {
@@ -99,12 +99,7 @@ export function SimpleFoodsScreen() {
 
   return (
     <Stack gap="md">
-      <Group justify="space-between">
-        <Title order={2}>Simple foods</Title>
-        <Button component={Link} to="/recipes" variant="default">
-          Back
-        </Button>
-      </Group>
+      <ScreenHeader title="Simple foods" fallbackTo="/recipes" />
 
       <Text size="sm" c="dimmed">
         Foods served without a recipe (bread, yogurt, banana). Disable to stop suggesting them on

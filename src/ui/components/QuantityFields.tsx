@@ -20,7 +20,7 @@ export function QuantityFields({
   unit,
   onValueChange,
   onUnitChange,
-  min = 0,
+  min = 0.001,
 }: QuantityFieldsProps) {
   return (
     <Group grow align="flex-end">
@@ -28,13 +28,15 @@ export function QuantityFields({
         label={valueLabel}
         value={value}
         min={min}
+        step={0.01}
+        allowDecimal
         decimalScale={3}
         onChange={(next) => onValueChange(typeof next === 'number' ? next : '')}
       />
       <Select
         label={unitLabel}
         data={unitOptions}
-        value={unit}
+        value={QUANTITY_UNITS.includes(unit as (typeof QUANTITY_UNITS)[number]) ? unit : 'piece'}
         allowDeselect={false}
         onChange={(next) => onUnitChange(next ?? unit)}
       />

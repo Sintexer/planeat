@@ -7,7 +7,6 @@ import {
   Stack,
   Text,
   TextInput,
-  Title,
   Loader,
 } from '@mantine/core'
 import { useForm } from '@mantine/form'
@@ -15,11 +14,12 @@ import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { useServices } from '../../app/servicesContext'
 import type { GroceryItem } from '../../domain/groceries/GroceryItem'
 import type { Quantity } from '../../domain/shared/Quantity'
 import { QuantityFields } from '../components/QuantityFields'
+import { ScreenHeader } from '../components/ScreenHeader'
 import { useGroceryList } from '../hooks/useGroceryList'
 
 interface ManualItemForm {
@@ -63,10 +63,8 @@ export function GroceryListDetailScreen() {
   if (detail === null) {
     return (
       <Stack gap="md">
-        <Title order={2}>List not found</Title>
-        <Button component={Link} to="/lists" variant="default">
-          All lists
-        </Button>
+        <ScreenHeader title="List not found" fallbackTo="/lists" />
+        <Text c="dimmed">This grocery list could not be found.</Text>
       </Stack>
     )
   }
@@ -181,17 +179,15 @@ export function GroceryListDetailScreen() {
 
   return (
     <Stack gap="md">
-      <Group justify="space-between" align="flex-start">
-        <Stack gap={4}>
-          <Title order={2}>{list.title}</Title>
+      <ScreenHeader
+        title={list.title}
+        fallbackTo="/lists"
+        actions={
           <Badge w="fit-content" color={closed ? 'gray' : 'green'} variant="light">
             {list.status}
           </Badge>
-        </Stack>
-        <Button component={Link} to="/lists" variant="default">
-          All lists
-        </Button>
-      </Group>
+        }
+      />
 
       <Group>
         <Button variant="light" onClick={handleCloseOrReopen}>

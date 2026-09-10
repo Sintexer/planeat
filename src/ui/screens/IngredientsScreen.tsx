@@ -1,21 +1,11 @@
-import {
-  ActionIcon,
-  Button,
-  Card,
-  Group,
-  Stack,
-  Switch,
-  Text,
-  TextInput,
-  Title,
-} from '@mantine/core'
+import { ActionIcon, Button, Card, Group, Stack, Switch, Text, TextInput } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import { IconTrash } from '@tabler/icons-react'
-import { Link } from 'react-router'
 import { useServices } from '../../app/servicesContext'
 import type { Ingredient } from '../../domain/ingredients/Ingredient'
+import { ScreenHeader } from '../components/ScreenHeader'
 import { useIngredients } from '../hooks/useIngredients'
 
 interface NewIngredientForm {
@@ -85,12 +75,7 @@ export function IngredientsScreen() {
 
   return (
     <Stack gap="md">
-      <Group justify="space-between">
-        <Title order={2}>Ingredients</Title>
-        <Button component={Link} to="/recipes" variant="default">
-          Back
-        </Button>
-      </Group>
+      <ScreenHeader title="Ingredients" fallbackTo="/recipes" />
 
       <Text size="sm" c="dimmed">
         Canonical names and aliases. Saving a recipe also creates ingredients from typed names.

@@ -16,6 +16,7 @@ import { notifications } from '@mantine/notifications'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useServices } from '../../app/servicesContext'
+import { ScreenHeader } from '../components/ScreenHeader'
 import {
   EFFORT_LABELS,
   MEAL_TYPE_LABELS,
@@ -100,10 +101,8 @@ export function RecipeDetailScreen() {
   if (recipe === null) {
     return (
       <Stack gap="md">
-        <Text>Recipe not found.</Text>
-        <Button component={Link} to="/recipes" variant="default">
-          Back to recipes
-        </Button>
+        <ScreenHeader title="Recipe not found" fallbackTo="/recipes" />
+        <Text c="dimmed">This recipe could not be found.</Text>
       </Stack>
     )
   }
@@ -137,17 +136,20 @@ export function RecipeDetailScreen() {
 
   return (
     <Stack gap="md">
-      <Group justify="space-between" align="flex-start">
-        <Title order={2}>{recipe.name}</Title>
-        <Group gap="xs">
-          <Button component={Link} to={`/recipes/${recipe.id}/edit`} variant="light">
-            Edit
-          </Button>
-          <Button color="red" variant="subtle" onClick={handleDelete}>
-            Delete
-          </Button>
-        </Group>
-      </Group>
+      <ScreenHeader
+        title={recipe.name}
+        fallbackTo="/recipes"
+        actions={
+          <Group gap="xs">
+            <Button component={Link} to={`/recipes/${recipe.id}/edit`} variant="light">
+              Edit
+            </Button>
+            <Button color="red" variant="subtle" onClick={handleDelete}>
+              Delete
+            </Button>
+          </Group>
+        }
+      />
 
       <Text size="sm" c="dimmed">
         Yield {quantityService.format(recipe.yield)} · portion{' '}
@@ -313,10 +315,6 @@ export function RecipeDetailScreen() {
           Source: {recipe.sourceUrl}
         </Text>
       )}
-
-      <Button component={Link} to="/recipes" variant="default">
-        Back to recipes
-      </Button>
     </Stack>
   )
 }

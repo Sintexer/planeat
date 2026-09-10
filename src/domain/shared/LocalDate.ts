@@ -59,3 +59,68 @@ export const WEEKDAY_LABELS: Record<WeekStartDay, string> = {
   5: 'Friday',
   6: 'Saturday',
 }
+
+export const WEEKDAY_SHORT_LABELS: Record<WeekStartDay, string> = {
+  0: 'S',
+  1: 'M',
+  2: 'T',
+  3: 'W',
+  4: 'T',
+  5: 'F',
+  6: 'S',
+}
+
+/** Ordered short weekday labels starting at `weekStartDay`. */
+export function weekdayHeaders(weekStartDay: WeekStartDay): string[] {
+  const headers: string[] = []
+  for (let i = 0; i < 7; i++) {
+    headers.push(WEEKDAY_SHORT_LABELS[((weekStartDay + i) % 7) as WeekStartDay])
+  }
+  return headers
+}
+
+/** Every week (Sun–Sat style per weekStartDay) that intersects the given calendar month. */
+export function weeksOverlappingMonth(
+  year: number,
+  month: number,
+  weekStartDay: WeekStartDay,
+): LocalDate[][] {
+  const firstOfMonth = toLocalDate(new Date(year, month - 1, 1))
+  const lastOfMonth = toLocalDate(new Date(year, month, 0))
+  let weekStart = startOfWeek(firstOfMonth, weekStartDay)
+  const weeks: LocalDate[][] = []
+  while (weekStart <= lastOfMonth) {
+    weeks.push(enumeratePlanDates(weekStart, 7))
+    weekStart = addDays(weekStart, 7)
+  }
+  return weeks
+}
+
+export function monthContainsDate(date: LocalDate, year: number, month: number): boolean {
+  const [y, m] = date.split('-').map(Number)
+  return y === year && m === month
+}
+
+/** Human label for a plan week relative to today (“This week”, “Last week”, …). */
+export function planWeekLabel(
+  weekStart: LocalDate,
+  today: LocalDate,
+  weekStartDay: WeekStartDay,
+): string {
+  const thisWeek = startOfWeek(today, weekStartDay)
+  if (weekStart === thisWeek) return 'This week'
+  if (weekStart === addDays(thisWeek, -7)) return 'Last week'
+  if (weekStart === addDays(thisWeek, 7)) return 'Next week'
+  const end = addDays(weekStart, 6)
+  const [ys, ms, ds] = weekStart.split('-').map(Number)
+  const [ye, me, de] = end.split('-').map(Number)
+  const startText = new Date(ys, ms - 1, ds).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  })
+  const endText = new Date(ye, me - 1, de).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  })
+  return `${startText} – ${endText}`
+}

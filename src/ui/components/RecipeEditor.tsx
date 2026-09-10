@@ -1,5 +1,6 @@
 import {
   ActionIcon,
+  Alert,
   Button,
   Group,
   MultiSelect,
@@ -7,13 +8,13 @@ import {
   Select,
   Stack,
   Switch,
+  Text,
   Textarea,
   TextInput,
-  Title,
 } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { IconPlus, IconTrash } from '@tabler/icons-react'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { notifications } from '@mantine/notifications'
 import { useServices } from '../../app/servicesContext'
@@ -30,6 +31,8 @@ import {
 import type { Recipe } from '../../domain/recipes/Recipe'
 import { useIngredients } from '../hooks/useIngredients'
 import { QuantityFields } from '../components/QuantityFields'
+import { ScreenHeader } from '../components/ScreenHeader'
+import { importedDraftToFormValues, readAndClearImportDraft } from '../recipes/importDraft'
 import {
   buildPartialWriteFromForm,
   defaultRecipeFormValues,
@@ -65,6 +68,13 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
   const navigate = useNavigate()
   const { recipeService, ingredientService } = useServices()
   const ingredients = useIngredients()
+  const [importBootstrap] = useState(() => {
+    if (mode !== 'create') return { hints: [] as string[], form: null as RecipeFormValues | null }
+    const draft = readAndClearImportDraft()
+    if (!draft) return { hints: [] as string[], form: null as RecipeFormValues | null }
+    return { hints: draft.hints, form: importedDraftToFormValues(draft.form) }
+  })
+  const importHints = importBootstrap.hints
 
   const ingredientNamesById = useMemo(() => {
     const map = new Map<string, string>()
@@ -75,7 +85,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
   }, [ingredients])
 
   const form = useForm<RecipeFormValues>({
-    initialValues: defaultRecipeFormValues(),
+    initialValues: importBootstrap.form ?? defaultRecipeFormValues(),
     validate: {
       name: (value) => (value.trim().length === 0 ? 'Name is required' : null),
       roles: (value) => (value.length === 0 ? 'Pick at least one role' : null),
@@ -141,7 +151,22 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
   return (
     <form onSubmit={handleSubmit}>
       <Stack gap="md">
-        <Title order={2}>{mode === 'create' ? 'New recipe' : 'Edit recipe'}</Title>
+        <ScreenHeader
+          title={mode === 'create' ? 'New recipe' : 'Edit recipe'}
+          fallbackTo={recipe ? `/recipes/${recipe.id}` : '/recipes'}
+        />
+
+        {importHints.length > 0 && (
+          <Alert color="yellow" title="Imported — please confirm">
+            <Stack gap={4}>
+              {importHints.map((hint) => (
+                <Text key={hint} size="sm">
+                  {hint}
+                </Text>
+              ))}
+            </Stack>
+          </Alert>
+        )}
 
         <TextInput label="Name" required {...form.getInputProps('name')} />
 
@@ -223,7 +248,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
           }
         />
 
-        <Title order={4}>Ingredients</Title>
+        <Text fw={600}>Ingredients</Text>
         <Stack gap="sm">
           {ingredientLines.map((line, index) => (
             <Stack
@@ -299,13 +324,6 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
 
         <Group>
           <Button type="submit">Save</Button>
-          <Button
-            variant="default"
-            type="button"
-            onClick={() => navigate(recipe ? `/recipes/${recipe.id}` : '/recipes')}
-          >
-            Cancel
-          </Button>
         </Group>
       </Stack>
     </form>

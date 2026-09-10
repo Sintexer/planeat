@@ -37,6 +37,12 @@
 - Auto prep sessions by date with effort units (`Prep · 1.5`); meal favorites; recipe pairings; `fuse.js` Suggested picker; soft planning prompts via global Settings.
 - Dexie schema v5, backup format version 5.
 
-## Next — Sprint 6
+## Done — Sprint 6 (structured recipe imports)
 
-Structured recipe imports — see `docs/sprints/plan.md`.
+- JSON/JSON-LD paste and file import (`@mantine/dropzone` + visible Choose file); HTML with embedded `application/ld+json`.
+- Schema.org Recipe extraction (Zod runtime + `schema-dts` types); multi-recipe pick-one; prefill `RecipeEditor` with hints.
+- No network fetch; imported recipes save like manual ones. No Dexie schema bump.
+
+## Next — Sprint 7
+
+Household-use polish — see `docs/sprints/plan.md`.

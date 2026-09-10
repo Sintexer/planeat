@@ -1,15 +1,14 @@
 import {
-  Title,
   Text,
   Stack,
   NumberInput,
   Button,
   Group,
-  Divider,
   FileButton,
   Select,
   MultiSelect,
   Switch,
+  Paper,
 } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
@@ -18,6 +17,7 @@ import dayjs from 'dayjs'
 import { useEffect } from 'react'
 import { useServices } from '../../app/servicesContext'
 import { WEEKDAY_LABELS, type WeekStartDay } from '../../domain/shared/LocalDate'
+import { PageTitle } from '../components/ScreenHeader'
 import { useSettings } from '../hooks/useSettings'
 
 interface SettingsForm {
@@ -36,6 +36,22 @@ const weekStartOptions = ([0, 1, 2, 3, 4, 5, 6] as const).map((day) => ({
 }))
 
 const weekdayMultiOptions = weekStartOptions
+
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <Text
+      size="xs"
+      tt="uppercase"
+      fw={600}
+      c="dimmed"
+      style={{ letterSpacing: '0.08em' }}
+      mb={8}
+      mt={4}
+    >
+      {children}
+    </Text>
+  )
+}
 
 export function SettingsScreen() {
   const { settingsRepository, backupService } = useServices()
@@ -128,57 +144,69 @@ export function SettingsScreen() {
   }
 
   return (
-    <Stack gap="md">
-      <Title order={2}>Settings</Title>
+    <Stack gap="lg">
+      <PageTitle>Settings</PageTitle>
 
       <form onSubmit={handleSubmit}>
-        <Stack gap="sm">
-          <NumberInput
-            label="Household size"
-            min={1}
-            disabled={!settings}
-            {...form.getInputProps('householdSize')}
-          />
-          <Select
-            label="Week starts on"
-            data={weekStartOptions}
-            disabled={!settings}
-            {...form.getInputProps('weekStartDay')}
-          />
+        <Stack gap={24}>
+          <div>
+            <SectionLabel>Household</SectionLabel>
+            <Paper withBorder p={12} radius="md">
+              <Stack gap="sm">
+                <NumberInput
+                  label="Household size"
+                  min={1}
+                  disabled={!settings}
+                  {...form.getInputProps('householdSize')}
+                />
+                <Select
+                  label="Week starts on"
+                  data={weekStartOptions}
+                  disabled={!settings}
+                  {...form.getInputProps('weekStartDay')}
+                />
+              </Stack>
+            </Paper>
+          </div>
 
-          <Divider label="Planning preferences" labelPosition="left" />
-
-          <NumberInput
-            label="Maximum batch-prep units"
-            description="Half-unit steps. Two dishes in one session count as 1.5."
-            min={0.5}
-            step={0.5}
-            decimalScale={1}
-            disabled={!settings}
-            {...form.getInputProps('maxBatchPrepUnits')}
-          />
-          <MultiSelect
-            label="Preferred batch-prep days"
-            data={weekdayMultiOptions}
-            disabled={!settings}
-            {...form.getInputProps('preferredBatchPrepDays')}
-          />
-          <MultiSelect
-            label="Quick-meals-only days"
-            data={weekdayMultiOptions}
-            disabled={!settings}
-            {...form.getInputProps('quickMealsOnlyDays')}
-          />
-          <Switch
-            label="Avoid multiple demanding preparations on one day"
-            disabled={!settings}
-            {...form.getInputProps('avoidMultipleDemandingPreps', { type: 'checkbox' })}
-          />
-          <Switch
-            label="Favor vegetables daily"
-            disabled={!settings}
-            {...form.getInputProps('favorVegetablesDaily', { type: 'checkbox' })}
-          />
+          <div>
+            <SectionLabel>Meal preferences</SectionLabel>
+            <Paper withBorder p={12} radius="md">
+              <Stack gap="sm">
+                <NumberInput
+                  label="Maximum batch-prep units"
+                  description="Half-unit steps. Two dishes in one session count as 1.5."
+                  min={0.5}
+                  step={0.5}
+                  decimalScale={1}
+                  disabled={!settings}
+                  {...form.getInputProps('maxBatchPrepUnits')}
+                />
+                <MultiSelect
+                  label="Preferred batch-prep days"
+                  data={weekdayMultiOptions}
+                  disabled={!settings}
+                  {...form.getInputProps('preferredBatchPrepDays')}
+                />
+                <MultiSelect
+                  label="Quick-meals-only days"
+                  data={weekdayMultiOptions}
+                  disabled={!settings}
+                  {...form.getInputProps('quickMealsOnlyDays')}
+                />
+                <Switch
+                  label="Avoid multiple demanding preparations on one day"
+                  disabled={!settings}
+                  {...form.getInputProps('avoidMultipleDemandingPreps', { type: 'checkbox' })}
+                />
+                <Switch
+                  label="Favor vegetables daily"
+                  disabled={!settings}
+                  {...form.getInputProps('favorVegetablesDaily', { type: 'checkbox' })}
+                />
+              </Stack>
+            </Paper>
+          </div>
 
           <Button type="submit" disabled={!settings} w="fit-content">
             Save
@@ -186,24 +214,28 @@ export function SettingsScreen() {
         </Stack>
       </form>
 
-      <Divider label="Backup" labelPosition="left" />
-
-      <Text c="dimmed" size="sm">
-        Export a backup file, or restore one — restoring replaces all local data.
-      </Text>
-
-      <Group>
-        <Button variant="default" onClick={handleExport}>
-          Export backup
-        </Button>
-        <FileButton onChange={handleFilePicked} accept="application/json">
-          {(props) => (
-            <Button variant="default" {...props}>
-              Restore from backup
-            </Button>
-          )}
-        </FileButton>
-      </Group>
+      <div>
+        <SectionLabel>Backup</SectionLabel>
+        <Paper withBorder p={12} radius="md">
+          <Stack gap="sm">
+            <Text c="dimmed" size="sm">
+              Export a backup file, or restore one — restoring replaces all local data.
+            </Text>
+            <Group>
+              <Button variant="default" onClick={handleExport}>
+                Export backup
+              </Button>
+              <FileButton onChange={handleFilePicked} accept="application/json">
+                {(props) => (
+                  <Button variant="default" {...props}>
+                    Restore from backup
+                  </Button>
+                )}
+              </FileButton>
+            </Group>
+          </Stack>
+        </Paper>
+      </div>
     </Stack>
   )
 }

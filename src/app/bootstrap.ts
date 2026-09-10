@@ -5,10 +5,12 @@ import { PairingService } from '../application/pairings/PairingService'
 import { IngredientService } from '../application/ingredients/IngredientService'
 import { PlanService } from '../application/plans/PlanService'
 import { QuantityService } from '../application/quantities/QuantityService'
+import { RecipeImportService } from '../application/recipes/RecipeImportService'
 import { RecipeService } from '../application/recipes/RecipeService'
 import { SimpleFoodService } from '../application/simpleFoods/SimpleFoodService'
 import type { SettingsRepository } from '../application/ports/SettingsRepository'
 import { db } from '../infrastructure/db/database'
+import { SchemaOrgRecipeExtractor } from '../infrastructure/importers/extractRecipes'
 import { DexieBackupRepository } from '../infrastructure/db/repositories/DexieBackupRepository'
 import { DexieGroceryRepository } from '../infrastructure/db/repositories/DexieGroceryRepository'
 import { DexieIngredientRepository } from '../infrastructure/db/repositories/DexieIngredientRepository'
@@ -29,6 +31,7 @@ export interface AppServices {
   quantityService: QuantityService
   mealFavoriteService: MealFavoriteService
   pairingService: PairingService
+  recipeImportService: RecipeImportService
   settingsRepository: SettingsRepository
   backupService: BackupService
 }
@@ -71,6 +74,7 @@ export function bootstrap(): AppServices {
     quantityService,
     mealFavoriteService: new MealFavoriteService(mealFavoriteRepository),
     pairingService: new PairingService(pairingRepository),
+    recipeImportService: new RecipeImportService(new SchemaOrgRecipeExtractor()),
     settingsRepository,
     backupService: new BackupService(backupRepository),
   }
