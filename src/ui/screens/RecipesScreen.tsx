@@ -2,7 +2,6 @@ import { ActionIcon, Group, Stack, Text } from '@mantine/core'
 import { IconFileImport, IconPlus, IconCarrot, IconApple } from '@tabler/icons-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { formatQuantity } from '../../domain/shared/formatQuantity'
 import { EFFORT_LABELS } from '../../domain/shared/MealEnums'
 import { DishCatalog } from '../catalog/DishCatalog'
 import {
@@ -14,26 +13,30 @@ import {
 import { PageTitle } from '../components/ScreenHeader'
 import { useRecipes } from '../hooks/useRecipes'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
+import { useFormatQuantity } from '../localization/useFormatQuantity'
+import { useLocalization } from '../localization/LocalizationContext'
 
 export function RecipesScreen() {
   const recipes = useRecipes()
   const simpleFoods = useSimpleFoods()
   const navigate = useNavigate()
+  const formatQty = useFormatQuantity()
+  const { t } = useLocalization()
   const [filters, setFilters] = useState<DishCatalogFilters>(() => defaultDishCatalogFilters('all'))
 
   const items = useMemo(() => {
     const recipeItems = (recipes ?? []).map((recipe) =>
       recipeToCatalogItem(recipe, {
-        subtitle: `Recipe · Yield ${formatQuantity(recipe.yield)} · ${EFFORT_LABELS[recipe.effort]}`,
+        subtitle: `Recipe · Yield ${formatQty(recipe.yield)} · ${EFFORT_LABELS[recipe.effort]}`,
       }),
     )
     const foodItems = (simpleFoods ?? []).map((food) =>
       simpleFoodToCatalogItem(food, {
-        subtitle: `Simple food · ${formatQuantity(food.defaultPortion)}`,
+        subtitle: `Simple food · ${formatQty(food.defaultPortion)}`,
       }),
     )
     return [...recipeItems, ...foodItems]
-  }, [recipes, simpleFoods])
+  }, [recipes, simpleFoods, formatQty])
 
   return (
     <Stack gap="lg">
@@ -108,7 +111,12 @@ export function RecipesScreen() {
 
       {recipes === undefined && <Text c="dimmed">Loading…</Text>}
       {recipes?.length === 0 && simpleFoods?.length === 0 && (
-        <Text c="dimmed">No recipes yet.</Text>
+        <Stack gap={4}>
+          <Text c="dimmed">{t('empty.recipes')}</Text>
+          <Text size="sm" c="dimmed">
+            {t('empty.recipesHint')}
+          </Text>
+        </Stack>
       )}
 
       {(recipes !== undefined || simpleFoods !== undefined) && items.length > 0 && (

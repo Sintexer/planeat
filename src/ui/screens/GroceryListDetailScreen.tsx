@@ -21,6 +21,7 @@ import type { Quantity } from '../../domain/shared/Quantity'
 import { QuantityFields } from '../components/QuantityFields'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { useGroceryList } from '../hooks/useGroceryList'
+import { useFormatQuantity } from '../localization/useFormatQuantity'
 
 interface ManualItemForm {
   label: string
@@ -36,8 +37,9 @@ function quantityFromForm(value: number | '', unit: string): Quantity | null {
 export function GroceryListDetailScreen() {
   const { listId } = useParams()
   const navigate = useNavigate()
-  const { groceryService, quantityService } = useServices()
+  const { groceryService } = useServices()
   const detail = useGroceryList(listId)
+  const formatQty = useFormatQuantity()
   const [editingId, setEditingId] = useState<string | undefined>(undefined)
 
   const addForm = useForm<ManualItemForm>({
@@ -244,7 +246,7 @@ export function GroceryListDetailScreen() {
                     {item.label}
                   </Text>
                   <Text size="sm" c="dimmed">
-                    {quantityService.format(item.quantity)}
+                    {formatQty(item.quantity)}
                     {item.origin === 'manual' ? ' · manual' : ''}
                   </Text>
                 </Stack>

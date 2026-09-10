@@ -19,7 +19,6 @@ import {
 import type { MealSlot } from '../../domain/plans/MealSlot'
 import type { PlanGraph } from '../../domain/plans/PlanGraph'
 import type { Quantity } from '../../domain/shared/Quantity'
-import { formatQuantity } from '../../domain/shared/formatQuantity'
 import { addDays } from '../../domain/shared/LocalDate'
 import { hasUnallocatedRemainder, isReuseAllowed } from '../../domain/plans/CookingEventAllocation'
 import { useMealFavorites } from '../hooks/useMealFavorites'
@@ -29,6 +28,7 @@ import { useSettings } from '../hooks/useSettings'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
 import { usePlanByStartDate } from '../hooks/usePlanByStartDate'
 import { QuantityFields } from './QuantityFields'
+import { useFormatQuantity } from '../localization/useFormatQuantity'
 
 type Step =
   | { kind: 'pick' }
@@ -102,6 +102,7 @@ export function AddComponentFlow({
   const favorites = useMealFavorites()
   const pairings = usePairings()
   const settings = useSettings()
+  const formatQty = useFormatQuantity()
   const previousWeekStart = addDays(graph.plan.startDate, -7)
   const previousWeek = usePlanByStartDate(previousWeekStart)
 
@@ -454,8 +455,8 @@ export function AddComponentFlow({
                     }}
                   >
                     <Text size="sm">
-                      {event.scheduledDate} · {formatQuantity(event.outputQuantity)} total
-                      {remaining ? ` · ${formatQuantity(remaining)} left` : ''}
+                      {event.scheduledDate} · {formatQty(event.outputQuantity)} total
+                      {remaining ? ` · ${formatQty(remaining)} left` : ''}
                     </Text>
                   </UnstyledButton>
                 )

@@ -10,13 +10,13 @@ import type { MealComponentId } from '../../domain/plans/MealComponent'
 import type { MealSlot } from '../../domain/plans/MealSlot'
 import type { PlanGraph } from '../../domain/plans/PlanGraph'
 import type { Quantity } from '../../domain/shared/Quantity'
-import { formatQuantity } from '../../domain/shared/formatQuantity'
 import { MEAL_TYPE_LABELS } from '../../domain/shared/MealEnums'
 import { hasUnallocatedRemainder } from '../../domain/plans/CookingEventAllocation'
 import { useMealFavorites } from '../hooks/useMealFavorites'
 import { componentLabel, type SlotComponentDisplay } from '../plans/slotDisplay'
 import { AddComponentFlow } from './AddComponentFlow'
 import { QuantityFields } from './QuantityFields'
+import { useFormatQuantity } from '../localization/useFormatQuantity'
 
 interface MealEditorProps {
   opened: boolean
@@ -103,6 +103,7 @@ function openOverAllocationChoices(args: {
 export function MealEditor({ opened, onClose, slot, graph, components }: MealEditorProps) {
   const { planService, mealFavoriteService } = useServices()
   const favorites = useMealFavorites()
+  const formatQty = useFormatQuantity()
   const [addOpen, setAddOpen] = useState(false)
   const [insertFavoriteOpen, setInsertFavoriteOpen] = useState(false)
   const [editComponentId, setEditComponentId] = useState<MealComponentId | undefined>()
@@ -210,12 +211,12 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
       const remaining = planService.remainingForCookingEvent(graph, id)
       if (hasUnallocatedRemainder(remaining) && remaining) {
         lines.push(
-          `${item.cookingEvent.recipeSnapshot.name}: ${formatQuantity(remaining)} unallocated`,
+          `${item.cookingEvent.recipeSnapshot.name}: ${formatQty(remaining)} unallocated`,
         )
       }
     }
     return lines
-  }, [components, graph, planService])
+  }, [components, graph, planService, formatQty])
 
   const openEditAllocation = (item: SlotComponentDisplay) => {
     setEditEventId(undefined)
@@ -547,9 +548,9 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                     {componentLabel(item)}
                   </Text>
                   <Text size="xs" c="dimmed">
-                    {formatQuantity(item.component.allocatedQuantity)}
+                    {formatQty(item.component.allocatedQuantity)}
                     {item.cookingEvent
-                      ? ` · prep ${item.cookingEvent.scheduledDate} (${formatQuantity(item.cookingEvent.outputQuantity)} total)`
+                      ? ` · prep ${item.cookingEvent.scheduledDate} (${formatQty(item.cookingEvent.outputQuantity)} total)`
                       : ''}
                   </Text>
                 </Stack>

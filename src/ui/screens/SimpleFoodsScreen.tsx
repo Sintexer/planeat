@@ -15,10 +15,10 @@ import { notifications } from '@mantine/notifications'
 import { IconTrash } from '@tabler/icons-react'
 import { useServices } from '../../app/servicesContext'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
-import { formatQuantity } from '../../domain/shared/formatQuantity'
 import { QuantityFields } from '../components/QuantityFields'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
+import { useFormatQuantity } from '../localization/useFormatQuantity'
 
 interface NewSimpleFoodForm {
   name: string
@@ -30,6 +30,7 @@ interface NewSimpleFoodForm {
 export function SimpleFoodsScreen() {
   const { simpleFoodService, ingredientService } = useServices()
   const simpleFoods = useSimpleFoods()
+  const formatQty = useFormatQuantity()
 
   const form = useForm<NewSimpleFoodForm>({
     initialValues: {
@@ -142,7 +143,7 @@ export function SimpleFoodsScreen() {
               <div>
                 <Text fw={500}>{simpleFood.name}</Text>
                 <Text size="sm" c="dimmed">
-                  Default {formatQuantity(simpleFood.defaultPortion)}
+                  Default {formatQty(simpleFood.defaultPortion)}
                 </Text>
                 <Switch
                   mt="xs"

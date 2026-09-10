@@ -30,6 +30,7 @@ import { usePairings } from '../hooks/usePairings'
 import { useRecipe } from '../hooks/useRecipe'
 import { useRecipes } from '../hooks/useRecipes'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
+import { useFormatQuantity } from '../localization/useFormatQuantity'
 
 export function RecipeDetailScreen() {
   const { recipeId } = useParams()
@@ -40,6 +41,7 @@ export function RecipeDetailScreen() {
   const simpleFoods = useSimpleFoods()
   const pairings = usePairings()
   const { recipeService, quantityService, pairingService } = useServices()
+  const formatQty = useFormatQuantity()
 
   const [scaleYieldValue, setScaleYieldValue] = useState<number | ''>('')
   const [pairingPick, setPairingPick] = useState<string | null>(null)
@@ -155,8 +157,7 @@ export function RecipeDetailScreen() {
       {recipe.photoUrl && <RecipePhotoThumb url={recipe.photoUrl} label={recipe.name} size={96} />}
 
       <Text size="sm" c="dimmed">
-        Yield {quantityService.format(recipe.yield)} · portion{' '}
-        {quantityService.format(recipe.defaultPortionPerPerson)} / person
+        Yield {formatQty(recipe.yield)} · portion {formatQty(recipe.defaultPortionPerPerson)} / person
       </Text>
 
       <Group gap={4}>
@@ -222,7 +223,7 @@ export function RecipeDetailScreen() {
             return (
               <List.Item key={`${line.ingredientId}-${index}`}>
                 {name}
-                {scaled ? ` — ${quantityService.format(scaled)}` : ' — quantity unspecified'}
+                {scaled ? ` — ${formatQty(scaled)}` : ` — ${formatQty(null)}`}
                 {line.note ? ` (${line.note})` : ''}
               </List.Item>
             )

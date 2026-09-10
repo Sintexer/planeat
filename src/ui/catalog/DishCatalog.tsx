@@ -13,7 +13,6 @@ import {
 import { IconAdjustments, IconChevronDown, IconChevronUp } from '@tabler/icons-react'
 import Fuse from 'fuse.js'
 import { useMemo, useState, type ReactNode } from 'react'
-import { formatQuantity } from '../../domain/shared/formatQuantity'
 import {
   EFFORT_LABELS,
   EFFORT_LEVELS,
@@ -26,6 +25,7 @@ import {
   type RecipeRole,
 } from '../../domain/shared/MealEnums'
 import { RecipePhotoThumb } from '../components/RecipePhotoThumb'
+import { useFormatQuantity } from '../localization/useFormatQuantity'
 import {
   groupCatalogItems,
   itemMatchesFilters,
@@ -102,6 +102,7 @@ function ItemRow({
   disabled?: boolean
   leftover?: boolean
 }) {
+  const formatQty = useFormatQuantity()
   return (
     <UnstyledButton
       disabled={disabled}
@@ -123,7 +124,7 @@ function ItemRow({
             </Text>
             <Text size="xs" c="dimmed">
               {item.subtitle}
-              {item.remaining ? ` · ${formatQuantity(item.remaining)} left` : ''}
+              {item.remaining ? ` · ${formatQty(item.remaining)} left` : ''}
             </Text>
             <Group gap={4}>
               {leftover && (

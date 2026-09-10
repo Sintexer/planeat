@@ -7,6 +7,7 @@ import { useServices } from '../../app/servicesContext'
 import type { Ingredient } from '../../domain/ingredients/Ingredient'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { useIngredients } from '../hooks/useIngredients'
+import { useLocalization } from '../localization/LocalizationContext'
 
 interface NewIngredientForm {
   name: string
@@ -18,6 +19,7 @@ interface NewIngredientForm {
 export function IngredientsScreen() {
   const { ingredientService } = useServices()
   const ingredients = useIngredients()
+  const { t } = useLocalization()
 
   const form = useForm<NewIngredientForm>({
     initialValues: { name: '', aliasesText: '', category: '', isCommon: false },
@@ -91,7 +93,7 @@ export function IngredientsScreen() {
           />
           <TextInput label="Category" {...form.getInputProps('category')} />
           <Switch
-            label="Common pantry item"
+            label={t('ingredient.usuallyAtHome')}
             {...form.getInputProps('isCommon', { type: 'checkbox' })}
           />
           <Button type="submit">Add ingredient</Button>
@@ -120,7 +122,7 @@ export function IngredientsScreen() {
                 <Switch
                   mt="xs"
                   size="sm"
-                  label="Common"
+                  label={t('ingredient.usuallyAtHomeShort')}
                   checked={ingredient.isCommon}
                   onChange={(event) => {
                     void ingredientService.updateIngredient(ingredient.id, {
