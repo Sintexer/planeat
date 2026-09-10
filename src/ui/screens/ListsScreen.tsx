@@ -3,11 +3,13 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { PageTitle } from '../components/ScreenHeader'
 import { useGroceryLists } from '../hooks/useGroceryLists'
+import { useLocalization } from '../localization/LocalizationContext'
 
 type ListSegment = 'current' | 'history'
 
 export function ListsScreen() {
   const lists = useGroceryLists()
+  const { t } = useLocalization()
   const [segment, setSegment] = useState<ListSegment>('current')
 
   const filtered = useMemo(() => {
@@ -47,7 +49,7 @@ export function ListsScreen() {
 
       {filtered?.length === 0 && (
         <Text c="dimmed">
-          {segment === 'current' ? 'No open grocery lists.' : 'No closed lists yet.'}
+          {segment === 'current' ? t('empty.listsOpen') : t('empty.listsClosed')}
         </Text>
       )}
 
