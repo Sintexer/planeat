@@ -2,7 +2,7 @@
 
 No dates. Each sprint ends with a usable increment and concrete completion criteria.
 
-Sprints 1–6 had no automated test runner (MVP). Sprint 7 stays polish-and-foundation. Automated tests around realistic household scenarios become in scope with Sprint 8 (measurement/grocery correctness). See [`docs/superpowers/specs/2026-09-10-identity-measurement-localization.md`](../superpowers/specs/2026-09-10-identity-measurement-localization.md).
+Sprints 1–6 had no automated test runner (MVP). Sprint 7 stays polish-and-foundation. Automated tests around realistic household scenarios become in scope with Sprint 8 (measurement/grocery correctness).
 
 ## Sprint 1 — Offline application foundation
 
@@ -174,9 +174,7 @@ Uncommitted catalog, photo UI, and unified Plan screen must stand on their own. 
 
 ## Sprint 7 — Household polish and localization foundation
 
-Implementation plan: [`docs/superpowers/plans/2026-09-10-sprint-7-household-polish.md`](../superpowers/plans/2026-09-10-sprint-7-household-polish.md).
-
-Household-use polish plus settings and formatting foundations. **No unit-registry schema yet.** Confirm the current quantity model (see the identity spec) before Sprint 8.
+Household-use polish plus settings and formatting foundations. **No unit-registry schema yet.** Confirm the current quantity model before Sprint 8.
 
 **Build**
 
@@ -224,7 +222,7 @@ Highest-value outcome: grocery lists that only combine quantities when identity,
 - Leftover reuse does not duplicate groceries.
 - Updating a list preserves manual intent per documented policy.
 - Recipe scaling does not accumulate presentation-rounding errors.
-- Release gates 1–4 and 7–9 in the identity spec have coverage (introduce a test runner if needed for those scenarios).
+- Introduce a test runner if needed for those scenarios.
 
 ---
 

@@ -4,7 +4,7 @@
 
 - Vite + React + TypeScript scaffold (bun tooling).
 - Mantine UI, forms, dates, notifications; Tabler icons.
-- App shell: header, bottom nav (Today / Week / Lists / Recipes), `HashRouter`.
+- App shell: header, bottom nav (Plan / Groceries / Recipes / Settings), `HashRouter`. (Today/Week were merged into Plan; old routes redirect.)
 - Dexie database v1 (`recipes`, `settings`) with a minimal recipe create/list flow proving persistence.
 - `vite-plugin-pwa` configured with a prompted-update flow; production build precaches the app shell.
 - ESLint + TypeScript strict checks; `docs/`, `AGENTS.md`.
@@ -22,7 +22,7 @@
 - Navigable seven-day plans (one per week start), configurable week-start day.
 - Breakfast/lunch/dinner slots with empty vs excluded styling.
 - Single-item placement: recipe (cooking event + snapshot) or simple food.
-- Today and Week screens; Dexie schema v3 and backup format version 3.
+- Seven-day planning UI (later unified on Plan; Dexie schema v3 and backup format version 3).
 
 ## Done — grocery-list objects (Sprint 4)
 
@@ -43,6 +43,16 @@
 - Schema.org Recipe extraction (Zod runtime + `schema-dts` types); multi-recipe pick-one; prefill `RecipeEditor` with hints.
 - No network fetch; imported recipes save like manual ones. No Dexie schema bump.
 
-## Next — Sprint 7
+## Next — checkpoint, then Sprints 7–9
 
-Household-use polish — see `docs/sprints/plan.md`.
+Finish the current UX branch (shared dish catalog, photo thumbs, unified Plan) **before** measurement schema work.
+
+Then:
+
+1. **Sprint 7** — Household polish + localization foundation (`uiLocale`, as-entered measurement preference, `Intl` formatting, “usually at home” copy, photo/offline rules).
+2. **Sprint 8** — Explicit unit registry and conservative grocery aggregation (highest-value outcome).
+3. **Sprint 9** — Localized ingredient labels/aliases and import match-and-confirm quality.
+
+Sequence: [`docs/sprints/plan.md`](sprints/plan.md).
+
+Still out of scope: automatic weekly generation, backends, nutrition/barcode databases, food ontologies, pantry accounting.

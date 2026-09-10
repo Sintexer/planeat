@@ -66,7 +66,7 @@ Backup format version **5** adds `prepSessions`, `mealFavorites`, `recipePairing
 
 ## Planned — Sprints 7–9 (not shipped)
 
-Target shapes live in [`docs/superpowers/specs/2026-09-10-identity-measurement-localization.md`](superpowers/specs/2026-09-10-identity-measurement-localization.md). Do not invent locale on existing aliases. Additive fields first; leave ambiguous units unresolved.
+Do not invent locale on existing aliases. Additive fields first; leave ambiguous units unresolved.
 
 | Concept       | Direction                                                                                                                       |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------- |

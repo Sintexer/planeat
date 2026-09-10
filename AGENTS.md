@@ -40,28 +40,30 @@ src/app            → wires everything together (composition root)
 - Prefer existing Mantine components (`@mantine/core`, `@mantine/form`, `@mantine/dates`, `@mantine/notifications`, `@mantine/modals`) over building custom controls. Only add a domain component (e.g. `MealCard`) when it composes Mantine components for a specific app behavior.
 - Centralize confirmation dialogs (delete, replace-data, dependent-meal edits, list overwrites) through `@mantine/modals`' `modals.openConfirmModal` rather than each screen rolling its own modal-open state — see `SettingsScreen.tsx`'s restore-backup confirmation for the pattern.
 - No network dependency for core workflows — everything must work offline after first load.
-- Meal/plan dates are local calendar strings (`YYYY-MM-DD`), never UTC timestamps — see `src/domain/shared/LocalDate.ts`.
-- Never introduce pantry/inventory accounting implicitly — grocery lists are explicit, not derived stock tracking.
-- Preserve local data through schema changes: only add new `.version(n)` blocks in `src/infrastructure/db/migrations`, never edit a shipped version.
+- Meal/plan dates are local calendar strings (`YYYY-MM-DD`), never UTC timestamps — see `src/domain/shared/LocalDate.ts`. Locale and measurement **presentation** settings must not change stored quantities, IDs, or week boundaries.
+- Never introduce pantry/inventory accounting implicitly — grocery lists are explicit, not derived stock tracking. `isCommon` means “usually have at home” (prechecked on new lists), not stock on hand.
+- Ingredient **identity is the ID**. Names, aliases, and translations are metadata. `fuse.js` proposes picker candidates; it must not merge catalog records. Do not assign a language to existing aliases during migration.
+- Preserve local data through schema changes: only add new `.version(n)` blocks in `src/infrastructure/db/migrations`, never edit a shipped version. Dexie schema version and backup format version are separate contracts.
 - Unsaved recipe/plan edits live in a `@mantine/form` draft until Save — do not write every keystroke to IndexedDB.
-- No test runner in this project (by design, MVP stage).
+- Shared catalog UI may list recipes and simple foods together; do not collapse them into one persistence model.
+- No test runner until Sprint 8 measurement/grocery work. Until then, format/lint/typecheck/build remain the gate.
 - Format with `bun run format` (Prettier); style is not a lint concern here.
 
 ## Libraries
 
 Already installed, beyond the core stack (React/Mantine/Dexie/Zod/Day.js/vite-plugin-pwa):
 
-| Library                                                    | Used for                                                                                               |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `@mantine/modals`                                          | Centralized confirmation dialogs                                                                       |
-| `prettier`                                                 | Formatting (`bun run format`)                                                                          |
-| `eslint-plugin-boundaries` + `eslint-import-resolver-node` | Enforces the layering above                                                                            |
-| `@vite-pwa/assets-generator`                               | Regenerates `public/` PWA icons from one source SVG (`pwa-assets.config.ts`, `bun run generate-icons`) |
-| `fraction.js`                                              | Recipe quantity scaling via `QuantityService`                                                          |
-| `convert-units`                                            | Compatible mass/volume aggregation via `QuantityService.add` / `canConvert`                            |
-| `fuse.js`                                                  | Fuzzy recipe/component picker search and ranking (never ingredient identity merge)                     |
-| `@mantine/dropzone`                                        | Recipe import file drop target (always paired with a visible Choose file button)                       |
-| `schema-dts`                                               | Compile-time Schema.org `Recipe` typing for JSON-LD import (Zod remains runtime validation)            |
+| Library                                                    | Used for                                                                                                                                                        |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@mantine/modals`                                          | Centralized confirmation dialogs                                                                                                                                |
+| `prettier`                                                 | Formatting (`bun run format`)                                                                                                                                   |
+| `eslint-plugin-boundaries` + `eslint-import-resolver-node` | Enforces the layering above                                                                                                                                     |
+| `@vite-pwa/assets-generator`                               | Regenerates `public/` PWA icons from one source SVG (`pwa-assets.config.ts`, `bun run generate-icons`)                                                          |
+| `fraction.js`                                              | Recipe quantity scaling via `QuantityService`                                                                                                                   |
+| `convert-units`                                            | Compatible mass/volume aggregation via `QuantityService.add` / `canConvert` (Sprint 8: explicit unit registry; do not treat all `cup`/`tbsp` as one convention) |
+| `fuse.js`                                                  | Fuzzy recipe/component picker search and ranking (never ingredient identity merge)                                                                              |
+| `@mantine/dropzone`                                        | Recipe import file drop target (always paired with a visible Choose file button)                                                                                |
+| `schema-dts`                                               | Compile-time Schema.org `Recipe` typing for JSON-LD import (Zod remains runtime validation)                                                                     |
 
 No further libraries are currently earmarked for a scheduled sprint.
 

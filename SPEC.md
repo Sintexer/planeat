@@ -118,7 +118,7 @@ Then ask the user to confirm or supply:
 
 Schema.org ingredient lines are often plain strings, so **valid JSON-LD does not guarantee perfectly structured ingredient quantities**.
 
-Ambiguous lines must remain visible for correction, not be silently dropped or guessed.
+Ambiguous lines must remain visible for correction, not be silently dropped or guessed. Do not invent numeric precision (e.g. collapsing “1–2 onions” to 1, 2, or 0) or a cup convention the source did not specify. Preserve original text; confirmation may leave lines unresolved.
 
 ### URL limitation
 
@@ -301,16 +301,16 @@ When generating from a plan:
 1. Sum ingredients from cooking events.
 2. Add simple foods served directly.
 3. Scale recipe quantities to planned output.
-4. Merge matching ingredients with compatible units.
+4. Merge matching ingredients only when identity, purchasing form, dimension, and a known unit conversion all agree. Leave incompatible amounts as separate lines (optionally grouped under one ingredient).
 5. Create a saved grocery-list object.
 
 No pantry subtraction and no package-size rounding.
 
 For ingredients with unknown quantities, retain the item with “quantity unspecified” or its original text. Never interpret missing quantity as zero.
 
-## 3.2 Common ingredients
+## 3.2 Common ingredients (“usually at home”)
 
-Users maintain a configurable common-ingredient set, such as:
+Users maintain a configurable set of ingredients they usually have at home, such as:
 
 - Salt.
 - Pepper.
@@ -319,6 +319,8 @@ Users maintain a configurable common-ingredient set, such as:
 Generated items from that set appear **already crossed out**, but remain visible.
 
 The user can uncheck them when they need to buy them.
+
+This flag is **not** proof that the ingredient is in the house and is **not** pantry tracking. Wording should stay in that register (e.g. “Usually have at home — starts checked on new grocery lists”).
 
 A checked item means **“handled / not needed on this trip,”** not necessarily “purchased.” The app does not update inventory.
 
@@ -539,12 +541,12 @@ Request persistent browser storage where supported, but do not present it as gua
 
 # 6. Draft data schema
 
-Use explicit quantities:
+Use explicit quantities. `unit` is not a display preference; Sprint 8 introduces a bundled registry so `cup` is not implicitly one country’s cup.
 
 ```ts
 type Quantity = {
   value: number
-  unit: string // g, ml, piece, recipe-serving, etc.
+  unit: string // registry id or legacy string; g, ml, piece, recipe-serving, etc.
 }
 ```
 
@@ -552,7 +554,7 @@ Only perform conversions that are known. A recipe-specific serving must not be t
 
 | Table            | Important fields                                                                                                                                   |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ingredients`    | `id`, canonical name, aliases, category, common-item flag                                                                                          |
+| `ingredients`    | Stable `id`; names/aliases are metadata (later locale-scoped); common-item flag is “usually at home”, not pantry                                   |
 | `simpleFoods`    | `id`, ingredient ID, default portion, roles, tags, enabled                                                                                         |
 | `recipes`        | `id`, name, yield, default portion, ingredient lines, instructions, roles, meal types, effort, times, reuse policy, freezer-friendly, tags, source |
 | `recipePairings` | recipe ID, compatible recipe/simple-food ID, relationship                                                                                          |
@@ -564,7 +566,7 @@ Only perform conversions that are known. A recipe-specific serving must not be t
 | `cookingEvents`  | `id`, plan ID, session ID, recipe ID, recipe snapshot, output quantity, scheduled preparation                                                      |
 | `groceryLists`   | `id`, title, status, source plan ID/revision, timestamps                                                                                           |
 | `groceryItems`   | `id`, list ID, label, ingredient ID if known, quantity/text, checked, origin, manual-edit metadata                                                 |
-| `settings`       | week start, default preferences, schema/application settings                                                                                       |
+| `settings`       | week start, planning prefs; later `uiLocale`, measurement presentation preference (default as-entered)                                             |
 
 ### Meal component source
 
@@ -594,6 +596,8 @@ Store enough information to distinguish:
 
 This is necessary for safe list updates.
 
+Historical cooking-event snapshots must stay self-contained. Do not reinterpret their units from current household settings or regenerate their ingredient lines from the live library recipe.
+
 ### Backup format
 
 ```ts
@@ -615,6 +619,8 @@ For MVP, restore can **replace all local data after confirmation**. Merge-import
 
 Moved to [`docs/sprints/plan.md`](docs/sprints/plan.md).
 
+Sprints 7–9 (localization foundation, explicit measurements, localized ingredient matching) are in [`docs/sprints/plan.md`](docs/sprints/plan.md). Evolve the existing app; do not rebuild it.
+
 ---
 
 # 8. Deferred roadmap
@@ -631,7 +637,10 @@ Moved to [`docs/sprints/plan.md`](docs/sprints/plan.md).
 | Reliable URL importing               | Separate importer interface                                    |
 | Cross-device synchronization         | Stable IDs and repository boundary                             |
 | Pantry subtraction and package sizes | Ingredient catalog and grocery-generation service              |
-| Photos and richer import formats     | Local recipe storage and importer boundary                     |
+| Nutrition databases (USDA, etc.)     | Quantified yields; no runtime food-DB in Sprints 7–9           |
+| Barcodes / Open Food Facts           | Packaged-product identity is not required yet                  |
+| FoodOn / general food ontology       | Small app-owned vocabularies are enough                        |
+| Photos as portable blobs             | Optional `photoUrl` only; bytes not in backups                 |
 | Recipe-library coverage research     | Meal types, roles, and reusable combinations                   |
 
 ## Two provisional details

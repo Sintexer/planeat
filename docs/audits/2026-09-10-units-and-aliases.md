@@ -1,12 +1,6 @@
 # Unit and alias audit (2026-09-10)
 
-Pointers (do not duplicate the identity spec):
-
-- Ingredient identity: section A in [`../specs/2026-09-10-identity-measurement-localization.md`](../specs/2026-09-10-identity-measurement-localization.md)
-- Unit semantics: section C in the same spec
-- Snapshot preservation: snapshots section in the same spec
-
-This note records **what is stored today** (`starterCatalog.ts` + `QUANTITY_UNITS`) so Sprint 8 can add a unit registry without guessing.
+This note records **what is stored today** (`starterCatalog.ts` + `QUANTITY_UNITS`) so Sprint 8 can add a unit registry without guessing. Ingredient identity is the ID; names and aliases are metadata. Historical snapshots must keep their original units and text.
 
 ## Units in data
 
