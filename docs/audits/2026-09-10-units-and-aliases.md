@@ -10,11 +10,11 @@ This note records **what is stored today** (`starterCatalog.ts` + `QUANTITY_UNIT
 
 ## Units in data
 
-| Unit in data | Meaning today | Sprint 8 risk |
-| --- | --- | --- |
-| `g`, `kg`, `ml`, `l` | Unambiguous mass/volume | Keep; Sprint 7 display may convert g↔kg and ml↔l for presentation only |
-| `tsp`, `tbsp`, `cup` | convert-units US aliases in `QuantityService.add` / `canConvert` | Do not guess US vs metric vs Australian on migrate |
-| `piece`, `serving` | Count; `serving` is not interchangeable across recipes | Keep separate |
+| Unit in data         | Meaning today                                                    | Sprint 8 risk                                                          |
+| -------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `g`, `kg`, `ml`, `l` | Unambiguous mass/volume                                          | Keep; Sprint 7 display may convert g↔kg and ml↔l for presentation only |
+| `tsp`, `tbsp`, `cup` | convert-units US aliases in `QuantityService.add` / `canConvert` | Do not guess US vs metric vs Australian on migrate                     |
+| `piece`, `serving`   | Count; `serving` is not interchangeable across recipes           | Keep separate                                                          |
 
 `QUANTITY_UNITS` is exactly: `g`, `kg`, `ml`, `l`, `tsp`, `tbsp`, `cup`, `piece`, `serving`. There is no `oz`, `clove`, or `cup_metric`.
 

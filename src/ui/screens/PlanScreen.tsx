@@ -254,7 +254,9 @@ export function PlanScreen() {
                 <Text size="sm">Added: {preview.added.map((line) => line.label).join(', ')}</Text>
               )}
               {preview.removed.length > 0 && (
-                <Text size="sm">Removed: {preview.removed.map((line) => line.label).join(', ')}</Text>
+                <Text size="sm">
+                  Removed: {preview.removed.map((line) => line.label).join(', ')}
+                </Text>
               )}
               {preview.changed.length > 0 && (
                 <Text size="sm">Quantity changes: {preview.changed.length}</Text>

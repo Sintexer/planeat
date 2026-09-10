@@ -157,7 +157,8 @@ export function RecipeDetailScreen() {
       {recipe.photoUrl && <RecipePhotoThumb url={recipe.photoUrl} label={recipe.name} size={96} />}
 
       <Text size="sm" c="dimmed">
-        Yield {formatQty(recipe.yield)} · portion {formatQty(recipe.defaultPortionPerPerson)} / person
+        Yield {formatQty(recipe.yield)} · portion {formatQty(recipe.defaultPortionPerPerson)} /
+        person
       </Text>
 
       <Group gap={4}>

@@ -1,10 +1,7 @@
 import type { MeasurementPreference } from './Locale'
 import type { Quantity } from './Quantity'
 
-export function presentQuantity(
-  quantity: Quantity,
-  preference: MeasurementPreference,
-): Quantity {
+export function presentQuantity(quantity: Quantity, preference: MeasurementPreference): Quantity {
   if (preference !== 'metric') return quantity
 
   if (quantity.unit === 'g' && quantity.value >= 1000) {

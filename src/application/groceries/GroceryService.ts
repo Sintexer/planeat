@@ -185,7 +185,8 @@ export class GroceryService {
       nextLines.map((line) => line.ingredientId).filter((id): id is string => Boolean(id)),
     )
     const checksPreservedCount = previousGenerated.filter(
-      (item) => item.checked && item.ingredientId !== undefined && nextIngredientIds.has(item.ingredientId),
+      (item) =>
+        item.checked && item.ingredientId !== undefined && nextIngredientIds.has(item.ingredientId),
     ).length
 
     return {

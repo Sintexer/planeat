@@ -210,9 +210,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
       seen.add(id)
       const remaining = planService.remainingForCookingEvent(graph, id)
       if (hasUnallocatedRemainder(remaining) && remaining) {
-        lines.push(
-          `${item.cookingEvent.recipeSnapshot.name}: ${formatQty(remaining)} unallocated`,
-        )
+        lines.push(`${item.cookingEvent.recipeSnapshot.name}: ${formatQty(remaining)} unallocated`)
       }
     }
     return lines
