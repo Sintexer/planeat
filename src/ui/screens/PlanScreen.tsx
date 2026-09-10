@@ -27,7 +27,6 @@ import {
   effortUnitsForDate,
   formatPrepLabel,
 } from '../../domain/plans/prepDaySummary'
-import { formatEffortUnits } from '../../domain/plans/prepEffort'
 import { evaluatePlanSoftPrompts, previousWeekStart } from '../../domain/plans/softPrompts'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
 import {
@@ -38,7 +37,7 @@ import {
   todayLocalDate,
   type LocalDate,
 } from '../../domain/shared/LocalDate'
-import { MEAL_TYPE_LABELS, MEAL_TYPES } from '../../domain/shared/MealEnums'
+import { MEAL_TYPES } from '../../domain/shared/MealEnums'
 import { MealEditor } from '../components/MealEditor'
 import { MealSlotCard } from '../components/MealSlotCard'
 import { PlanWeekPicker } from '../components/PlanWeekPicker'
@@ -278,8 +277,7 @@ export function PlanScreen() {
   const thisWeekStart = startOfWeek(today, settings.weekStartDay)
   const isHistoryWeek = graph.plan.startDate < thisWeekStart
   const accent = isHistoryWeek ? 'gray' : 'green'
-  const prepUnits = effortUnitsForDate(graph, activeDay)
-  const prepLabel = formatPrepLabel(prepUnits)
+  const prepLabel = formatPrepLabel(effortUnitsForDate(graph, activeDay))
   const dayEvents = cookingEventsOnDate(graph, activeDay)
   const dayPrompts = softPrompts.filter((p) => p.date === activeDay)
   const weekPrompts = softPrompts.filter((p) => !p.date)
@@ -406,14 +404,6 @@ export function PlanScreen() {
         })}
       </Group>
 
-      <Button
-        onClick={() => void handleGenerateGroceries()}
-        variant={isHistoryWeek ? 'default' : 'filled'}
-        color={isHistoryWeek ? 'gray' : undefined}
-      >
-        Generate groceries
-      </Button>
-
       <Stack
         gap="lg"
         style={
@@ -422,52 +412,48 @@ export function PlanScreen() {
             : undefined
         }
       >
+        {prepLabel && (
+          <Text size="sm" c="dimmed">
+            {prepLabel}
+            {dayEvents.length > 0
+              ? ` · ${dayEvents.map((event) => event.recipeSnapshot.name).join(', ')}`
+              : ''}
+          </Text>
+        )}
+
         <SoftPromptAlerts prompts={weekPrompts} />
         <SoftPromptAlerts prompts={dayPrompts} omitDatePrefix />
-
-        {prepLabel && (
-          <Stack gap={4}>
-            <Text fw={600} size="sm" c={isHistoryWeek ? 'dimmed' : undefined}>
-              Preparation
-            </Text>
-            <Text size="sm" c="dimmed">
-              {prepLabel} ({formatEffortUnits(prepUnits)} unit{prepUnits === 1 ? '' : 's'})
-            </Text>
-            {dayEvents.map((event) => (
-              <Text key={event.id} size="sm" c={isHistoryWeek ? 'dimmed' : undefined}>
-                {event.recipeSnapshot.name}
-              </Text>
-            ))}
-          </Stack>
-        )}
 
         <Stack gap={22}>
           {MEAL_TYPES.map((mealType) => {
             const meals = displaysByMeal.get(mealType) ?? []
-            return (
-              <Stack key={mealType} gap="sm">
-                <Text fw={600} c={isHistoryWeek ? 'dimmed' : undefined}>
-                  {MEAL_TYPE_LABELS[mealType]}
+            if (meals.length === 0) {
+              return (
+                <Text key={mealType} size="sm" c="dimmed">
+                  No slot
                 </Text>
-                {meals.length === 0 && (
-                  <Text size="sm" c="dimmed">
-                    No slot
-                  </Text>
-                )}
-                {meals.map((display) => (
-                  <MealSlotCard
-                    key={display.slot.id}
-                    display={display}
-                    onOpen={() => setEditorSlot(display.slot)}
-                    onClear={() => void confirmClearSlot(planService, display.slot.id)}
-                    onExclude={() => void confirmExcludeSlot(planService, display.slot.id)}
-                    onUnexclude={() => void handleUnexclude(display.slot.id)}
-                  />
-                ))}
-              </Stack>
-            )
+              )
+            }
+            return meals.map((display) => (
+              <MealSlotCard
+                key={display.slot.id}
+                display={display}
+                onOpen={() => setEditorSlot(display.slot)}
+                onClear={() => void confirmClearSlot(planService, display.slot.id)}
+                onExclude={() => void confirmExcludeSlot(planService, display.slot.id)}
+                onUnexclude={() => void handleUnexclude(display.slot.id)}
+              />
+            ))
           })}
         </Stack>
+
+        <Button
+          onClick={() => void handleGenerateGroceries()}
+          variant={isHistoryWeek ? 'default' : 'light'}
+          color={isHistoryWeek ? 'gray' : undefined}
+        >
+          Generate groceries
+        </Button>
       </Stack>
 
       {editorSlot && (
