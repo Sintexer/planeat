@@ -2,6 +2,7 @@ import { MantineProvider } from '@mantine/core'
 import { ModalsProvider } from '@mantine/modals'
 import { Notifications } from '@mantine/notifications'
 import { useEffect, useState, type ReactNode } from 'react'
+import { LocalizationProvider } from '../ui/localization/LocalizationContext'
 import { bootstrap } from './bootstrap'
 import { ServicesContext } from './servicesContext'
 import { theme } from './theme'
@@ -17,7 +18,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <MantineProvider theme={theme} defaultColorScheme="auto">
       <Notifications position="top-center" />
       <ModalsProvider>
-        <ServicesContext.Provider value={services}>{children}</ServicesContext.Provider>
+        <ServicesContext.Provider value={services}>
+          <LocalizationProvider>{children}</LocalizationProvider>
+        </ServicesContext.Provider>
       </ModalsProvider>
     </MantineProvider>
   )
