@@ -1,5 +1,6 @@
 import { CURRENT_BACKUP_FORMAT_VERSION } from '../../domain/shared/BackupFormatVersion'
 import type { BackupFile } from '../../domain/shared/Backup'
+import { mergeSettingsDefaults } from '../../domain/shared/Settings'
 import type { BackupRepository } from '../ports/BackupRepository'
 import { backupFileSchema } from './backupSchema'
 
@@ -28,7 +29,10 @@ export class BackupService {
     }
 
     try {
-      await this.backupRepository.replaceAll(parsed.data)
+      await this.backupRepository.replaceAll({
+        ...parsed.data,
+        settings: parsed.data.settings.map((row) => mergeSettingsDefaults(row)),
+      })
     } catch {
       throw new Error('Could not restore backup: local data was not modified.')
     }

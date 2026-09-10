@@ -86,6 +86,8 @@ const settingsSchema = z.object({
   quickMealsOnlyDays: z.array(weekStartDaySchema),
   avoidMultipleDemandingPreps: z.boolean(),
   favorVegetablesDaily: z.boolean(),
+  uiLocale: z.enum(['en']).optional(),
+  measurementPreference: z.enum(['as-entered', 'metric', 'us-customary']).optional(),
 })
 
 const planSchema = z.object({

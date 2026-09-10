@@ -23,7 +23,9 @@ export class DexieSettingsRepository implements SettingsRepository {
         merged.favorVegetablesDaily !== existing.favorVegetablesDaily ||
         typeof existing.weekStartDay !== 'number' ||
         !Array.isArray(existing.preferredBatchPrepDays) ||
-        !Array.isArray(existing.quickMealsOnlyDays)
+        !Array.isArray(existing.quickMealsOnlyDays) ||
+        !('uiLocale' in existing) ||
+        !('measurementPreference' in existing)
       ) {
         await this.db.settings.put(merged)
       }
