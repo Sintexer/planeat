@@ -16,9 +16,16 @@ import { notifications } from '@mantine/notifications'
 import dayjs from 'dayjs'
 import { useEffect } from 'react'
 import { useServices } from '../../app/servicesContext'
+import {
+  DEFAULT_MEASUREMENT_PREFERENCE,
+  DEFAULT_UI_LOCALE,
+  parseMeasurementPreference,
+  parseUiLocale,
+} from '../../domain/shared/Locale'
 import { WEEKDAY_LABELS, type WeekStartDay } from '../../domain/shared/LocalDate'
 import { PageTitle } from '../components/ScreenHeader'
 import { useSettings } from '../hooks/useSettings'
+import { useLocalization } from '../localization/LocalizationContext'
 
 interface SettingsForm {
   householdSize: number
@@ -28,6 +35,8 @@ interface SettingsForm {
   quickMealsOnlyDays: string[]
   avoidMultipleDemandingPreps: boolean
   favorVegetablesDaily: boolean
+  uiLocale: string
+  measurementPreference: string
 }
 
 const weekStartOptions = ([0, 1, 2, 3, 4, 5, 6] as const).map((day) => ({
@@ -56,6 +65,7 @@ function SectionLabel({ children }: { children: string }) {
 export function SettingsScreen() {
   const { settingsRepository, backupService } = useServices()
   const settings = useSettings()
+  const { t } = useLocalization()
 
   const form = useForm<SettingsForm>({
     initialValues: {
@@ -66,6 +76,8 @@ export function SettingsScreen() {
       quickMealsOnlyDays: [],
       avoidMultipleDemandingPreps: true,
       favorVegetablesDaily: false,
+      uiLocale: DEFAULT_UI_LOCALE,
+      measurementPreference: DEFAULT_MEASUREMENT_PREFERENCE,
     },
   })
 
@@ -79,6 +91,8 @@ export function SettingsScreen() {
         quickMealsOnlyDays: settings.quickMealsOnlyDays.map(String),
         avoidMultipleDemandingPreps: settings.avoidMultipleDemandingPreps,
         favorVegetablesDaily: settings.favorVegetablesDaily,
+        uiLocale: settings.uiLocale,
+        measurementPreference: settings.measurementPreference,
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -94,6 +108,8 @@ export function SettingsScreen() {
       quickMealsOnlyDays: values.quickMealsOnlyDays.map(Number) as WeekStartDay[],
       avoidMultipleDemandingPreps: values.avoidMultipleDemandingPreps,
       favorVegetablesDaily: values.favorVegetablesDaily,
+      uiLocale: parseUiLocale(values.uiLocale),
+      measurementPreference: parseMeasurementPreference(values.measurementPreference),
     })
     notifications.show({ message: 'Settings saved', color: 'green' })
   })
@@ -149,6 +165,33 @@ export function SettingsScreen() {
 
       <form onSubmit={handleSubmit}>
         <Stack gap={24}>
+          <div>
+            <SectionLabel>Display</SectionLabel>
+            <Paper withBorder p={12} radius="md">
+              <Stack gap="sm">
+                <Select
+                  label={t('settings.language')}
+                  data={[{ value: 'en', label: 'English' }]}
+                  disabled={!settings}
+                  allowDeselect={false}
+                  {...form.getInputProps('uiLocale')}
+                />
+                <Select
+                  label={t('settings.measurement')}
+                  description={t('settings.measurementHelp')}
+                  data={[
+                    { value: 'as-entered', label: t('settings.measurementAsEntered') },
+                    { value: 'metric', label: t('settings.measurementMetric') },
+                    { value: 'us-customary', label: t('settings.measurementUs') },
+                  ]}
+                  disabled={!settings}
+                  allowDeselect={false}
+                  {...form.getInputProps('measurementPreference')}
+                />
+              </Stack>
+            </Paper>
+          </div>
+
           <div>
             <SectionLabel>Household</SectionLabel>
             <Paper withBorder p={12} radius="md">
@@ -220,6 +263,9 @@ export function SettingsScreen() {
           <Stack gap="sm">
             <Text c="dimmed" size="sm">
               Export a backup file, or restore one — restoring replaces all local data.
+            </Text>
+            <Text c="dimmed" size="sm">
+              {t('settings.backupPhotos')}
             </Text>
             <Group>
               <Button variant="default" onClick={handleExport}>
