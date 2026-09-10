@@ -15,9 +15,16 @@ function asString(value: unknown): string | undefined {
 function firstUrl(value: unknown): string {
   const direct = asString(value)
   if (direct && /^https?:\/\//i.test(direct)) return direct
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const nested = firstUrl(item)
+      if (nested) return nested
+    }
+    return ''
+  }
+  if (value && typeof value === 'object') {
     const record = value as Record<string, unknown>
-    const id = asString(record['@id']) ?? asString(record.url)
+    const id = asString(record['@id']) ?? asString(record.url) ?? asString(record.contentUrl)
     if (id && /^https?:\/\//i.test(id)) return id
   }
   return ''
@@ -140,6 +147,7 @@ export function normalizeImportedRecipe(node: SchemaOrgRecipeNode): NormalizedIm
       : undefined)
 
   const sourceUrl = firstUrl(node.url) || firstUrl(node.mainEntityOfPage) || firstUrl(node['@id'])
+  const photoUrl = firstUrl(node.image)
 
   hints.push(
     'Defaults applied: role Complete, meal type Dinner, effort Regular, reuse Fresh only — adjust if needed.',
@@ -162,6 +170,7 @@ export function normalizeImportedRecipe(node: SchemaOrgRecipeNode): NormalizedIm
     freezingNotes: '',
     tagsText: '',
     sourceUrl,
+    photoUrl,
     cuisine: '',
     maxPreferredRepeats: '',
     notes: asString(node.description) ?? '',

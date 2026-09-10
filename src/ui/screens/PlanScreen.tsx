@@ -21,14 +21,18 @@ import { notifications } from '@mantine/notifications'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useServices } from '../../app/servicesContext'
+import type { Recipe } from '../../domain/recipes/Recipe'
 import type { MealSlot } from '../../domain/plans/MealSlot'
+import { hasUnallocatedRemainder } from '../../domain/plans/CookingEventAllocation'
 import {
   cookingEventsOnDate,
   effortUnitsForDate,
   formatPrepLabel,
 } from '../../domain/plans/prepDaySummary'
 import { evaluatePlanSoftPrompts, previousWeekStart } from '../../domain/plans/softPrompts'
+import { isDayPlanned } from '../../domain/plans/weekOverview'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
+import { formatQuantity } from '../../domain/shared/formatQuantity'
 import {
   addDays,
   enumeratePlanDates,
@@ -45,6 +49,7 @@ import { PageTitle } from '../components/ScreenHeader'
 import { SoftPromptAlerts } from '../components/SoftPromptAlerts'
 import { usePlan } from '../hooks/usePlan'
 import { usePlanByStartDate } from '../hooks/usePlanByStartDate'
+import { useRecipes } from '../hooks/useRecipes'
 import { useSettings } from '../hooks/useSettings'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
 import { confirmClearSlot, confirmExcludeSlot } from '../plans/slotConfirmations'
@@ -76,6 +81,7 @@ export function PlanScreen() {
   const settings = useSettings()
   const { planService, groceryService } = useServices()
   const simpleFoods = useSimpleFoods()
+  const recipes = useRecipes()
 
   const today = todayLocalDate()
   const weekStartFromSettings = settings ? startOfWeek(today, settings.weekStartDay) : undefined
@@ -126,6 +132,14 @@ export function PlanScreen() {
     return map
   }, [simpleFoods])
 
+  const recipesById = useMemo(() => {
+    const map = new Map<string, Recipe>()
+    for (const recipe of recipes ?? []) {
+      map.set(recipe.id, recipe)
+    }
+    return map
+  }, [recipes])
+
   const weekDates = useMemo(
     () => (graph ? enumeratePlanDates(graph.plan.startDate, 7) : []),
     [graph],
@@ -138,8 +152,8 @@ export function PlanScreen() {
   }, [graph, dayOverride, weekDates, today])
 
   const dayDisplays = useMemo(
-    () => (graph ? buildSlotDisplays(graph, simpleFoodsById, activeDay) : []),
-    [graph, simpleFoodsById, activeDay],
+    () => (graph ? buildSlotDisplays(graph, simpleFoodsById, activeDay, recipesById) : []),
+    [graph, simpleFoodsById, activeDay, recipesById],
   )
 
   const displaysByMeal = useMemo(() => {
@@ -282,6 +296,13 @@ export function PlanScreen() {
   const dayPrompts = softPrompts.filter((p) => p.date === activeDay)
   const weekPrompts = softPrompts.filter((p) => !p.date)
   const label = planWeekLabel(graph.plan.startDate, today, settings.weekStartDay)
+  const remainingThisWeek = graph.cookingEvents
+    .map((event) => ({
+      id: event.id,
+      name: event.recipeSnapshot.name,
+      remaining: planService.remainingForCookingEvent(graph, event.id),
+    }))
+    .filter((row) => hasUnallocatedRemainder(row.remaining))
 
   return (
     <Stack gap="lg">
@@ -356,17 +377,19 @@ export function PlanScreen() {
           const active = date === activeDay
           const isToday = date === today
           const isPastDay = date < today
+          const planned = isDayPlanned(graph, date)
           return (
             <UnstyledButton
               key={date}
               onClick={() => setDayOverride(date)}
               style={{ flex: 1, minWidth: 0 }}
+              aria-label={`${shortWeekday(date)} ${dayNumber(date)}, ${planned ? 'planned' : 'empty'}`}
             >
               <Stack gap={6} align="center">
                 <Text
                   size="xs"
-                  c={active ? undefined : 'dimmed'}
-                  fw={active ? 600 : 400}
+                  c={active || planned ? undefined : 'dimmed'}
+                  fw={active || planned ? 600 : 400}
                   style={isHistoryWeek || isPastDay ? { opacity: 0.75 } : undefined}
                 >
                   {shortWeekday(date)}
@@ -378,22 +401,35 @@ export function PlanScreen() {
                   bg={
                     active
                       ? `${accent}.6`
-                      : isToday
-                        ? `${accent}.0`
-                        : isHistoryWeek
-                          ? 'gray.0'
+                      : planned
+                        ? `${accent}.1`
+                        : isToday
+                          ? `${accent}.0`
                           : 'transparent'
                   }
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    border: active
+                      ? undefined
+                      : planned
+                        ? `1.5px solid var(--mantine-color-${accent}-4)`
+                        : '1.5px dashed var(--mantine-color-default-border)',
                   }}
                 >
                   <Text
                     size="sm"
                     fw={600}
-                    c={active ? 'white' : isHistoryWeek || isPastDay ? 'dimmed' : undefined}
+                    c={
+                      active
+                        ? 'white'
+                        : planned
+                          ? undefined
+                          : isHistoryWeek || isPastDay
+                            ? 'dimmed'
+                            : 'dimmed'
+                    }
                   >
                     {dayNumber(date)}
                   </Text>
@@ -403,6 +439,16 @@ export function PlanScreen() {
           )
         })}
       </Group>
+
+      {remainingThisWeek.length > 0 && (
+        <Group gap={6} wrap="wrap">
+          {remainingThisWeek.map((row) => (
+            <Badge key={row.id} variant="light" color={accent} radius="xl" size="sm">
+              {row.name} · {formatQuantity(row.remaining)} remaining
+            </Badge>
+          ))}
+        </Group>
+      )}
 
       <Stack
         gap="lg"

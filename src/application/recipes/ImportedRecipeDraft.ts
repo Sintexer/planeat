@@ -23,6 +23,7 @@ export type ImportedRecipeDraft = {
   freezingNotes: string
   tagsText: string
   sourceUrl: string
+  photoUrl: string
   cuisine: string
   maxPreferredRepeats: number | ''
   notes: string

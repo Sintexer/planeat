@@ -2,6 +2,7 @@ import type { PlanGraph } from '../../domain/plans/PlanGraph'
 import type { CookingEvent } from '../../domain/plans/CookingEvent'
 import type { MealComponent } from '../../domain/plans/MealComponent'
 import type { MealSlot } from '../../domain/plans/MealSlot'
+import type { Recipe } from '../../domain/recipes/Recipe'
 import type { LocalDate } from '../../domain/shared/LocalDate'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
 import { MEAL_TYPES } from '../../domain/shared/MealEnums'
@@ -10,6 +11,7 @@ export interface SlotComponentDisplay {
   component: MealComponent
   cookingEvent: CookingEvent | undefined
   simpleFood: SimpleFood | undefined
+  photoUrl?: string
 }
 
 export interface SlotDisplay {
@@ -21,6 +23,7 @@ export function buildSlotDisplays(
   graph: PlanGraph,
   simpleFoodsById: Map<string, SimpleFood>,
   date?: LocalDate,
+  recipesById?: Map<string, Recipe>,
 ): SlotDisplay[] {
   const slots = date ? graph.slots.filter((s) => s.date === date) : graph.slots
 
@@ -34,14 +37,20 @@ export function buildSlotDisplays(
     const components: SlotComponentDisplay[] = slotComponents.map((component) => {
       let cookingEvent: CookingEvent | undefined
       let simpleFood: SimpleFood | undefined
+      let photoUrl: string | undefined
       if (component.source.type === 'cooking-event') {
         const eventId = component.source.cookingEventId
         cookingEvent = graph.cookingEvents.find((e) => e.id === eventId)
+        if (cookingEvent) {
+          photoUrl =
+            recipesById?.get(cookingEvent.recipeId)?.photoUrl ??
+            cookingEvent.recipeSnapshot.photoUrl
+        }
       } else if (component.source.type === 'simple-food') {
         const foodId = component.source.simpleFoodId
         simpleFood = simpleFoodsById.get(foodId)
       }
-      return { component, cookingEvent, simpleFood }
+      return { component, cookingEvent, simpleFood, photoUrl }
     })
     return { slot, components }
   })

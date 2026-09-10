@@ -28,6 +28,7 @@ export interface Recipe {
   freezingNotes?: string
   tags: string[]
   sourceUrl?: string
+  photoUrl?: string
   cuisine?: string
   maxPreferredRepeats?: number
   notes?: string

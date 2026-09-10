@@ -1,4 +1,14 @@
-import { ActionIcon, Badge, Group, Paper, Stack, Text, Menu, UnstyledButton } from '@mantine/core'
+import {
+  ActionIcon,
+  Badge,
+  Group,
+  Paper,
+  Stack,
+  Text,
+  Menu,
+  UnstyledButton,
+  useComputedColorScheme,
+} from '@mantine/core'
 import {
   IconCoffee,
   IconDots,
@@ -9,6 +19,7 @@ import {
 } from '@tabler/icons-react'
 import { formatQuantity } from '../../domain/shared/formatQuantity'
 import { MEAL_TYPE_LABELS, type MealType } from '../../domain/shared/MealEnums'
+import { RecipePhotoThumb } from './RecipePhotoThumb'
 import { componentLabel, type SlotComponentDisplay, type SlotDisplay } from '../plans/slotDisplay'
 
 interface MealSlotCardProps {
@@ -23,6 +34,12 @@ const MEAL_ICONS: Record<MealType, typeof IconCoffee> = {
   breakfast: IconCoffee,
   lunch: IconToolsKitchen2,
   dinner: IconMoonStars,
+}
+
+const MEAL_ACCENT: Record<MealType, string> = {
+  breakfast: 'yellow',
+  lunch: 'green',
+  dinner: 'indigo',
 }
 
 function DishRow({
@@ -40,41 +57,45 @@ function DishRow({
 
   return (
     <UnstyledButton onClick={onOpen} w="100%" style={{ textAlign: 'left' }}>
-      <Paper withBorder p={12} radius="md">
-        <Group justify="space-between" wrap="nowrap" align="flex-start" gap="sm">
-          <Stack gap={2} style={{ minWidth: 0, flex: 1 }}>
+      <Paper p={8} radius="md" shadow="xs">
+        <Group wrap="nowrap" align="center" gap="sm">
+          <RecipePhotoThumb url={item.photoUrl} label={label} size={56} />
+          <Stack gap={6} style={{ minWidth: 0, flex: 1 }}>
             <Text size="sm" fw={600} lineClamp={2}>
               {label}
             </Text>
-            <Text size="xs" c="dimmed">
-              {qty}
-            </Text>
+            <Group gap={6}>
+              <Badge variant="light" size="sm" radius="xl" color="gray">
+                {qty}
+              </Badge>
+              {isLeftover && (
+                <Badge color="teal" variant="light" size="sm" radius="xl">
+                  Leftover
+                </Badge>
+              )}
+            </Group>
           </Stack>
-          {isLeftover && (
-            <Badge color="teal" variant="light" size="xs">
-              Leftover
-            </Badge>
-          )}
         </Group>
       </Paper>
     </UnstyledButton>
   )
 }
 
-function AddDishButton({ onOpen }: { onOpen: () => void }) {
+function AddDishButton({
+  onOpen,
+  colorScheme,
+}: {
+  onOpen: () => void
+  colorScheme: 'light' | 'dark'
+}) {
   return (
     <UnstyledButton onClick={onOpen} w="100%" style={{ textAlign: 'center' }}>
-      <Paper
-        p={12}
-        radius="md"
-        style={{
-          border: '1px dashed var(--mantine-color-default-border)',
-          background: 'transparent',
-        }}
-      >
+      <Paper p={10} radius="md" bg={colorScheme === 'dark' ? 'dark.5' : 'white'}>
         <Group gap={6} justify="center">
           <IconPlus size={16} />
-          <Text size="sm">Add dish</Text>
+          <Text size="sm" fw={500}>
+            Add dish
+          </Text>
         </Group>
       </Paper>
     </UnstyledButton>
@@ -99,7 +120,7 @@ function SlotMenu({
   return (
     <Menu position="bottom-end" withinPortal>
       <Menu.Target>
-        <ActionIcon variant="subtle" aria-label="Slot actions">
+        <ActionIcon variant="subtle" color="gray" aria-label="Slot actions">
           <IconDots size={18} />
         </ActionIcon>
       </Menu.Target>
@@ -135,46 +156,52 @@ export function MealSlotCard({
   const { slot, components } = display
   const hasComponents = components.length > 0
   const MealIcon = MEAL_ICONS[slot.mealType]
+  const accent = MEAL_ACCENT[slot.mealType]
+  const colorScheme = useComputedColorScheme('light')
+  const cardBg = colorScheme === 'dark' ? `${accent}.9` : `${accent}.0`
 
   return (
-    <Stack gap="sm">
-      <Group justify="space-between" wrap="nowrap" align="center">
-        <Group gap="sm" wrap="nowrap">
-          <Paper
-            radius="xl"
-            w={28}
-            h={28}
-            withBorder
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <MealIcon size={16} />
-          </Paper>
-          <Text fw={600}>{MEAL_TYPE_LABELS[slot.mealType]}</Text>
+    <Paper p="sm" radius="lg" bg={cardBg}>
+      <Stack gap="sm">
+        <Group justify="space-between" wrap="nowrap" align="center">
+          <Group gap="sm" wrap="nowrap">
+            <Paper
+              radius="xl"
+              w={32}
+              h={32}
+              bg={`${accent}.5`}
+              c="white"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <MealIcon size={16} />
+            </Paper>
+            <Text fw={700}>{MEAL_TYPE_LABELS[slot.mealType]}</Text>
+          </Group>
+          <SlotMenu
+            excluded={slot.excluded}
+            hasComponents={hasComponents}
+            onOpen={onOpen}
+            onClear={onClear}
+            onExclude={onExclude}
+            onUnexclude={onUnexclude}
+          />
         </Group>
-        <SlotMenu
-          excluded={slot.excluded}
-          hasComponents={hasComponents}
-          onOpen={onOpen}
-          onClear={onClear}
-          onExclude={onExclude}
-          onUnexclude={onUnexclude}
-        />
-      </Group>
 
-      {slot.excluded ? (
-        <Paper withBorder p={12} radius="md" bg="gray.0">
-          <Text size="sm" c="dimmed">
-            Eating out
-          </Text>
-        </Paper>
-      ) : (
-        <>
-          {components.map((item) => (
-            <DishRow key={item.component.id} item={item} mealDate={slot.date} onOpen={onOpen} />
-          ))}
-          <AddDishButton onOpen={onOpen} />
-        </>
-      )}
-    </Stack>
+        {slot.excluded ? (
+          <Paper p={12} radius="md" bg={colorScheme === 'dark' ? 'dark.6' : 'white'}>
+            <Text size="sm" c="dimmed">
+              Eating out
+            </Text>
+          </Paper>
+        ) : (
+          <>
+            {components.map((item) => (
+              <DishRow key={item.component.id} item={item} mealDate={slot.date} onOpen={onOpen} />
+            ))}
+            <AddDishButton onOpen={onOpen} colorScheme={colorScheme} />
+          </>
+        )}
+      </Stack>
+    </Paper>
   )
 }

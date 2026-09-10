@@ -14,7 +14,7 @@ import {
 } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { IconPlus, IconTrash } from '@tabler/icons-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { notifications } from '@mantine/notifications'
 import { useServices } from '../../app/servicesContext'
@@ -31,6 +31,7 @@ import {
 import type { Recipe } from '../../domain/recipes/Recipe'
 import { useIngredients } from '../hooks/useIngredients'
 import { QuantityFields } from '../components/QuantityFields'
+import { RecipePhotoThumb } from '../components/RecipePhotoThumb'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { importedDraftToFormValues, readAndClearImportDraft } from '../recipes/importDraft'
 import {
@@ -92,13 +93,20 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
       mealTypes: (value) => (value.length === 0 ? 'Pick at least one meal type' : null),
       yieldValue: (value) => (value === '' || value <= 0 ? 'Yield must be positive' : null),
       portionValue: (value) => (value === '' || value <= 0 ? 'Portion must be positive' : null),
+      photoUrl: (value) => {
+        const trimmed = value.trim()
+        if (!trimmed) return null
+        return /^https?:\/\//i.test(trimmed) ? null : 'Use an http or https URL'
+      },
     },
   })
 
+  const hydratedRecipeId = useRef<string | undefined>(undefined)
   useEffect(() => {
-    if (mode === 'edit' && recipe && ingredients) {
-      form.setValues(recipeToFormValues(recipe, ingredientNamesById))
-    }
+    if (mode !== 'edit' || !recipe || !ingredients) return
+    if (hydratedRecipeId.current === recipe.id) return
+    hydratedRecipeId.current = recipe.id
+    form.setValues(recipeToFormValues(recipe, ingredientNamesById))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, recipe?.id, ingredients])
 
@@ -124,7 +132,13 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
     if (mode === 'create') {
       const result = await recipeService.createRecipe(write)
       if (!result.ok) {
-        notifications.show({ message: `Could not save recipe (${result.error})`, color: 'red' })
+        notifications.show({
+          message:
+            result.error === 'invalid-photo-url'
+              ? 'Photo URL must start with http:// or https://'
+              : `Could not save recipe (${result.error})`,
+          color: 'red',
+        })
         return
       }
       notifications.show({ message: 'Recipe saved', color: 'green' })
@@ -137,7 +151,13 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
     if (!recipe) return
     const result = await recipeService.updateRecipe(recipe.id, write)
     if (!result.ok) {
-      notifications.show({ message: `Could not save recipe (${result.error})`, color: 'red' })
+      notifications.show({
+        message:
+          result.error === 'invalid-photo-url'
+            ? 'Photo URL must start with http:// or https://'
+            : `Could not save recipe (${result.error})`,
+        color: 'red',
+      })
       return
     }
     notifications.show({ message: 'Recipe saved', color: 'green' })
@@ -169,6 +189,20 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
         )}
 
         <TextInput label="Name" required {...form.getInputProps('name')} />
+
+        <Group align="flex-start" wrap="nowrap" gap="md">
+          <RecipePhotoThumb
+            url={form.values.photoUrl.trim() || undefined}
+            label={form.values.name}
+            size={96}
+          />
+          <TextInput
+            style={{ flex: 1 }}
+            label="Photo URL"
+            description="http(s) image link"
+            {...form.getInputProps('photoUrl')}
+          />
+        </Group>
 
         <QuantityFields
           valueLabel="Yield amount"

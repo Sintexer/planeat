@@ -26,6 +26,7 @@ export type RecipeFormValues = {
   freezingNotes: string
   tagsText: string
   sourceUrl: string
+  photoUrl: string
   cuisine: string
   maxPreferredRepeats: number | ''
   notes: string
@@ -60,6 +61,7 @@ export function defaultRecipeFormValues(): RecipeFormValues {
     freezingNotes: '',
     tagsText: '',
     sourceUrl: '',
+    photoUrl: '',
     cuisine: '',
     maxPreferredRepeats: '',
     notes: '',
@@ -93,6 +95,7 @@ export function recipeToFormValues(
     freezingNotes: recipe.freezingNotes ?? '',
     tagsText: recipe.tags.join(', '),
     sourceUrl: recipe.sourceUrl ?? '',
+    photoUrl: recipe.photoUrl ?? '',
     cuisine: recipe.cuisine ?? '',
     maxPreferredRepeats: recipe.maxPreferredRepeats ?? '',
     notes: recipe.notes ?? '',
@@ -142,6 +145,7 @@ export function buildPartialWriteFromForm(values: RecipeFormValues): {
       freezingNotes: values.freezingNotes.trim() || undefined,
       tags: parseTags(values.tagsText),
       sourceUrl: values.sourceUrl.trim() || undefined,
+      photoUrl: values.photoUrl.trim() || undefined,
       cuisine: values.cuisine.trim() || undefined,
       maxPreferredRepeats:
         values.maxPreferredRepeats === '' ? undefined : Number(values.maxPreferredRepeats),

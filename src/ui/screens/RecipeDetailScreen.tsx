@@ -17,6 +17,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useServices } from '../../app/servicesContext'
 import { ScreenHeader } from '../components/ScreenHeader'
+import { RecipePhotoThumb } from '../components/RecipePhotoThumb'
 import {
   EFFORT_LABELS,
   MEAL_TYPE_LABELS,
@@ -150,6 +151,8 @@ export function RecipeDetailScreen() {
           </Group>
         }
       />
+
+      {recipe.photoUrl && <RecipePhotoThumb url={recipe.photoUrl} label={recipe.name} size={96} />}
 
       <Text size="sm" c="dimmed">
         Yield {quantityService.format(recipe.yield)} · portion{' '}

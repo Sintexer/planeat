@@ -1,13 +1,39 @@
-import { ActionIcon, Badge, Card, Group, Stack, Text } from '@mantine/core'
+import { ActionIcon, Group, Stack, Text } from '@mantine/core'
 import { IconFileImport, IconPlus, IconCarrot, IconApple } from '@tabler/icons-react'
-import { Link } from 'react-router'
-import { useRecipes } from '../hooks/useRecipes'
+import { useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router'
 import { formatQuantity } from '../../domain/shared/formatQuantity'
-import { EFFORT_LABELS, RECIPE_ROLE_LABELS } from '../../domain/shared/MealEnums'
+import { EFFORT_LABELS } from '../../domain/shared/MealEnums'
+import { DishCatalog } from '../catalog/DishCatalog'
+import {
+  defaultDishCatalogFilters,
+  recipeToCatalogItem,
+  simpleFoodToCatalogItem,
+  type DishCatalogFilters,
+} from '../catalog/catalogModel'
 import { PageTitle } from '../components/ScreenHeader'
+import { useRecipes } from '../hooks/useRecipes'
+import { useSimpleFoods } from '../hooks/useSimpleFoods'
 
 export function RecipesScreen() {
   const recipes = useRecipes()
+  const simpleFoods = useSimpleFoods()
+  const navigate = useNavigate()
+  const [filters, setFilters] = useState<DishCatalogFilters>(() => defaultDishCatalogFilters('all'))
+
+  const items = useMemo(() => {
+    const recipeItems = (recipes ?? []).map((recipe) =>
+      recipeToCatalogItem(recipe, {
+        subtitle: `Recipe · Yield ${formatQuantity(recipe.yield)} · ${EFFORT_LABELS[recipe.effort]}`,
+      }),
+    )
+    const foodItems = (simpleFoods ?? []).map((food) =>
+      simpleFoodToCatalogItem(food, {
+        subtitle: `Simple food · ${formatQuantity(food.defaultPortion)}`,
+      }),
+    )
+    return [...recipeItems, ...foodItems]
+  }, [recipes, simpleFoods])
 
   return (
     <Stack gap="lg">
@@ -57,7 +83,7 @@ export function RecipesScreen() {
           size="sm"
           style={{ textDecoration: 'none' }}
         >
-          Simple foods
+          Manage simple foods
         </Text>
         <ActionIcon
           component={Link}
@@ -81,35 +107,25 @@ export function RecipesScreen() {
       </Group>
 
       {recipes === undefined && <Text c="dimmed">Loading…</Text>}
-      {recipes?.length === 0 && <Text c="dimmed">No recipes yet.</Text>}
+      {recipes?.length === 0 && simpleFoods?.length === 0 && (
+        <Text c="dimmed">No recipes yet.</Text>
+      )}
 
-      <Stack gap={12}>
-        {recipes?.map((recipe) => (
-          <Card
-            key={recipe.id}
-            padding={12}
-            radius="md"
-            withBorder
-            component={Link}
-            to={`/recipes/${recipe.id}`}
-            style={{ textDecoration: 'none', color: 'inherit' }}
-          >
-            <Text fw={600} size="sm">
-              {recipe.name}
-            </Text>
-            <Text size="xs" c="dimmed" mt={2}>
-              Yield {formatQuantity(recipe.yield)} · {EFFORT_LABELS[recipe.effort]}
-            </Text>
-            <Group gap={4} mt={8}>
-              {recipe.roles.map((role) => (
-                <Badge key={role} size="sm" variant="light" radius="xl">
-                  {RECIPE_ROLE_LABELS[role]}
-                </Badge>
-              ))}
-            </Group>
-          </Card>
-        ))}
-      </Stack>
+      {(recipes !== undefined || simpleFoods !== undefined) && items.length > 0 && (
+        <DishCatalog
+          items={items}
+          filters={filters}
+          onFiltersChange={setFilters}
+          layout="page"
+          onSelect={(item) => {
+            if (item.kind === 'simple-food') {
+              void navigate('/recipes/simple-foods')
+              return
+            }
+            void navigate(`/recipes/${item.id}`)
+          }}
+        />
+      )}
     </Stack>
   )
 }

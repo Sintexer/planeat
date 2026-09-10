@@ -1,17 +1,15 @@
-import {
-  Alert,
-  Button,
-  Checkbox,
-  Modal,
-  SegmentedControl,
-  Stack,
-  Text,
-  TextInput,
-  UnstyledButton,
-} from '@mantine/core'
+import { Alert, Button, Modal, Stack, Text, TextInput, UnstyledButton } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
-import Fuse from 'fuse.js'
 import { useMemo, useState } from 'react'
+import { DishCatalog } from '../catalog/DishCatalog'
+import {
+  defaultDishCatalogFilters,
+  leftoverToCatalogItem,
+  recipeToCatalogItem,
+  simpleFoodToCatalogItem,
+  type DishCatalogFilters,
+  type DishCatalogItem,
+} from '../catalog/catalogModel'
 import { useServices } from '../../app/servicesContext'
 import type { CookingEvent } from '../../domain/plans/CookingEvent'
 import {
@@ -23,6 +21,7 @@ import type { PlanGraph } from '../../domain/plans/PlanGraph'
 import type { Quantity } from '../../domain/shared/Quantity'
 import { formatQuantity } from '../../domain/shared/formatQuantity'
 import { addDays } from '../../domain/shared/LocalDate'
+import { hasUnallocatedRemainder, isReuseAllowed } from '../../domain/plans/CookingEventAllocation'
 import { useMealFavorites } from '../hooks/useMealFavorites'
 import { usePairings } from '../hooks/usePairings'
 import { useRecipes } from '../hooks/useRecipes'
@@ -106,9 +105,9 @@ export function AddComponentFlow({
   const previousWeekStart = addDays(graph.plan.startDate, -7)
   const previousWeek = usePlanByStartDate(previousWeekStart)
 
-  const [query, setQuery] = useState('')
-  const [showAll, setShowAll] = useState(false)
-  const [browseMode, setBrowseMode] = useState<'suggested' | 'all'>('suggested')
+  const [filters, setFilters] = useState<DishCatalogFilters>(() =>
+    defaultDishCatalogFilters('all', false),
+  )
   const [step, setStep] = useState<Step>({ kind: 'pick' })
   const [allocValue, setAllocValue] = useState<number | ''>('')
   const [allocUnit, setAllocUnit] = useState('piece')
@@ -139,45 +138,46 @@ export function AddComponentFlow({
       favorites,
       settings,
       previousWeekRecipeIds,
-      query,
+      query: '',
     })
-  }, [
-    recipes,
-    simpleFoods,
-    favorites,
-    pairings,
-    settings,
-    graph,
-    slot,
-    previousWeekRecipeIds,
-    query,
-  ])
+  }, [recipes, simpleFoods, favorites, pairings, settings, graph, slot, previousWeekRecipeIds])
 
-  const displayed = useMemo(() => {
-    let list = ranked
-    if (browseMode === 'all' && !showAll) {
-      list = list.filter((c) => c.mealTypes.includes(slot.mealType))
-    }
-    if (browseMode === 'suggested') {
-      list = list.filter((c) => c.score > 0).slice(0, 30)
-      if (list.length === 0) {
-        list = ranked.filter((c) => showAll || c.mealTypes.includes(slot.mealType)).slice(0, 20)
+  const catalogItems = useMemo((): DishCatalogItem[] => {
+    return ranked
+      .map((item) => {
+        const hint = reasonLabel(item.reason)
+        if (item.kind === 'recipe') {
+          const recipe = recipes?.find((r) => r.id === item.id)
+          if (!recipe) return null
+          return recipeToCatalogItem(recipe, {
+            score: item.score,
+            reason: item.reason,
+            subtitle: hint ? `Recipe · ${hint}` : 'Recipe',
+          })
+        }
+        const food = simpleFoods?.find((f) => f.id === item.id)
+        if (!food) return null
+        return simpleFoodToCatalogItem(food, {
+          score: item.score,
+          reason: item.reason,
+          subtitle: hint ? `Simple food · ${hint}` : 'Simple food',
+        })
+      })
+      .filter((item): item is DishCatalogItem => item !== null)
+  }, [ranked, recipes, simpleFoods])
+
+  const leftovers = useMemo((): DishCatalogItem[] => {
+    const rows: DishCatalogItem[] = []
+    for (const event of graph.cookingEvents) {
+      const remaining = planService.remainingForCookingEvent(graph, event.id)
+      if (!hasUnallocatedRemainder(remaining) || !remaining) continue
+      if (!isReuseAllowed(event.recipeSnapshot.reusePolicy, event.scheduledDate, slot.date)) {
+        continue
       }
+      rows.push(leftoverToCatalogItem(event, remaining))
     }
-
-    const q = query.trim()
-    if (!q) return list
-
-    const fuse = new Fuse(list, {
-      keys: ['name'],
-      threshold: 0.4,
-      includeScore: true,
-    })
-    return fuse.search(q).map((result) => {
-      const fuseBoost = 1 - (result.score ?? 1)
-      return { ...result.item, score: result.item.score + fuseBoost * 50 }
-    })
-  }, [ranked, browseMode, showAll, slot.mealType, query])
+    return rows
+  }, [graph, planService, slot.date])
 
   const handleClose = () => {
     onClose()
@@ -185,6 +185,47 @@ export function AddComponentFlow({
 
   const pickRecipe = async (recipeId: string, recipeName: string) => {
     setStep({ kind: 'source', recipeId, recipeName })
+  }
+
+  const pickLeftover = async (item: DishCatalogItem) => {
+    const event = item.cookingEvent
+    if (!event) return
+    const result = await planService.listEligibleCookingEventsForSlot(slot.id, event.recipeId)
+    if (!result.ok) {
+      notifications.show({ message: errorMessage(result.error), color: 'red' })
+      return
+    }
+    const events = result.events.length > 0 ? result.events : [event]
+    const remainingById = new Map<string, Quantity | null>()
+    for (const candidate of events) {
+      remainingById.set(candidate.id, planService.remainingForCookingEvent(graph, candidate.id))
+    }
+    const selected = events.find((candidate) => candidate.id === event.id) ?? events[0]
+    setSelectedEventId(selected.id)
+    const remaining = remainingById.get(selected.id)
+    setAllocValue(
+      remaining && remaining.value > 0 ? remaining.value : selected.outputQuantity.value,
+    )
+    setAllocUnit(selected.outputQuantity.unit)
+    setStep({
+      kind: 'use-existing',
+      recipeId: event.recipeId,
+      recipeName: event.recipeSnapshot.name,
+      events,
+      remainingById,
+    })
+  }
+
+  const pickCatalogItem = (item: DishCatalogItem) => {
+    if (item.kind === 'leftover') {
+      void pickLeftover(item)
+      return
+    }
+    if (item.kind === 'recipe') {
+      void pickRecipe(item.id, item.name)
+      return
+    }
+    void pickSimpleFood(item.id)
   }
 
   const pickSimpleFood = async (simpleFoodId: string) => {
@@ -312,7 +353,7 @@ export function AddComponentFlow({
 
   const title =
     step.kind === 'pick'
-      ? 'Add component'
+      ? 'Add dish'
       : step.kind === 'source'
         ? step.recipeName
         : step.kind === 'cook-new'
@@ -320,64 +361,18 @@ export function AddComponentFlow({
           : `Use existing — ${step.recipeName}`
 
   return (
-    <Modal opened={opened} onClose={handleClose} title={title} centered>
+    <Modal opened={opened} onClose={handleClose} title={title} centered size="lg">
       <Stack gap="sm">
         {step.kind === 'pick' && (
-          <>
-            <TextInput
-              placeholder="Search…"
-              value={query}
-              onChange={(e) => setQuery(e.currentTarget.value)}
-              data-autofocus
-            />
-            <SegmentedControl
-              fullWidth
-              value={browseMode}
-              onChange={(value) => setBrowseMode(value as 'suggested' | 'all')}
-              data={[
-                { label: 'Suggested', value: 'suggested' },
-                { label: 'All', value: 'all' },
-              ]}
-            />
-            {browseMode === 'all' && (
-              <Checkbox
-                label="Show all meal types"
-                checked={showAll}
-                onChange={(e) => setShowAll(e.currentTarget.checked)}
-              />
-            )}
-            {displayed.length === 0 && (
-              <Text size="sm" c="dimmed">
-                No matching items.
-              </Text>
-            )}
-            <Stack gap={4}>
-              {displayed.map((item) => {
-                const hint = reasonLabel(item.reason)
-                return (
-                  <UnstyledButton
-                    key={`${item.kind}-${item.id}`}
-                    disabled={busy}
-                    onClick={() => {
-                      if (item.kind === 'recipe') {
-                        void pickRecipe(item.id, item.name)
-                      } else {
-                        void pickSimpleFood(item.id)
-                      }
-                    }}
-                    p="xs"
-                    style={{ borderRadius: 4 }}
-                  >
-                    <Text size="sm">{item.name}</Text>
-                    <Text size="xs" c="dimmed">
-                      {item.kind === 'recipe' ? 'Recipe' : 'Simple food'}
-                      {hint ? ` · ${hint}` : ''}
-                    </Text>
-                  </UnstyledButton>
-                )
-              })}
-            </Stack>
-          </>
+          <DishCatalog
+            items={catalogItems}
+            leftovers={leftovers}
+            filters={filters}
+            onFiltersChange={setFilters}
+            onSelect={pickCatalogItem}
+            disabled={busy}
+            showSuggestedFilter
+          />
         )}
 
         {step.kind === 'source' && (

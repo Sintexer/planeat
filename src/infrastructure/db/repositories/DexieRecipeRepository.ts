@@ -30,7 +30,16 @@ export class DexieRecipeRepository implements RecipeRepository {
   }
 
   async update(id: RecipeId, changes: Partial<RecipeWriteInput>): Promise<void> {
-    await this.db.recipes.update(id, { ...changes, updatedAt: Date.now() })
+    const current = await this.db.recipes.get(id)
+    if (!current) return
+    const next: Recipe = { ...current, ...changes, updatedAt: Date.now() }
+    if (
+      Object.prototype.hasOwnProperty.call(changes, 'photoUrl') &&
+      changes.photoUrl === undefined
+    ) {
+      delete next.photoUrl
+    }
+    await this.db.recipes.put(next)
   }
 
   async remove(id: RecipeId): Promise<void> {

@@ -2,7 +2,21 @@ import type { Recipe, RecipeId, RecipeWriteInput } from '../../domain/recipes/Re
 import type { RecipeRepository } from '../ports/RecipeRepository'
 
 export type RecipeValidationError =
-  'empty-name' | 'invalid-yield' | 'invalid-portion' | 'missing-role' | 'missing-meal-type'
+  | 'empty-name'
+  | 'invalid-yield'
+  | 'invalid-portion'
+  | 'missing-role'
+  | 'missing-meal-type'
+  | 'invalid-photo-url'
+
+function normalizePhotoUrl(value: string | undefined): string | undefined {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : undefined
+}
+
+function isHttpUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value)
+}
 
 function validateWriteInput(
   input: RecipeWriteInput,
@@ -19,6 +33,8 @@ function validateWriteInput(
   }
   if (input.roles.length === 0) return { ok: false, error: 'missing-role' }
   if (input.mealTypes.length === 0) return { ok: false, error: 'missing-meal-type' }
+  const photoUrl = normalizePhotoUrl(input.photoUrl)
+  if (photoUrl && !isHttpUrl(photoUrl)) return { ok: false, error: 'invalid-photo-url' }
   return { ok: true }
 }
 
@@ -48,6 +64,7 @@ export class RecipeService {
       name: input.name.trim(),
       instructions: input.instructions.trim(),
       tags: input.tags.map((t) => t.trim()).filter(Boolean),
+      photoUrl: normalizePhotoUrl(input.photoUrl),
     })
     return { ok: true, recipe }
   }
@@ -82,6 +99,7 @@ export class RecipeService {
         changes.freezingNotes !== undefined ? changes.freezingNotes : current.freezingNotes,
       tags: changes.tags ?? current.tags,
       sourceUrl: changes.sourceUrl !== undefined ? changes.sourceUrl : current.sourceUrl,
+      photoUrl: changes.photoUrl !== undefined ? changes.photoUrl : current.photoUrl,
       cuisine: changes.cuisine !== undefined ? changes.cuisine : current.cuisine,
       maxPreferredRepeats:
         changes.maxPreferredRepeats !== undefined
@@ -98,6 +116,7 @@ export class RecipeService {
       name: merged.name.trim(),
       instructions: merged.instructions.trim(),
       tags: merged.tags.map((t) => t.trim()).filter(Boolean),
+      photoUrl: normalizePhotoUrl(merged.photoUrl),
     })
     return { ok: true }
   }

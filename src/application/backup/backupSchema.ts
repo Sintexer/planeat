@@ -36,6 +36,7 @@ const recipeSchema = z.object({
   freezingNotes: z.string().optional(),
   tags: z.array(z.string()),
   sourceUrl: z.string().optional(),
+  photoUrl: z.string().optional(),
   cuisine: z.string().optional(),
   maxPreferredRepeats: z.number().optional(),
   notes: z.string().optional(),
