@@ -1,6 +1,8 @@
 # Feature-specific sprint plan
 
-No dates and no automated test work. Each sprint ends with a usable increment and concrete completion criteria.
+No dates. Each sprint ends with a usable increment and concrete completion criteria.
+
+Sprints 1–6 had no automated test runner (MVP). Sprint 7 stays polish-and-foundation. Automated tests around realistic household scenarios become in scope with Sprint 8 (measurement/grocery correctness). See [`docs/superpowers/specs/2026-09-10-identity-measurement-localization.md`](../superpowers/specs/2026-09-10-identity-measurement-localization.md).
 
 ## Sprint 1 — Offline application foundation
 
@@ -154,24 +156,98 @@ At this point, the app already provides a useful manual planning workflow.
 
 ---
 
-## Sprint 7 — Household-use polish
+## Checkpoint — finish the current UX branch (before Sprint 7 schema work)
+
+Uncommitted catalog, photo UI, and unified Plan screen must stand on their own. Do not mix them with measurement schema changes.
+
+**Build / verify**
+
+- Commit the shared dish catalog, photo UI, and unified Plan screen.
+- Verify redirects from `/today` and `/week` (and `/week/:planId`) to `/plan`.
+- Regression-check cooking events, leftover reuse, and grocery generate/update.
+- Verify installation, offline operation, and the PWA update prompt.
+- Export a representative **v5** backup for later migration tests.
+
+**Complete when** those UX changes ship independently of identity/unit work.
+
+---
+
+## Sprint 7 — Household polish and localization foundation
+
+Implementation plan: [`docs/superpowers/plans/2026-09-10-sprint-7-household-polish.md`](../superpowers/plans/2026-09-10-sprint-7-household-polish.md).
+
+Household-use polish plus settings and formatting foundations. **No unit-registry schema yet.** Confirm the current quantity model (see the identity spec) before Sprint 8.
 
 **Build**
 
-- Faster recipe/component selection.
-- Better mobile quantity editing.
-- Empty states and validation messages.
+- Faster recipe/component selection, better mobile quantity editing, empty states and validation messages.
 - Clear distinction between excluded and unplanned meals.
 - Grocery-update preview refinements.
-- Settings organization.
-- Offline/update status feedback.
+- Settings organization; offline/update status feedback.
 - Small starter guidance, without forcing a bundled recipe library.
+- `uiLocale` (only supported UI languages at first) and `measurementPreference` defaulting to **as-entered**.
+- Translation/message infrastructure; centralized number and quantity **formatting** (`Intl` in UI; no arithmetic in the browser locale).
+- Clearer wording for `isCommon`: “Usually have at home — starts checked on new grocery lists” (not pantry tracking).
+- Audit real stored/imported units and aliases.
+- Short ADRs (or spec sections) for ingredient identity, unit semantics, and snapshot preservation.
+- Defined photo behavior: URL photos optional; reliable offline placeholder; backups do not include remote image bytes.
 
 **Complete when**
 
-- The entire workflow is comfortable on your Android phone.
-- You can build a plan, reuse batches, generate groceries, shop, and close the list without developer tools.
-- Errors explain what to fix instead of leaving invalid dependencies hidden.
+- The entire workflow is comfortable on an Android phone: plan, reuse batches, generate groceries, shop, close the list.
+- Errors explain what to fix instead of hiding invalid dependencies.
+- Changing locale does not change quantities, ingredient IDs, dates, or week boundaries.
+- Current recipes and plans still display correctly.
+- Calendar dates remain local `YYYY-MM-DD`; no accidental UTC conversion during formatting.
+- Unsupported translations fall back cleanly.
+
+---
+
+## Sprint 8 — Explicit measurements and reliable groceries
+
+Highest-value outcome: grocery lists that only combine quantities when identity, form, dimension, and conversion are all known.
+
+**Build**
+
+- Bundled, versioned unit registry in domain; explicit unit selection for new entries.
+- Conservative normalization of legacy units; ambiguous `cup` / `tbsp` stay unresolved (today `QuantityService` maps them through convert-units as a single convention — stop that for saved data).
+- Revised conversion and aggregation rules (mass↔mass, volume↔volume with explicit cup definitions; never cup↔grams or can↔grams without extra data).
+- Unresolved / non-numeric quantities without data loss (“to taste”, original range text).
+- Grocery contribution references and explicit generated vs override vs manual vs checked handling where still implicit.
+- Import confirmation for ambiguous measurements (US vs metric cup, keep unspecified).
+
+**Complete when**
+
+- Compatible measurements aggregate correctly (g+kg, mL+L, count+count).
+- Ambiguous cups and tablespoons are never guessed during migration.
+- Mass and volume are not combined.
+- Leftover reuse does not duplicate groceries.
+- Updating a list preserves manual intent per documented policy.
+- Recipe scaling does not accumulate presentation-rounding errors.
+- Release gates 1–4 and 7–9 in the identity spec have coverage (introduce a test runner if needed for those scenarios).
+
+---
+
+## Sprint 9 — Localized ingredient matching and import quality
+
+**Build**
+
+- Localized preferred names and scoped aliases; legacy aliases stay unclassified until edited.
+- Context-aware matching with candidate review; search across localized labels and legacy aliases.
+- Stable translated keys for existing controlled categories (occasion, role, effort, reuse).
+- One fully tested additional UI locale relevant to target households.
+- Import review: suggest matches, highlight ambiguity, allow save with unresolved lines, ask before promoting a typed name to a reusable alias.
+- Updated backup format and backward-compatible restore (Dexie version only if indexes/tables/transforms require it).
+
+**Complete when**
+
+- “Eggplant” and “aubergine” can find the same catalog ingredient.
+- Ambiguous names do not silently resolve; fuzzy match never merges catalog records.
+- User-entered names survive locale changes.
+- Imports remain usable offline; household-created ingredients stay first-class without external refs.
+- Locale switch still affects presentation only (gate 5–6, 10).
+
+Ingredient merging is **not** a casual add-on. If duplicates become a real problem, a dedicated merge workflow (live refs, snapshots untouched) is a later increment.
 
 ---
 
@@ -190,3 +266,7 @@ Sprint 4 is done: standalone grocery lists generated from plans (cooking events 
 Sprint 5 is done: multi-component meal editor with batch reuse (core), plus remainder — auto-by-date prep sessions and effort units, meal favorites, recipe pairings, `fuse.js` Suggested/All picker, global planning preferences, and soft prompts. Dexie schema v5 and backup format version 5.
 
 Sprint 6 is done: Schema.org Recipe import from JSON/JSON-LD paste, HTML with embedded JSON-LD, or file upload; multi-recipe selection (pick one); normalize into `RecipeEditor` draft with confirmation hints; `@mantine/dropzone` + `schema-dts`.
+
+Checkpoint (catalog / photos / unified Plan) is done.
+
+Sprint 7 is done: household polish + localization foundation (locale, as-entered measurement preference, formatting, copy, photo/offline rules). Sprints 8–9 deliver measurement correctness and localized ingredient matching.

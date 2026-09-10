@@ -33,18 +33,18 @@ Adds weekly planning tables; settings rows gain `weekStartDay` (default Monday =
 
 Schema changes must be added as new `.version(n)` blocks in `src/infrastructure/db/migrations/index.ts` — never edit a shipped version, so existing local data survives upgrades.
 
-Backup file format is independent: `CURRENT_BACKUP_FORMAT_VERSION` is **3** and includes `recipes`, `settings`, `ingredients`, `simpleFoods`, `plans`, `mealSlots`, `mealComponents`, and `cookingEvents`.
+**Dexie schema version and backup format version are separate contracts.** A model change needs a Dexie bump only when indexes, tables, or stored-row transforms require it. Backup format versions are bumped when the export/restore payload shape changes. Use the same upgrade logic for legacy backup restores where practical; validate the full upgraded backup before replacing local data.
 
-Grocery lists are modeled in version 4. Prep sessions / favorites / pairings are in version 5.
+Backup file format is independent: `CURRENT_BACKUP_FORMAT_VERSION` is **5** (see v5 below). Historical notes: version **3** first included plans/slots/components/cooking events; version **4** added grocery tables.
 
 ## Version 4
 
 Standalone grocery lists generated from plans (pragmatic update keeps manual items and matching checkmarks).
 
-| Table          | Primary key | Indexes                  | Notes                                                                |
-| -------------- | ----------- | ------------------------ | -------------------------------------------------------------------- |
-| `groceryLists` | `id`        | `status`, `sourcePlanId` | `open` / `closed`; optional `sourcePlanId` + `sourcePlanRevision`    |
-| `groceryItems` | `id`        | `listId`                 | Generated or manual; `checked`; optional `ingredientId` + `quantity` |
+| Table          | Primary key | Indexes                  | Notes                                                                                                |
+| -------------- | ----------- | ------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `groceryLists` | `id`        | `status`, `sourcePlanId` | `open` / `closed`; optional `sourcePlanId` + `sourcePlanRevision`                                    |
+| `groceryItems` | `id`        | `listId`                 | `origin` generated/manual; `quantityManuallyEdited`; `checked`; optional `ingredientId` + `quantity` |
 
 Backup format version **4** adds `groceryLists` and `groceryItems`.
 
@@ -60,7 +60,22 @@ Sprint 5 remainder: auto prep sessions, favorites, pairings, planning preference
 | `cookingEvents`  | `id`        | `planId`, `sessionId`     | `sessionId` is a real prep-session id after migration                |
 | `settings`       | `id`        | —                         | Adds max batch-prep units, preferred/quick days, veg/demanding prefs |
 
-Backup format version **5** adds `prepSessions`, `mealFavorites`, `recipePairings` and requires string `sessionId` on cooking events.
+Sprint 7 may add `uiLocale` and `measurementPreference` on the same row via `mergeSettingsDefaults`; not a Dexie version.
+
+Backup format version **5** adds `prepSessions`, `mealFavorites`, `recipePairings` and requires string `sessionId` on cooking events. Export a representative v5 backup before the first measurement migration (Sprint 8).
+
+## Planned — Sprints 7–9 (not shipped)
+
+Target shapes live in [`docs/superpowers/specs/2026-09-10-identity-measurement-localization.md`](superpowers/specs/2026-09-10-identity-measurement-localization.md). Do not invent locale on existing aliases. Additive fields first; leave ambiguous units unresolved.
+
+| Concept       | Direction                                                                                                                       |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Settings      | `uiLocale`, `measurementPreference` (`as-entered` default), optional `defaultRecipeMeasurementConvention`                       |
+| Ingredients   | Keep IDs; names/aliases become locale-scoped metadata; optional `externalRefs` later                                            |
+| Recipe lines  | Keep `displayText` / original text; optional `unitId`, `enteredUnit`, `enteredName`, `preparation`; `ingredientId` may be unset |
+| Units         | Bundled registry (`cup_us_customary` vs `cup_metric`, `tbsp_australian` = 20 mL, …) — not a Dexie table of household units      |
+| Grocery items | Keep origin/override/checked; optionally compact cooking-event contribution refs                                                |
+| Snapshots     | Self-contained; never reinterpret units from current settings; never regenerate from the live library recipe                    |
 
 ## Starter library
 
