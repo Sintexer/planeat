@@ -1,11 +1,21 @@
 import { Button, Group, Notification } from '@mantine/core'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 
+interface UpdatePromptProps {
+  offlineReadyMessage: string
+  updateAvailableMessage: string
+  reloadWhenReadyLabel: string
+}
+
 /**
  * Update is user-confirmed, never a forced reload — a reload could discard an
  * unsaved recipe form draft. See CLAUDE.md offline "Update behavior".
  */
-export function UpdatePrompt() {
+export function UpdatePrompt({
+  offlineReadyMessage,
+  updateAvailableMessage,
+  reloadWhenReadyLabel,
+}: UpdatePromptProps) {
   const {
     offlineReady: [offlineReady, setOfflineReady],
     needRefresh: [needRefresh, setNeedRefresh],
@@ -19,7 +29,7 @@ export function UpdatePrompt() {
         onClose={() => setOfflineReady(false)}
         style={{ position: 'fixed', bottom: 76, left: 16, right: 16, zIndex: 300 }}
       >
-        App is ready to work offline.
+        {offlineReadyMessage}
       </Notification>
     )
   }
@@ -32,9 +42,9 @@ export function UpdatePrompt() {
         style={{ position: 'fixed', bottom: 76, left: 16, right: 16, zIndex: 300 }}
       >
         <Group justify="space-between">
-          <span>An update is available.</span>
+          <span>{updateAvailableMessage}</span>
           <Button size="xs" onClick={() => updateServiceWorker(true)}>
-            Reload when ready
+            {reloadWhenReadyLabel}
           </Button>
         </Group>
       </Notification>

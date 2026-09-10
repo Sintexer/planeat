@@ -1,5 +1,6 @@
 import { Box, Text } from '@mantine/core'
 import { useState } from 'react'
+import { useLocalization } from '../localization/LocalizationContext'
 
 interface RecipePhotoThumbProps {
   url?: string
@@ -8,14 +9,17 @@ interface RecipePhotoThumbProps {
 }
 
 export function RecipePhotoThumb({ url, label, size }: RecipePhotoThumbProps) {
+  const { t } = useLocalization()
   const [failedUrl, setFailedUrl] = useState<string | undefined>(undefined)
   const showImg = Boolean(url) && failedUrl !== url
   const initial = label.trim().charAt(0).toUpperCase() || '?'
+  const failed = Boolean(url) && failedUrl === url
 
   return (
     <Box
       w={size}
       h={size}
+      title={failed ? t('photo.unavailable') : undefined}
       style={{
         flexShrink: 0,
         borderRadius: 'var(--mantine-radius-md)',
@@ -32,6 +36,7 @@ export function RecipePhotoThumb({ url, label, size }: RecipePhotoThumbProps) {
           alt=""
           width={size}
           height={size}
+          loading="lazy"
           referrerPolicy="no-referrer"
           onError={() => setFailedUrl(url)}
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}

@@ -1,4 +1,4 @@
-import { Group, NumberInput, Select } from '@mantine/core'
+import { NumberInput, Select, SimpleGrid } from '@mantine/core'
 import { QUANTITY_UNITS } from '../../domain/shared/Quantity'
 
 const unitOptions = QUANTITY_UNITS.map((unit) => ({ value: unit, label: unit }))
@@ -23,7 +23,7 @@ export function QuantityFields({
   min = 0.001,
 }: QuantityFieldsProps) {
   return (
-    <Group grow align="flex-end">
+    <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
       <NumberInput
         label={valueLabel}
         value={value}
@@ -40,6 +40,6 @@ export function QuantityFields({
         allowDeselect={false}
         onChange={(next) => onUnitChange(next ?? unit)}
       />
-    </Group>
+    </SimpleGrid>
   )
 }
