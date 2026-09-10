@@ -17,9 +17,10 @@ import {
   IconToolsKitchen2,
   IconX,
 } from '@tabler/icons-react'
-import { formatQuantity } from '../../domain/shared/formatQuantity'
 import { MEAL_TYPE_LABELS, type MealType } from '../../domain/shared/MealEnums'
 import { RecipePhotoThumb } from './RecipePhotoThumb'
+import { useFormatQuantity } from '../localization/useFormatQuantity'
+import { useLocalization } from '../localization/LocalizationContext'
 import { componentLabel, type SlotComponentDisplay, type SlotDisplay } from '../plans/slotDisplay'
 
 interface MealSlotCardProps {
@@ -51,8 +52,9 @@ function DishRow({
   mealDate: string
   onOpen: () => void
 }) {
+  const formatQty = useFormatQuantity()
   const label = componentLabel(item)
-  const qty = formatQuantity(item.component.allocatedQuantity)
+  const qty = formatQty(item.component.allocatedQuantity)
   const isLeftover = item.cookingEvent !== undefined && item.cookingEvent.scheduledDate !== mealDate
 
   return (
@@ -84,9 +86,11 @@ function DishRow({
 function AddDishButton({
   onOpen,
   colorScheme,
+  label,
 }: {
   onOpen: () => void
   colorScheme: 'light' | 'dark'
+  label: string
 }) {
   return (
     <UnstyledButton onClick={onOpen} w="100%" style={{ textAlign: 'center' }}>
@@ -94,7 +98,7 @@ function AddDishButton({
         <Group gap={6} justify="center">
           <IconPlus size={16} />
           <Text size="sm" fw={500}>
-            Add dish
+            {label}
           </Text>
         </Group>
       </Paper>
@@ -159,6 +163,7 @@ export function MealSlotCard({
   const accent = MEAL_ACCENT[slot.mealType]
   const colorScheme = useComputedColorScheme('light')
   const cardBg = colorScheme === 'dark' ? `${accent}.9` : `${accent}.0`
+  const { t } = useLocalization()
 
   return (
     <Paper p="sm" radius="lg" bg={cardBg}>
@@ -188,17 +193,27 @@ export function MealSlotCard({
         </Group>
 
         {slot.excluded ? (
-          <Paper p={12} radius="md" bg={colorScheme === 'dark' ? 'dark.6' : 'white'}>
-            <Text size="sm" c="dimmed">
-              Eating out
-            </Text>
-          </Paper>
+          <Text size="sm" c="dimmed" fs="italic">
+            {t('slot.eatingOut')}
+          </Text>
         ) : (
           <>
             {components.map((item) => (
               <DishRow key={item.component.id} item={item} mealDate={slot.date} onOpen={onOpen} />
             ))}
-            <AddDishButton onOpen={onOpen} colorScheme={colorScheme} />
+            {!hasComponents && (
+              <Paper
+                p={12}
+                radius="md"
+                bg={colorScheme === 'dark' ? 'dark.6' : 'gray.1'}
+                withBorder={false}
+              >
+                <Text size="sm" c="dimmed">
+                  {t('slot.notPlanned')}
+                </Text>
+              </Paper>
+            )}
+            <AddDishButton onOpen={onOpen} colorScheme={colorScheme} label={t('slot.addDish')} />
           </>
         )}
       </Stack>
