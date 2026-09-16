@@ -1,5 +1,6 @@
 import { NumberInput, Select, SimpleGrid } from '@mantine/core'
 import { QUANTITY_UNITS } from '../../domain/shared/Quantity'
+import { precisionStep } from './quantityStep'
 
 const unitOptions = QUANTITY_UNITS.map((unit) => ({ value: unit, label: unit }))
 
@@ -28,7 +29,7 @@ export function QuantityFields({
         label={valueLabel}
         value={value}
         min={min}
-        step={0.01}
+        step={precisionStep(value, 3)}
         allowDecimal
         decimalScale={3}
         onChange={(next) => onValueChange(typeof next === 'number' ? next : '')}

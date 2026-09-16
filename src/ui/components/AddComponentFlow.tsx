@@ -172,10 +172,15 @@ export function AddComponentFlow({
     for (const event of graph.cookingEvents) {
       const remaining = planService.remainingForCookingEvent(graph, event.id)
       if (!hasUnallocatedRemainder(remaining) || !remaining) continue
-      if (!isReuseAllowed(event.recipeSnapshot.reusePolicy, event.scheduledDate, slot.date)) {
-        continue
-      }
-      rows.push(leftoverToCatalogItem(event, remaining))
+      const eligible = isReuseAllowed(
+        event.recipeSnapshot.reusePolicy,
+        event.scheduledDate,
+        slot.date,
+      )
+      const ineligibleReason = eligible
+        ? undefined
+        : `Same-day only — cooked ${event.scheduledDate}`
+      rows.push(leftoverToCatalogItem(event, remaining, ineligibleReason))
     }
     return rows
   }, [graph, planService, slot.date])
@@ -191,6 +196,10 @@ export function AddComponentFlow({
   const pickLeftover = async (item: DishCatalogItem) => {
     const event = item.cookingEvent
     if (!event) return
+    if (item.ineligibleReason) {
+      notifications.show({ message: item.ineligibleReason, color: 'red' })
+      return
+    }
     const result = await planService.listEligibleCookingEventsForSlot(slot.id, event.recipeId)
     if (!result.ok) {
       notifications.show({ message: errorMessage(result.error), color: 'red' })

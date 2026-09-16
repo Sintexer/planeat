@@ -23,6 +23,8 @@ export type DishCatalogItem = {
   cookingEvent?: CookingEvent
   score?: number
   reason?: SuggestionCandidate['reason']
+  /** Set when a leftover exists but can't be used on the target day (e.g. same-day-only recipe). */
+  ineligibleReason?: string
 }
 
 export type DishCatalogFilters = {
@@ -88,7 +90,11 @@ export function simpleFoodToCatalogItem(
   }
 }
 
-export function leftoverToCatalogItem(event: CookingEvent, remaining: Quantity): DishCatalogItem {
+export function leftoverToCatalogItem(
+  event: CookingEvent,
+  remaining: Quantity,
+  ineligibleReason?: string,
+): DishCatalogItem {
   const recipe = event.recipeSnapshot
   return {
     key: `leftover:${event.id}`,
@@ -104,6 +110,7 @@ export function leftoverToCatalogItem(event: CookingEvent, remaining: Quantity):
     recipeId: event.recipeId,
     cookingEvent: event,
     subtitle: 'Remaining prep',
+    ineligibleReason,
   }
 }
 

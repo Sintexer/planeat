@@ -541,7 +541,7 @@ Request persistent browser storage where supported, but do not present it as gua
 
 # 6. Draft data schema
 
-Use explicit quantities. `unit` is not a display preference; Sprint 8 introduces a bundled registry so `cup` is not implicitly one country’s cup.
+Use explicit quantities. `unit` is not a display preference; Sprint 12 introduces a bundled registry so `cup` is not implicitly one country’s cup.
 
 ```ts
 type Quantity = {
@@ -566,7 +566,7 @@ Only perform conversions that are known. A recipe-specific serving must not be t
 | `cookingEvents`  | `id`, plan ID, session ID, recipe ID, recipe snapshot, output quantity, scheduled preparation                                                      |
 | `groceryLists`   | `id`, title, status, source plan ID/revision, timestamps                                                                                           |
 | `groceryItems`   | `id`, list ID, label, ingredient ID if known, quantity/text, checked, origin, manual-edit metadata                                                 |
-| `settings`       | week start, planning prefs; later `uiLocale`, measurement presentation preference (default as-entered)                                             |
+| `settings`       | week start, planning prefs, `uiLocale`, measurement presentation preference (default as-entered)                                                   |
 
 ### Meal component source
 
@@ -619,7 +619,7 @@ For MVP, restore can **replace all local data after confirmation**. Merge-import
 
 Moved to [`docs/sprints/plan.md`](docs/sprints/plan.md).
 
-Sprints 7–9 (localization foundation, explicit measurements, localized ingredient matching) are in [`docs/sprints/plan.md`](docs/sprints/plan.md). Evolve the existing app; do not rebuild it.
+Upcoming sprints (library organization, measurements, planning/shopping) are in [`docs/sprints/plan.md`](docs/sprints/plan.md). Evolve the existing app; do not rebuild it. Detailed cards exist for Sprints 7–9; 10–22 are sequenced backlog.
 
 ---
 

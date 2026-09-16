@@ -1,8 +1,35 @@
 # Feature-specific sprint plan
 
-No dates. Each sprint ends with a usable increment and concrete completion criteria.
+No dates. Keep the app releasable after every sprint. Each sprint delivers **one visible improvement**, including its UI, domain changes, persistence, backup support, and tests.
 
-Sprints 1–6 had no automated test runner (MVP). Sprint 7 stays polish-and-foundation. Automated tests around realistic household scenarios become in scope with Sprint 8 (measurement/grocery correctness).
+Sprints 1–6 had no automated test runner (MVP). Localization settings (`uiLocale`, `measurementPreference`) already shipped. Automated tests become in scope with the first new domain/persistence slice that needs them (Sprint 8 tags); measurement/grocery correctness remains the hard scenario gate in Sprint 13.
+
+## Delivery approach
+
+One developer, short sprints. The slices below are **scope boundaries**, not estimates. If a slice exceeds usual sprint capacity, split it rather than borrowing work from the next sprint.
+
+Sequence covers recipe organization **and** the measurement/localization foundations it depends on. Commit the next two or three sprints in detail; keep the rest as this sequenced backlog so direction stays clear without pretending we already know which later refinements households will value most.
+
+### Rules for every sprint
+
+- Existing recipes, plans, snapshots, and grocery lists remain usable.
+- Schema changes are additive where possible.
+- Any new persisted data is included in backup/restore immediately.
+- Core functionality works offline.
+- No hidden reinterpretation of legacy data.
+- New metadata is optional.
+- No backend, automatic weekly generation, nutrition, or pantry inventory.
+- Finish the slice before starting the next migration.
+
+### Split rule
+
+If a sprint requires redesigning a second subsystem to complete the first, split it at the user-visible boundary.
+
+Examples: manual unit entry before import unit review; basic tag assignment before tag merging; filters before saved views; grocery calculation before shopping-section UI.
+
+For each sprint, the implementation card has: one user story; at most three representative journeys; explicit non-goals; data and backup impact; acceptance tests; a short demo script.
+
+---
 
 ## Sprint 1 — Offline application foundation
 
@@ -156,108 +183,355 @@ At this point, the app already provides a useful manual planning workflow.
 
 ---
 
-## Checkpoint — finish the current UX branch (before Sprint 7 schema work)
+## Checkpoint — release baseline (done)
 
-Uncommitted catalog, photo UI, and unified Plan screen must stand on their own. Do not mix them with measurement schema changes.
+Finish the catalog / photo / Plan work **separately** from taxonomy or measurement migrations.
 
-**Build / verify**
+**Shipped**
 
-- Commit the shared dish catalog, photo UI, and unified Plan screen.
-- Verify redirects from `/today` and `/week` (and `/week/:planId`) to `/plan`.
-- Regression-check cooking events, leftover reuse, and grocery generate/update.
-- Verify installation, offline operation, and the PWA update prompt.
-- Export a representative **v5** backup for later migration tests.
+- Shared recipe/simple-food catalog.
+- Recipe photo presentation and offline fallback.
+- Unified Plan screen.
+- Old route redirects (`/today`, `/week`, `/week/:planId` → `/plan`).
 
-**Complete when** those UX changes ship independently of identity/unit work.
+**Smoke test (keep using as a regression gate)**
 
----
+1. Create and edit a recipe.
+2. Plan a new cooking event.
+3. Reuse its leftovers.
+4. Generate and update groceries.
+5. Export and restore a v5 backup.
+6. Reload offline.
 
-## Sprint 7 — Household polish and localization foundation
-
-Household-use polish plus settings and formatting foundations. **No unit-registry schema yet.** Confirm the current quantity model before Sprint 8.
-
-**Build**
-
-- Faster recipe/component selection, better mobile quantity editing, empty states and validation messages.
-- Clear distinction between excluded and unplanned meals.
-- Grocery-update preview refinements.
-- Settings organization; offline/update status feedback.
-- Small starter guidance, without forcing a bundled recipe library.
-- `uiLocale` (only supported UI languages at first) and `measurementPreference` defaulting to **as-entered**.
-- Translation/message infrastructure; centralized number and quantity **formatting** (`Intl` in UI; no arithmetic in the browser locale).
-- Clearer wording for `isCommon`: “Usually have at home — starts checked on new grocery lists” (not pantry tracking).
-- Audit real stored/imported units and aliases.
-- Short ADRs (or spec sections) for ingredient identity, unit semantics, and snapshot preservation.
-- Defined photo behavior: URL photos optional; reliable offline placeholder; backups do not include remote image bytes.
-
-**Complete when**
-
-- The entire workflow is comfortable on an Android phone: plan, reuse batches, generate groceries, shop, close the list.
-- Errors explain what to fix instead of hiding invalid dependencies.
-- Changing locale does not change quantities, ingredient IDs, dates, or week boundaries.
-- Current recipes and plans still display correctly.
-- Calendar dates remain local `YYYY-MM-DD`; no accidental UTC conversion during formatting.
-- Unsupported translations fall back cleanly.
+**Complete when** the application is committed, usable, and has representative migration fixtures. Do not combine this checkpoint with a taxonomy or measurement migration.
 
 ---
 
-## Sprint 8 — Explicit measurements and reliable groceries
+## Shipped — localization settings foundation
 
-Highest-value outcome: grocery lists that only combine quantities when identity, form, dimension, and conversion are all known.
+Former Sprint 7 numbering delivered household settings and presentation plumbing. **Do not reintroduce those settings.** Later slices apply or extend them:
 
-**Build**
+- `uiLocale` and `measurementPreference` (default **as-entered**) on the settings row via `mergeSettingsDefaults` (not a Dexie version).
+- `Intl` number formatting in UI; arithmetic stays in domain.
+- `isCommon` copy: “Usually have at home” (not pantry tracking).
+- URL photos optional; reliable offline placeholder; backups do not include remote image bytes.
 
-- Bundled, versioned unit registry in domain; explicit unit selection for new entries.
-- Conservative normalization of legacy units; ambiguous `cup` / `tbsp` stay unresolved (today `QuantityService` maps them through convert-units as a single convention — stop that for saved data).
-- Revised conversion and aggregation rules (mass↔mass, volume↔volume with explicit cup definitions; never cup↔grams or can↔grams without extra data).
-- Unresolved / non-numeric quantities without data loss (“to taste”, original range text).
-- Grocery contribution references and explicit generated vs override vs manual vs checked handling where still implicit.
-- Import confirmation for ambiguous measurements (US vs metric cup, keep unspecified).
-
-**Complete when**
-
-- Compatible measurements aggregate correctly (g+kg, mL+L, count+count).
-- Ambiguous cups and tablespoons are never guessed during migration.
-- Mass and volume are not combined.
-- Leftover reuse does not duplicate groceries.
-- Updating a list preserves manual intent per documented policy.
-- Recipe scaling does not accumulate presentation-rounding errors.
-- Introduce a test runner if needed for those scenarios.
+Sprint 14 is the remaining presentation pass (consistent application to details, scaling, groceries). Sprint 12 is the unit-registry schema. Do not guess legacy cup/tablespoon conventions in the meantime.
 
 ---
 
-## Sprint 9 — Localized ingredient matching and import quality
+# Phase 1 — A better recipe library
 
-**Build**
+## Sprint 7 — Consistent browsing and navigation
 
-- Localized preferred names and scoped aliases; legacy aliases stay unclassified until edited.
-- Context-aware matching with candidate review; search across localized labels and legacy aliases.
-- Stable translated keys for existing controlled categories (occasion, role, effort, reuse).
-- One fully tested additional UI locale relevant to target households.
-- Import review: suggest matches, highlight ambiguity, allow save with unresolved lines, ask before promoting a typed name to a reusable alias.
-- Updated backup format and backward-compatible restore (Dexie version only if indexes/tables/transforms require it).
+**User outcome:** “I can browse my library and return to where I was.”
 
-**Complete when**
+### Implementation card
 
-- “Eggplant” and “aubergine” can find the same catalog ingredient.
-- Ambiguous names do not silently resolve; fuzzy match never merges catalog records.
-- User-entered names survive locale changes.
-- Imports remain usable offline; household-created ingredients stay first-class without external refs.
-- Locale switch still affects presentation only (gate 5–6, 10).
+1. **User story.** As a household cook, I browse recipes and simple foods as one library, open an item, and return to the same search, kind selection, and scroll position.
 
-Ingredient merging is **not** a casual add-on. If duplicates become a real problem, a dedicated merge workflow (live refs, snapshots untouched) is a later increment.
+2. **Journeys**
+   - Open the library, search, open a recipe, edit and save, return — list and scroll are unchanged.
+   - Distinguish a recipe from a simple food on a compact card; missing time/effort is omitted rather than shown as zero or “unknown”.
+   - Empty library vs no search results: each state explains what to do next. Ingredient “usually have at home” wording matches grocery precheck behavior.
+
+3. **Non-goals.** No new filters, tags model, or database tables. No photo uploads or image backup. Reuse existing `fuse.js` search. Do not build the Sprint 10 filter drawer here. `DishCatalog` may already show extra chips (meal/role/effort/tags); leave them working if present, but do not expand or persist them as a new product surface.
+
+4. **Data and backup impact.** None. Session restore is in-memory / router state for the library screen. Settings and backups unchanged. Photos remain URL-only.
+
+5. **Acceptance tests**
+   - Opening a recipe, editing it, and returning does not reset the library or jump unexpectedly to the top.
+   - Search query and item-kind selection survive the round-trip.
+   - Known `activeTimeMinutes` / `totalTimeMinutes` / effort display; absent optional times are omitted. Effort is currently required on recipes — do not invent a “missing effort” value.
+   - Offline: photo placeholder still appears when a remote `photoUrl` cannot load.
+   - Empty catalog and zero search hits are distinct.
+   - Ingredient editor still describes `isCommon` as “Usually have at home.”
+
+6. **Demo script.** Seeded library → filter to recipes → search “soup” → open vegetable soup → edit a note → save → back. Confirm search, kind, and scroll. Toggle airplane mode on a recipe with a photo URL and confirm the placeholder. Clear search on an empty query that matches nothing after a nonsense string.
+
+**Current code to change (orientation):** `RecipesScreen` holds `DishCatalogFilters` in `useState` (lost on unmount). Selecting a simple food navigates to the simple-foods manager, not an item. Cards always bake effort into the recipe subtitle.
+
+---
+
+## Sprint 8 — Household tags: create, assign, rename
+
+**User outcome:** “I can organize food using my household’s own labels.”
+
+### Implementation card
+
+1. **User story.** As a household cook, I create my own labels, assign them while editing food, rename them later, and keep every existing assignment.
+
+2. **Journeys**
+   - In a recipe (or simple-food) editor, autocomplete an existing tag or type a new name to create-and-assign in one step.
+   - Open a small tag-management screen: usage counts, rename. Renaming “batch” to “make-ahead” updates chips on cards and details immediately.
+   - Export and restore: assignments survive; cooking-event snapshots still show the tag strings they stored at cook time, not a live rewrite of history.
+
+3. **Non-goals.** Flat tags only. No archive, merge, bulk tagging, colors, saved views, or nested taxonomy. Do not automatically reclassify imported or starter tags (`batch`, `soup`, `italian`, …). Do not put live tag IDs into historical snapshots in a way that retroactively changes leftover/plan display.
+
+4. **Data and backup impact**
+   - Today `recipes.tags` and `simpleFoods.tags` are `string[]` (display labels). Introduce a `tags` catalog table with stable IDs; store assignments as tag IDs on live recipes/simple foods.
+   - Additive Dexie version; migrate existing strings into tag rows (reuse one ID per distinct trimmed label, case-conservative exact-duplicate prevention on create).
+   - Backup format bump: include the tag catalog and ID assignments. Restore of older backups runs the same string→ID migration.
+   - Snapshots (`cookingEvents.recipeSnapshot.tags`) stay as stored historical labels — do not rewrite snapshot tag arrays when renaming a live tag.
+
+5. **Acceptance tests**
+   - Creating a tag while assigning it does not create a second row for an exact duplicate name (conservative match: trimmed, case policy documented in the service).
+   - Rename updates the live library without dropping assignments.
+   - Historical plan snapshots keep their original tag strings.
+   - Backup export/restore round-trips the tag catalog and live assignments.
+   - User errors (duplicate name on create/rename) return an error from the service, not an exception.
+
+6. **Demo script.** Recipes → edit carbonara → add tag “Kids’ picks” (create) → save. Tag management: rename “italian” → “Italian-ish”. Library chips update. Open a past cooking event / leftover that snapshotted the old string and confirm history is unchanged. Export, restore, confirm assignments.
+
+**Introduce a test runner here** (Vitest, Vite-native) for tag identity, rename, duplicate prevention, and backup migration. Explain the new dependency in `AGENTS.md` when adding it.
+
+---
+
+## Sprint 9 — Clear recipe classification
+
+**User outcome:** “I understand the difference between when I serve something and what kind of dish it is.”
+
+### Implementation card
+
+1. **User story.** As a household cook, I optionally record meal occasion, meal role, and primary dish type as separate facts, plus household tags and the existing cuisine field.
+
+2. **Journeys**
+   - Edit soup: occasions lunch **and** dinner, role main, primary dish type soup, household tag as needed — those values are not conflated on the form or on the detail screen.
+   - Leave classification empty on a simple side; the recipe still saves and appears in the library.
+   - A legacy/unknown role, occasion, or free-text tag remains visible and recoverable rather than dropped on save.
+
+3. **Non-goals.** No nested taxonomy. No required classification. No automatic reclassification of existing tags (do not turn the `soup` tag into dish type soup). No new meal slots such as snacks. No cuisine-model overhaul — keep the free-text `cuisine` field.
+
+4. **Data and backup impact**
+   - Occasion already exists as `mealTypes: MealType[]` (`breakfast` / `lunch` / `dinner`). Role already exists as `roles: RecipeRole[]`. Keep those stored keys; separate **display** labels (and message keys) from stored keys.
+   - Add optional **primary dish type** as a single curated key on recipes (and simple foods if the editor section is shared). Unknown legacy strings must round-trip.
+   - Additive fields; backup schema allows the new optional key. Existing rows omit it.
+   - Household tags stay the Sprint 8 ID model, shown in the same Organization section.
+
+5. **Acceptance tests**
+   - Soup can be lunch and dinner, role main, dish type soup, without those fields writing into each other.
+   - Empty organization fields are valid.
+   - Unknown legacy values survive edit/save and backup restore.
+   - Controlled lists use stable keys; UI shows localized labels.
+
+6. **Demo script.** Edit vegetable soup → Organization: Lunch + Dinner, Main, dish type Soup, keep tag “vegetable”. Save. Detail shows four distinct facts. Create a new recipe with no organization filled — it lists. Restore a pre-sprint backup; old `mealTypes` / `roles` / string tags still load.
+
+---
+
+## Sprint 10 — Basic library filtering
+
+**User outcome:** “I can narrow the library to a useful set of choices.”
+
+**Deliver.** A mobile filter drawer: item kind, meal occasion, meal role, household tags. Staged changes with a **Show N items** action. Applied filter chips. Clear filters, separate from clear search. Helpful no-match state. OR within a facet, AND between facets.
+
+**Boundaries.** No ingredient, time, dietary, or reuse filters yet. No saved views. No advanced boolean query builder. Do not add catalog favorites solely to populate this drawer.
+
+**Done when.** “Lunch or dinner” plus “Kids’ picks” produces predictable results, and removing one filter does not reset the others.
+
+---
+
+## Sprint 11 — Sorting and simple grouping
+
+**User outcome:** “I can scan the library in an order that makes sense to me.”
+
+**Deliver.** Sort: name, recently added, recently edited, shortest recorded total time, relevance while searching. Group: none, item kind, primary dish type. Persist the preferred sort/group choice.
+
+**Boundaries.** One grouping level. No grouping by multi-valued tags or cuisine. No “recently cooked” sort based on planning history.
+
+**Done when.** Each item appears once, unclassified items remain visible, and missing time values sort last.
+
+### Release checkpoint A
+
+PlanEat has a substantially better recipe box. Release and observe whether households actually use the classifications before expanding them.
+
+---
+
+# Phase 2 — Trustworthy measurements and localization
+
+## Sprint 12 — Explicit units in manual recipe entry
+
+**User outcome:** “When I enter a measurement, the app knows what I mean.”
+
+**Deliver.** Small bundled unit registry. Explicit choices for ambiguous physical units (US vs metric cups). Separate mass ounces and fluid ounces. Preserve entered measurement text. Unspecified/legacy unit support. Valid non-numeric lines such as “salt to taste.” Update the **manual** recipe editor and detail display only.
+
+**Boundaries.** Do not guess legacy cup or tablespoon conventions. No ingredient-density conversions. No can-to-grams or clove-to-bulb assumptions. Do not rebuild import review in this sprint.
+
+**Done when.** New entries can be unambiguous, while old entries still display and round-trip through backup without invented meanings.
+
+**Note.** Today `QuantityService` aliases `cup` → convert-units `cup` and `tbsp` → `Tbs`. Stop treating those as one convention for **new** saved data. Leave grocery aggregation on the current path until Sprint 13.
+
+---
+
+## Sprint 13 — Safe scaling and grocery aggregation
+
+**User outcome:** “Scaled quantities and grocery totals do not combine incompatible measurements.”
+
+**Deliver.** Use the explicit unit model for recipe quantity scaling, compatible mass/volume aggregation, separate display of incompatible quantities, and preservation of unresolved measurements. Verify existing manual grocery-edit behavior against the revised aggregation.
+
+**Boundaries.** No new grocery grouping UI. No ingredient-density database. If grocery override handling requires a redesign, make that its own slice.
+
+**Done when**
+
+- `500 g + 1 kg → 1.5 kg`.
+- `200 g flour + 1 cup flour` remains separate.
+- An unspecified cup stays unspecified.
+- Leftover reuse does not count the same cooking event twice.
+- Updating a list preserves manual items and follows the existing explicit override policy.
+
+This is the household-scenario test gate for measurements.
+
+---
+
+## Sprint 14 — Measurement and formatting preferences
+
+**User outcome:** “Measurements are displayed in a familiar format without changing the recipe.”
+
+**Deliver.** Separate household settings for regional number formatting and measurement display preference: as entered, metric, US customary. Apply them consistently to recipe details, scaling controls, and generated grocery quantities. Use `Intl` where supported and localized messages for culinary units.
+
+**Already shipped (do not redo):** `uiLocale`, `measurementPreference` defaults, and basic `Intl` wiring. This sprint is the consistency pass and culinary-unit messages.
+
+**Boundaries.** Regional formatting, not a fully translated UI. Convert only known compatible physical units. Do not rewrite stored recipe quantities. Default existing households to as entered.
+
+**Done when.** Switching preferences changes presentation but not recipe meaning, local dates, plan snapshots, or stored quantities.
+
+---
+
+## Sprint 15 — Localized ingredient names and safer alias lookup
+
+**User outcome:** “Different names for an ingredient are searchable without becoming different ingredients.”
+
+**Deliver.** Preferred ingredient labels scoped by locale. Existing default name as fallback. Locale-scoped and legacy/unclassified aliases. Ingredient editing for those labels. Catalog search across names and aliases. Candidate selection when an alias is ambiguous.
+
+**Boundaries.** No external ingredient database. No automatic ingredient merging. No automatic translation of household content. No import-flow redesign yet.
+
+**Done when.** “Eggplant” and “aubergine” can find one ingredient, while an ambiguous term can produce multiple candidates rather than silently selecting one.
+
+---
+
+## Sprint 16 — Measurement review during import
+
+**User outcome:** “Imported measurements are useful even when the source is unclear.”
+
+**Deliver.** Extend the existing import draft: known-unit recognition, visible unresolved measurements, explicit confirmation for ambiguous cups and tablespoons, preservation of the original ingredient line, ability to save without resolving everything. Reuse the Sprint 12 unit selector.
+
+**Boundaries.** Unit review only. No new parser provider. No live URL fetching. No ingredient-match overhaul in this sprint.
+
+**Done when.** An imported “2 cups flour” can be confirmed as a specific convention or retained as unspecified without losing the original text.
+
+---
+
+## Sprint 17 — Ingredient matching during import
+
+**User outcome:** “Imported ingredients connect to my catalog without polluting it.”
+
+**Deliver.** Suggested matches using names and aliases. Explicit candidate selection for ambiguous matches. Create an ingredient from the draft. Save an unresolved line without blocking the recipe. Separate confirmation before adding an imported phrase as a reusable alias.
+
+**Boundaries.** No automatic ingredient merge. No automatic persistent tags from imported keywords. No dietary-safety inference.
+
+**Done when.** A mistaken import match can be corrected without changing the meaning of existing recipes or teaching the catalog an unwanted alias.
+
+### Release checkpoint B
+
+Safer mixed-source recipes and measurements. Test with real household imports before adding more parsing intelligence.
+
+---
+
+# Phase 3 — Better decisions while planning and shopping
+
+## Sprint 18 — Practical advanced filters
+
+**User outcome:** “I can find recipes that fit my time and ingredient needs.”
+
+**Deliver.** Extend the existing filter drawer: maximum recorded total time, effort, contains ingredient, exclude ingredient. Use ingredient IDs; alias lookup only to help select the ingredient.
+
+**Boundaries.** No dietary certification filters. No density or nutrition calculations. No reuse/freezer filter unless existing structured data supports it reliably.
+
+**Done when.** Missing total time is not treated as zero. Ingredient filters are distinct from broad text search. Exclusion is described as filtering recorded ingredients—not an allergy-safety guarantee. Unresolved ingredient data is handled visibly rather than presented as certainty.
+
+---
+
+## Sprint 19 — Contextual meal-picker organization
+
+**User outcome:** “Adding food to a meal is easier than browsing the whole library.”
+
+**Deliver.** Reorganize existing capabilities into sections: available leftovers, suitable recipes, existing pairings, all items, existing favorite meals. Reuse library search and relevant filters, but **separate picker state**. Short explanations: “Uses Monday’s batch.” / “Often paired with rice.” / “Already planned this week.”
+
+**Boundaries.** Reuse existing suggestion logic. No new recommendation engine. No automatic weekly generation. No silent occasion filter on All items.
+
+**Done when.** “Cook this recipe” and “Use this previous batch” are unmistakably different actions, and library filters do not unexpectedly restrict the picker.
+
+---
+
+## Sprint 20 — Grocery shopping sections
+
+**User outcome:** “The list is organized for shopping, not just recipe calculation.”
+
+**Deliver.** Optional shopping section on catalog ingredients. Small localized starter list of sections. Grouped and flat grocery views. Section selection for manual grocery lines. Hide-checked toggle. Stable row behavior while checking items. Suggested sections: produce, bakery, chilled, pantry, frozen, other.
+
+**Boundaries.** No store-specific aisle maps. No pantry tracking. No automatic universal categorization. No grouping by recipe that duplicates aggregated quantities.
+
+**Done when.** Items without a section remain visible under Other, manual lines are preserved, and checking an item does not unexpectedly move nearby tap targets.
+
+### Release checkpoint C
+
+Core improvement program complete: better discovery, safer measurements, clearer meal selection, and a more usable shopping list.
+
+---
+
+# Phase 4 — Optional follow-up slices
+
+Prioritize from household feedback. Do not automatically commit these after Sprint 20.
+
+## Sprint 21 — Tag lifecycle management
+
+**User outcome:** “I can clean up my organization without losing recipes.”
+
+**Deliver.** Archive tags. Merge one tag into another. Delete with affected-item counts and confirmation. Deduplicate live assignments during merge. Preserve historical snapshot labels.
+
+**Exclude.** Bulk tagging, nested tags, automated rules.
+
+**Done when.** Every operation has clear consequences, completes transactionally, and never deletes food items.
+
+---
+
+## Sprint 22 — Saved library views
+
+**User outcome:** “I can return to my useful combinations of filters.”
+
+**Deliver.** Save the current query, filters, sort, and grouping. Rename and delete a saved view. Show unsaved modifications. Explicit Update view versus Save as new. Handling for deleted or archived filter references.
+
+**Exclude.** Sharing, recommended views, and automation.
+
+**Done when.** New matching recipes appear automatically, and changing filters never silently overwrites a saved view.
+
+---
+
+# Work intentionally not squeezed into this sequence
+
+These need their own bounded backlog if demand appears:
+
+| Feature                                       | Why deferred                                                                                            |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Full second-language UI                       | Requires translation inventory and screen-by-screen review; number formatting is not full localization. |
+| Catalog recipe/food favorites                 | Useful, but separate from existing favorite meals; add if tags and views are insufficient.              |
+| Bulk tagging                                  | Valuable mainly once catalogs become large.                                                             |
+| Cuisine normalization                         | Preserve current data until duplicates and filtering needs justify a migration.                         |
+| Dietary suitability system                    | Needs explicit provenance and uncertainty rules.                                                        |
+| Local photo uploads and portable image backup | Separate storage, quota, and backup concerns.                                                           |
+| Custom grocery aisle order                    | Useful after basic shopping sections are validated.                                                     |
+| External ingredient enrichment                | No current requirement justifies the dependency.                                                        |
 
 ---
 
 ## Status
 
-Sprint 1 is done: PWA shell, Dexie persistence, navigation shell, editable household-size setting, and JSON backup export/validated restore all exist (see `SPEC.md` for the full product rules this plan implements). Not verified in this session: installing on an actual Android device, and interactive browser testing (no browser automation tool available) — see the task notes for the manual checks still needed.
+Sprint 1 is done: PWA shell, Dexie persistence, navigation shell, editable household-size setting, and JSON backup export/validated restore all exist (see `SPEC.md` for the full product rules this plan implements).
 
 Sprint 1.5 is done: `@mantine/modals`, `eslint-plugin-boundaries`, Prettier, and `@vite-pwa/assets-generator` are installed and wired in. `fraction.js` was installed in Sprint 2; `convert-units` in Sprint 4; `fuse.js` in Sprint 5; `@mantine/dropzone` and `schema-dts` in Sprint 6.
 
 Sprint 2 is done: full recipe create/edit/detail with ingredient catalog (aliases, create-or-link), quantity scaling preview via `QuantityService`/`fraction.js`, simple foods with an enable-in-suggestions checklist, Dexie schema v2, and backup format version 2.
 
-Sprint 3 is done: navigable seven-day plans with materialized breakfast/lunch/dinner slots, exclusions, single-item placement (recipe snapshot via cooking event, or simple food), Today/Week screens, week-start setting, Dexie schema v3, and backup format version 3.
+Sprint 3 is done: navigable seven-day plans with materialized breakfast/lunch/dinner slots, exclusions, single-item placement (recipe snapshot via cooking event, or simple food), Today/Week screens later unified on Plan, Dexie schema v3, and backup format version 3.
 
 Sprint 4 is done: standalone grocery lists generated from plans (cooking events + simple foods), `convert-units` aggregation via `QuantityService.add`/`canConvert`, common ingredients prechecked, pragmatic update-existing merge, Lists UI, Week “Generate groceries” with update/create modal, Dexie schema v4, and backup format version 4.
 
@@ -267,4 +541,6 @@ Sprint 6 is done: Schema.org Recipe import from JSON/JSON-LD paste, HTML with em
 
 Checkpoint (catalog / photos / unified Plan) is done.
 
-Sprint 7 is done: household polish + localization foundation (locale, as-entered measurement preference, formatting, copy, photo/offline rules). Sprints 8–9 deliver measurement correctness and localized ingredient matching.
+Localization settings foundation is done (`uiLocale`, `measurementPreference`, formatting, “usually at home” copy, photo/offline rules).
+
+**Next:** Sprint 7 (library browsing session), then 8 (household tag IDs), then 9 (classification). Sprints 10–22 remain sequenced backlog.

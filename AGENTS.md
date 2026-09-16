@@ -46,24 +46,24 @@ src/app            → wires everything together (composition root)
 - Preserve local data through schema changes: only add new `.version(n)` blocks in `src/infrastructure/db/migrations`, never edit a shipped version. Dexie schema version and backup format version are separate contracts.
 - Unsaved recipe/plan edits live in a `@mantine/form` draft until Save — do not write every keystroke to IndexedDB.
 - Shared catalog UI may list recipes and simple foods together; do not collapse them into one persistence model.
-- No test runner until Sprint 8 measurement/grocery work. Until then, format/lint/typecheck/build remain the gate.
+- No test runner until Sprint 8 household-tag identity/backup tests (introduce Vitest then, and record it in this Libraries table). Until then, format/lint/typecheck/build remain the gate. Measurement/grocery scenario tests land in Sprint 13.
 - Format with `bun run format` (Prettier); style is not a lint concern here.
 
 ## Libraries
 
 Already installed, beyond the core stack (React/Mantine/Dexie/Zod/Day.js/vite-plugin-pwa):
 
-| Library                                                    | Used for                                                                                                                                                        |
-| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@mantine/modals`                                          | Centralized confirmation dialogs                                                                                                                                |
-| `prettier`                                                 | Formatting (`bun run format`)                                                                                                                                   |
-| `eslint-plugin-boundaries` + `eslint-import-resolver-node` | Enforces the layering above                                                                                                                                     |
-| `@vite-pwa/assets-generator`                               | Regenerates `public/` PWA icons from one source SVG (`pwa-assets.config.ts`, `bun run generate-icons`)                                                          |
-| `fraction.js`                                              | Recipe quantity scaling via `QuantityService`                                                                                                                   |
-| `convert-units`                                            | Compatible mass/volume aggregation via `QuantityService.add` / `canConvert` (Sprint 8: explicit unit registry; do not treat all `cup`/`tbsp` as one convention) |
-| `fuse.js`                                                  | Fuzzy recipe/component picker search and ranking (never ingredient identity merge)                                                                              |
-| `@mantine/dropzone`                                        | Recipe import file drop target (always paired with a visible Choose file button)                                                                                |
-| `schema-dts`                                               | Compile-time Schema.org `Recipe` typing for JSON-LD import (Zod remains runtime validation)                                                                     |
+| Library                                                    | Used for                                                                                                                                                            |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@mantine/modals`                                          | Centralized confirmation dialogs                                                                                                                                    |
+| `prettier`                                                 | Formatting (`bun run format`)                                                                                                                                       |
+| `eslint-plugin-boundaries` + `eslint-import-resolver-node` | Enforces the layering above                                                                                                                                         |
+| `@vite-pwa/assets-generator`                               | Regenerates `public/` PWA icons from one source SVG (`pwa-assets.config.ts`, `bun run generate-icons`)                                                              |
+| `fraction.js`                                              | Recipe quantity scaling via `QuantityService`                                                                                                                       |
+| `convert-units`                                            | Compatible mass/volume aggregation via `QuantityService.add` / `canConvert` (Sprint 12–13: explicit unit registry; do not treat all `cup`/`tbsp` as one convention) |
+| `fuse.js`                                                  | Fuzzy recipe/component picker search and ranking (never ingredient identity merge)                                                                                  |
+| `@mantine/dropzone`                                        | Recipe import file drop target (always paired with a visible Choose file button)                                                                                    |
+| `schema-dts`                                               | Compile-time Schema.org `Recipe` typing for JSON-LD import (Zod remains runtime validation)                                                                         |
 
 No further libraries are currently earmarked for a scheduled sprint.
 

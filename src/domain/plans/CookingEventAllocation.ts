@@ -30,6 +30,11 @@ export function isReuseAllowed(
   return checkReusePolicy(policy, scheduledDate, mealDate) === 'ok'
 }
 
+/** Whether unused output under this policy is stranded outside its prep day (cannot carry over). */
+export function isCarryoverRisk(policy: ReusePolicy): boolean {
+  return policy !== 'batch-friendly'
+}
+
 /** Components that reference a cooking event (optionally excluding one component). */
 export function componentsForCookingEvent(
   components: readonly MealComponent[],

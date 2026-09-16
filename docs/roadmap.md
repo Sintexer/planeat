@@ -43,16 +43,27 @@
 - Schema.org Recipe extraction (Zod runtime + `schema-dts` types); multi-recipe pick-one; prefill `RecipeEditor` with hints.
 - No network fetch; imported recipes save like manual ones. No Dexie schema bump.
 
-## Next — checkpoint, then Sprints 7–9
+## Done — checkpoint (catalog / Plan UX)
 
-Finish the current UX branch (shared dish catalog, photo thumbs, unified Plan) **before** measurement schema work.
+- Shared recipe/simple-food catalog, photo thumbs with offline placeholder, unified Plan screen, old-route redirects.
+- Localization settings foundation: `uiLocale`, `measurementPreference` (default as-entered), `Intl` formatting, “usually at home” copy.
 
-Then:
+## Next — Phase 1 recipe library (Sprints 7–11)
 
-1. **Sprint 7** — Household polish + localization foundation (`uiLocale`, as-entered measurement preference, `Intl` formatting, “usually at home” copy, photo/offline rules).
-2. **Sprint 8** — Explicit unit registry and conservative grocery aggregation (highest-value outcome).
-3. **Sprint 9** — Localized ingredient labels/aliases and import match-and-confirm quality.
+Committed in detail first:
 
-Sequence: [`docs/sprints/plan.md`](sprints/plan.md).
+1. **Sprint 7** — Consistent library browsing (compact cards, kind labels, search/kind/scroll restore).
+2. **Sprint 8** — Household tags with stable IDs, autocomplete, rename.
+3. **Sprint 9** — Optional organization: occasion, role, primary dish type, tags, existing cuisine field.
 
-Still out of scope: automatic weekly generation, backends, nutrition/barcode databases, food ontologies, pantry accounting.
+Then backlog: basic filter drawer (10), sort/group (11). Release checkpoint A before expanding classifications.
+
+## Later sequence
+
+- **Phase 2 (12–17):** explicit units, safe grocery aggregation, formatting consistency, localized aliases, import unit review, import ingredient matching. Checkpoint B.
+- **Phase 3 (18–20):** advanced filters, meal-picker sections, grocery shopping sections. Checkpoint C.
+- **Phase 4 (21–22, optional):** tag archive/merge/delete, saved library views.
+
+Sequence and implementation cards: [`docs/sprints/plan.md`](sprints/plan.md).
+
+Still out of scope unless separately backlogged: automatic weekly generation, backends, nutrition/barcode databases, food ontologies, pantry accounting, full second-language UI, local photo uploads.

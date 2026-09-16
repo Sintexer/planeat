@@ -5,11 +5,13 @@ import {
   Group,
   Stack,
   Text,
+  Tooltip,
   UnstyledButton,
   Loader,
   Paper,
 } from '@mantine/core'
 import {
+  IconAlertTriangle,
   IconCalendar,
   IconChevronDown,
   IconChevronLeft,
@@ -23,7 +25,7 @@ import { useNavigate, useParams } from 'react-router'
 import { useServices } from '../../app/servicesContext'
 import type { Recipe } from '../../domain/recipes/Recipe'
 import type { MealSlot } from '../../domain/plans/MealSlot'
-import { hasUnallocatedRemainder } from '../../domain/plans/CookingEventAllocation'
+import { hasUnallocatedRemainder, isCarryoverRisk } from '../../domain/plans/CookingEventAllocation'
 import {
   cookingEventsOnDate,
   effortUnitsForDate,
@@ -324,8 +326,15 @@ export function PlanScreen() {
       id: event.id,
       name: event.recipeSnapshot.name,
       remaining: planService.remainingForCookingEvent(graph, event.id),
+      carryoverRisk: isCarryoverRisk(event.recipeSnapshot.reusePolicy),
+      scheduledDate: event.scheduledDate,
     }))
     .filter((row) => hasUnallocatedRemainder(row.remaining))
+  const wontCarryOverEventIds = new Set(
+    remainingThisWeek
+      .filter((row) => row.carryoverRisk && row.scheduledDate === activeDay)
+      .map((row) => row.id),
+  )
 
   return (
     <Stack gap="lg">
@@ -465,11 +474,30 @@ export function PlanScreen() {
 
       {remainingThisWeek.length > 0 && (
         <Group gap={6} wrap="wrap">
-          {remainingThisWeek.map((row) => (
-            <Badge key={row.id} variant="light" color={accent} radius="xl" size="sm">
-              {row.name} · {formatQty(row.remaining)} remaining
-            </Badge>
-          ))}
+          {remainingThisWeek.map((row) =>
+            row.carryoverRisk ? (
+              <Tooltip
+                key={row.id}
+                label="This recipe must be eaten the day it's cooked. Unused portions can't be moved to another day."
+                multiline
+                w={240}
+              >
+                <Badge
+                  variant="light"
+                  color="red"
+                  radius="xl"
+                  size="sm"
+                  leftSection={<IconAlertTriangle size={12} />}
+                >
+                  {row.name} · {formatQty(row.remaining)} left · same-day only
+                </Badge>
+              </Tooltip>
+            ) : (
+              <Badge key={row.id} variant="light" color={accent} radius="xl" size="sm">
+                {row.name} · {formatQty(row.remaining)} remaining
+              </Badge>
+            ),
+          )}
         </Group>
       )}
 
@@ -513,6 +541,7 @@ export function PlanScreen() {
               <MealSlotCard
                 key={display.slot.id}
                 display={display}
+                wontCarryOverEventIds={wontCarryOverEventIds}
                 onOpen={() => setEditorSlot(display.slot)}
                 onClear={() => void confirmClearSlot(planService, display.slot.id)}
                 onExclude={() => void confirmExcludeSlot(planService, display.slot.id)}

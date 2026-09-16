@@ -8,9 +8,15 @@ import {
   Stack,
   Text,
   TextInput,
+  Tooltip,
   UnstyledButton,
 } from '@mantine/core'
-import { IconAdjustments, IconChevronDown, IconChevronUp } from '@tabler/icons-react'
+import {
+  IconAdjustments,
+  IconAlertTriangle,
+  IconChevronDown,
+  IconChevronUp,
+} from '@tabler/icons-react'
 import Fuse from 'fuse.js'
 import { useMemo, useState, type ReactNode } from 'react'
 import {
@@ -103,9 +109,10 @@ function ItemRow({
   leftover?: boolean
 }) {
   const formatQty = useFormatQuantity()
-  return (
+  const ineligible = Boolean(item.ineligibleReason)
+  const row = (
     <UnstyledButton
-      disabled={disabled}
+      disabled={disabled || ineligible}
       onClick={() => onSelect(item)}
       w="100%"
       style={{ textAlign: 'left' }}
@@ -114,7 +121,13 @@ function ItemRow({
         p={8}
         radius="md"
         withBorder={leftover}
-        style={leftover ? { background: 'var(--mantine-color-teal-light)' } : undefined}
+        style={
+          ineligible
+            ? { opacity: 0.55 }
+            : leftover
+              ? { background: 'var(--mantine-color-teal-light)' }
+              : undefined
+        }
       >
         <Group wrap="nowrap" align="flex-start" gap="sm">
           <RecipePhotoThumb url={item.photoUrl} label={item.name} size={44} />
@@ -127,10 +140,22 @@ function ItemRow({
               {item.remaining ? ` · ${formatQty(item.remaining)} left` : ''}
             </Text>
             <Group gap={4}>
-              {leftover && (
-                <Badge size="xs" color="teal" variant="filled" radius="xl">
-                  Remaining
+              {ineligible ? (
+                <Badge
+                  size="xs"
+                  color="red"
+                  variant="filled"
+                  radius="xl"
+                  leftSection={<IconAlertTriangle size={10} />}
+                >
+                  {item.ineligibleReason}
                 </Badge>
+              ) : (
+                leftover && (
+                  <Badge size="xs" color="teal" variant="filled" radius="xl">
+                    Remaining
+                  </Badge>
+                )
               )}
               {item.roles.slice(0, 2).map((role) => (
                 <Badge key={role} size="xs" variant="light" radius="sm">
@@ -147,6 +172,13 @@ function ItemRow({
         </Group>
       </Paper>
     </UnstyledButton>
+  )
+
+  if (!ineligible) return row
+  return (
+    <Tooltip label={item.ineligibleReason} multiline w={220}>
+      <div>{row}</div>
+    </Tooltip>
   )
 }
 

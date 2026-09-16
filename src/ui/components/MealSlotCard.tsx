@@ -10,6 +10,7 @@ import {
   useComputedColorScheme,
 } from '@mantine/core'
 import {
+  IconAlertTriangle,
   IconCoffee,
   IconDots,
   IconMoonStars,
@@ -25,6 +26,8 @@ import { componentLabel, type SlotComponentDisplay, type SlotDisplay } from '../
 
 interface MealSlotCardProps {
   display: SlotDisplay
+  /** IDs of cooking events with same-day/fresh-only leftovers that will be wasted after today. */
+  wontCarryOverEventIds?: Set<string>
   onOpen: () => void
   onClear: () => void
   onExclude: () => void
@@ -46,10 +49,12 @@ const MEAL_ACCENT: Record<MealType, string> = {
 function DishRow({
   item,
   mealDate,
+  wontCarryOver,
   onOpen,
 }: {
   item: SlotComponentDisplay
   mealDate: string
+  wontCarryOver: boolean
   onOpen: () => void
 }) {
   const formatQty = useFormatQuantity()
@@ -73,6 +78,17 @@ function DishRow({
               {isLeftover && (
                 <Badge color="teal" variant="light" size="sm" radius="xl">
                   Leftover
+                </Badge>
+              )}
+              {wontCarryOver && (
+                <Badge
+                  color="red"
+                  variant="light"
+                  size="sm"
+                  radius="xl"
+                  leftSection={<IconAlertTriangle size={12} />}
+                >
+                  Won&apos;t carry over
                 </Badge>
               )}
             </Group>
@@ -152,6 +168,7 @@ function SlotMenu({
 
 export function MealSlotCard({
   display,
+  wontCarryOverEventIds,
   onOpen,
   onClear,
   onExclude,
@@ -199,7 +216,16 @@ export function MealSlotCard({
         ) : (
           <>
             {components.map((item) => (
-              <DishRow key={item.component.id} item={item} mealDate={slot.date} onOpen={onOpen} />
+              <DishRow
+                key={item.component.id}
+                item={item}
+                mealDate={slot.date}
+                wontCarryOver={
+                  item.cookingEvent !== undefined &&
+                  (wontCarryOverEventIds?.has(item.cookingEvent.id) ?? false)
+                }
+                onOpen={onOpen}
+              />
             ))}
             {!hasComponents && (
               <Paper

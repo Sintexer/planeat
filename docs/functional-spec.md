@@ -26,10 +26,10 @@ Full recipe library (create/edit/detail, ingredient catalog, simple foods checkl
 
 On first launch, if the recipe table is empty, the app seeds a small editable starter set (cutlets, soup, carbonara, sides, and a few simple foods). Seeding never runs once any recipe exists and never overwrites user data.
 
-Structured import (JSON / JSON-LD / HTML with embedded JSON-LD) prefills a draft. Ambiguous lines stay visible; Sprint 9 adds match-and-confirm for ingredients and units without inventing precision.
+Structured import (JSON / JSON-LD / HTML with embedded JSON-LD) prefills a draft. Ambiguous lines stay visible; Sprints 16–17 add match-and-confirm for units and ingredients without inventing precision.
 
 ## Settings
 
 Household size, week-start day, planning preferences, JSON backup export/restore (replace-all).
 
-Sprint 7 adds UI locale and measurement presentation preference (default as-entered). Locale must not change stored quantities, IDs, or local calendar dates. See [`docs/sprints/plan.md`](sprints/plan.md).
+UI locale and measurement presentation preference (default as-entered) already exist. Locale must not change stored quantities, IDs, or local calendar dates. Sprint 14 is the remaining consistency pass. See [`docs/sprints/plan.md`](sprints/plan.md).

@@ -25,6 +25,7 @@ import {
   REUSE_POLICY_LABELS,
 } from '../../domain/shared/MealEnums'
 import { scaleFactor } from '../../domain/shared/scaleQuantity'
+import { precisionStep } from '../components/quantityStep'
 import { useIngredients } from '../hooks/useIngredients'
 import { usePairings } from '../hooks/usePairings'
 import { useRecipe } from '../hooks/useRecipe'
@@ -197,6 +198,7 @@ export function RecipeDetailScreen() {
         <NumberInput
           label={`Scale to (${recipe.yield.unit})`}
           min={0.001}
+          step={precisionStep(scaleYieldValue === '' ? recipe.yield.value : scaleYieldValue, 3)}
           decimalScale={3}
           value={scaleYieldValue === '' ? recipe.yield.value : scaleYieldValue}
           onChange={(next) => setScaleYieldValue(typeof next === 'number' ? next : '')}

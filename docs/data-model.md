@@ -60,22 +60,24 @@ Sprint 5 remainder: auto prep sessions, favorites, pairings, planning preference
 | `cookingEvents`  | `id`        | `planId`, `sessionId`     | `sessionId` is a real prep-session id after migration                |
 | `settings`       | `id`        | —                         | Adds max batch-prep units, preferred/quick days, veg/demanding prefs |
 
-Sprint 7 may add `uiLocale` and `measurementPreference` on the same row via `mergeSettingsDefaults`; not a Dexie version.
+`uiLocale` and `measurementPreference` are merged onto the same settings row via `mergeSettingsDefaults`; not a Dexie version.
 
-Backup format version **5** adds `prepSessions`, `mealFavorites`, `recipePairings` and requires string `sessionId` on cooking events. Export a representative v5 backup before the first measurement migration (Sprint 8).
+Backup format version **5** adds `prepSessions`, `mealFavorites`, `recipePairings` and requires string `sessionId` on cooking events. Export a representative v5 backup before the first measurement migration (Sprint 12).
 
-## Planned — Sprints 7–9 (not shipped)
+## Planned — upcoming sprints (not shipped)
 
-Do not invent locale on existing aliases. Additive fields first; leave ambiguous units unresolved.
+Do not invent locale on existing aliases. Additive fields first; leave ambiguous units unresolved. See [`docs/sprints/plan.md`](sprints/plan.md).
 
-| Concept       | Direction                                                                                                                       |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Settings      | `uiLocale`, `measurementPreference` (`as-entered` default), optional `defaultRecipeMeasurementConvention`                       |
-| Ingredients   | Keep IDs; names/aliases become locale-scoped metadata; optional `externalRefs` later                                            |
-| Recipe lines  | Keep `displayText` / original text; optional `unitId`, `enteredUnit`, `enteredName`, `preparation`; `ingredientId` may be unset |
-| Units         | Bundled registry (`cup_us_customary` vs `cup_metric`, `tbsp_australian` = 20 mL, …) — not a Dexie table of household units      |
-| Grocery items | Keep origin/override/checked; optionally compact cooking-event contribution refs                                                |
-| Snapshots     | Self-contained; never reinterpret units from current settings; never regenerate from the live library recipe                    |
+| Concept                   | Direction                                                                                                                       |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Tags (Sprint 8)           | Catalog with stable IDs; live recipe/simple-food assignments by ID; snapshots keep historical label strings                     |
+| Classification (Sprint 9) | Optional primary dish type key; keep existing `mealTypes` / `roles`; unknown legacy values recoverable                          |
+| Settings                  | `uiLocale`, `measurementPreference` (`as-entered` default) already shipped; optional `defaultRecipeMeasurementConvention` later |
+| Ingredients               | Keep IDs; names/aliases become locale-scoped metadata (Sprint 15); optional `externalRefs` later                                |
+| Recipe lines              | Keep `displayText` / original text; optional `unitId`, `enteredUnit`, `enteredName`, `preparation`; `ingredientId` may be unset |
+| Units (12–13)             | Bundled registry (`cup_us_customary` vs `cup_metric`, `tbsp_australian` = 20 mL, …) — not a Dexie table of household units      |
+| Grocery items             | Keep origin/override/checked; optionally compact cooking-event contribution refs; shopping section later (Sprint 20)            |
+| Snapshots                 | Self-contained; never reinterpret units from current settings; never regenerate from the live library recipe                    |
 
 ## Starter library
 
