@@ -18,6 +18,7 @@ import {
 } from '../../domain/plans/componentSuggestions'
 import type { MealSlot } from '../../domain/plans/MealSlot'
 import type { PlanGraph } from '../../domain/plans/PlanGraph'
+import { DEFAULT_CATALOG_SORT } from '../../domain/shared/MealEnums'
 import type { Quantity } from '../../domain/shared/Quantity'
 import { addDays } from '../../domain/shared/LocalDate'
 import { hasUnallocatedRemainder, isReuseAllowed } from '../../domain/plans/CookingEventAllocation'
@@ -97,13 +98,14 @@ export function AddComponentFlow({
   graph,
   onOverAllocated,
 }: AddComponentFlowProps) {
-  const { planService } = useServices()
+  const { planService, settingsRepository } = useServices()
   const recipes = useRecipes()
   const simpleFoods = useSimpleFoods()
   const tags = useTags()
   const favorites = useMealFavorites()
   const pairings = usePairings()
   const settings = useSettings()
+  const sort = settings?.catalogSort ?? DEFAULT_CATALOG_SORT
   const formatQty = useFormatQuantity()
   const previousWeekStart = addDays(graph.plan.startDate, -7)
   const previousWeek = usePlanByStartDate(previousWeekStart)
@@ -399,6 +401,8 @@ export function AddComponentFlow({
             filters={filters}
             onFiltersChange={setFilters}
             tagNamesById={tagNamesById}
+            sort={sort}
+            onSortChange={(next) => void settingsRepository.update({ catalogSort: next })}
             onSelect={pickCatalogItem}
             disabled={busy}
             showSuggestedFilter

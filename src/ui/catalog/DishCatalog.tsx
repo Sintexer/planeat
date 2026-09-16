@@ -6,6 +6,7 @@ import {
   Group,
   Paper,
   ScrollArea,
+  Select,
   Stack,
   Text,
   TextInput,
@@ -19,11 +20,15 @@ import { EFFORT_LABELS, MEAL_TYPE_LABELS, RECIPE_ROLE_LABELS } from '../../domai
 import type { TagId } from '../../domain/tags/Tag'
 import { RecipePhotoThumb } from '../components/RecipePhotoThumb'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
+import { catalogGroupOptions, catalogSortOptions } from '../shared/mealEnumOptions'
 import { FilterDrawer } from './FilterDrawer'
 import {
   groupCatalogItems,
   itemMatchesFilters,
+  sortCatalogItems,
   uniqueTagFacets,
+  type CatalogGroup,
+  type CatalogSort,
   type DishCatalogFilters,
   type DishCatalogItem,
 } from './catalogModel'
@@ -53,6 +58,11 @@ interface DishCatalogProps {
   onFiltersChange: (next: DishCatalogFilters) => void
   onSelect: (item: DishCatalogItem) => void
   tagNamesById: Map<TagId, string>
+  sort: CatalogSort
+  onSortChange: (next: CatalogSort) => void
+  group?: CatalogGroup
+  onGroupChange?: (next: CatalogGroup) => void
+  showGroupControl?: boolean
   disabled?: boolean
   showKindFilter?: boolean
   showSuggestedFilter?: boolean
@@ -173,11 +183,16 @@ export function DishCatalog({
   filters,
   onFiltersChange,
   onSelect,
+  tagNamesById,
+  sort,
+  onSortChange,
+  group,
+  onGroupChange,
+  showGroupControl = false,
   disabled,
   showKindFilter = true,
   showSuggestedFilter = false,
   emptyMessage = 'No matching dishes.',
-  tagNamesById,
   layout = 'modal',
 }: DishCatalogProps) {
   const [filterDrawerOpened, setFilterDrawerOpened] = useState(false)
@@ -206,9 +221,18 @@ export function DishCatalog({
     return fuse.search(q).map((result) => result.item)
   }, [items, filters])
 
+  const searching = filters.query.trim().length > 0
+
+  const sortedItems = useMemo(() => sortCatalogItems(filtered, sort), [filtered, sort])
+
   const groups = useMemo(
-    () => groupCatalogItems(filtered, filters.query.trim().length > 0),
-    [filtered, filters.query],
+    () =>
+      groupCatalogItems(sortedItems, {
+        searching,
+        suggestedFirst: showSuggestedFilter,
+        mode: showGroupControl ? (group ?? 'none') : 'none',
+      }),
+    [sortedItems, searching, showSuggestedFilter, showGroupControl, group],
   )
 
   const setFilters = (patch: Partial<DishCatalogFilters>) => {
@@ -282,14 +306,14 @@ export function DishCatalog({
         </Stack>
       )}
 
-      {groups.map((group) => (
-        <Stack key={group.id} gap={8}>
-          {group.title !== 'Results' && (
+      {groups.map((catalogGroup) => (
+        <Stack key={catalogGroup.id} gap={8}>
+          {catalogGroup.title !== '' && catalogGroup.title !== 'Results' && (
             <Text size="xs" fw={700} tt="uppercase" c="dimmed">
-              {group.title}
+              {catalogGroup.title}
             </Text>
           )}
-          {group.items.map((item) => (
+          {catalogGroup.items.map((item) => (
             <ItemRow key={item.key} item={item} onSelect={onSelect} disabled={disabled} />
           ))}
         </Stack>
@@ -305,6 +329,29 @@ export function DishCatalog({
         onChange={(event) => setFilters({ query: event.currentTarget.value })}
         data-autofocus={layout === 'modal'}
       />
+
+      <Group gap="xs" wrap="wrap">
+        <Select
+          size="xs"
+          w={160}
+          data={catalogSortOptions}
+          value={sort}
+          onChange={(value) => value && onSortChange(value as CatalogSort)}
+          aria-label="Sort by"
+          allowDeselect={false}
+        />
+        {showGroupControl && (
+          <Select
+            size="xs"
+            w={160}
+            data={catalogGroupOptions}
+            value={group ?? 'none'}
+            onChange={(value) => value && onGroupChange?.(value as CatalogGroup)}
+            aria-label="Group by"
+            allowDeselect={false}
+          />
+        )}
+      </Group>
 
       <Group gap="xs" justify="space-between" wrap="nowrap" align="center">
         <Group gap={6} wrap="wrap" style={{ flex: 1, minWidth: 0 }}>

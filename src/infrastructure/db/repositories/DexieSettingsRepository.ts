@@ -25,7 +25,9 @@ export class DexieSettingsRepository implements SettingsRepository {
         !Array.isArray(existing.preferredBatchPrepDays) ||
         !Array.isArray(existing.quickMealsOnlyDays) ||
         !('uiLocale' in existing) ||
-        !('measurementPreference' in existing)
+        !('measurementPreference' in existing) ||
+        !('catalogSort' in existing) ||
+        !('catalogGroup' in existing)
       ) {
         await this.db.settings.put(merged)
       }

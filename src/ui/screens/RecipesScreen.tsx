@@ -2,7 +2,14 @@ import { ActionIcon, Group, Stack, Text } from '@mantine/core'
 import { IconFileImport, IconPlus, IconCarrot, IconApple, IconTag } from '@tabler/icons-react'
 import { useLayoutEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { EFFORT_LABELS } from '../../domain/shared/MealEnums'
+import { useServices } from '../../app/servicesContext'
+import {
+  DEFAULT_CATALOG_GROUP,
+  DEFAULT_CATALOG_SORT,
+  EFFORT_LABELS,
+  type CatalogGroup,
+  type CatalogSort,
+} from '../../domain/shared/MealEnums'
 import { DishCatalog } from '../catalog/DishCatalog'
 import {
   recipeToCatalogItem,
@@ -11,6 +18,7 @@ import {
 } from '../catalog/catalogModel'
 import { PageTitle } from '../components/ScreenHeader'
 import { useRecipes } from '../hooks/useRecipes'
+import { useSettings } from '../hooks/useSettings'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
 import { useTags } from '../hooks/useTags'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
@@ -21,10 +29,15 @@ export function RecipesScreen() {
   const recipes = useRecipes()
   const simpleFoods = useSimpleFoods()
   const tags = useTags()
+  const settings = useSettings()
+  const { settingsRepository } = useServices()
   const navigate = useNavigate()
   const formatQty = useFormatQuantity()
   const { t } = useLocalization()
   const [filters, setFilters] = useState<DishCatalogFilters>(() => recipesBrowseState.filters)
+
+  const sort: CatalogSort = settings?.catalogSort ?? DEFAULT_CATALOG_SORT
+  const group: CatalogGroup = settings?.catalogGroup ?? DEFAULT_CATALOG_GROUP
 
   const setFiltersAndPersist = (next: DishCatalogFilters) => {
     recipesBrowseState.filters = next
@@ -183,6 +196,11 @@ export function RecipesScreen() {
           filters={filters}
           onFiltersChange={setFiltersAndPersist}
           tagNamesById={tagNamesById}
+          sort={sort}
+          onSortChange={(next) => void settingsRepository.update({ catalogSort: next })}
+          group={group}
+          onGroupChange={(next) => void settingsRepository.update({ catalogGroup: next })}
+          showGroupControl
           layout="page"
           onSelect={(item) => {
             captureScroll()

@@ -7,6 +7,14 @@ import {
   type UiLocale,
 } from './Locale'
 import type { WeekStartDay } from './LocalDate'
+import {
+  DEFAULT_CATALOG_GROUP,
+  DEFAULT_CATALOG_SORT,
+  parseCatalogGroup,
+  parseCatalogSort,
+  type CatalogGroup,
+  type CatalogSort,
+} from './MealEnums'
 
 export interface Settings {
   id: 'app-settings'
@@ -23,6 +31,8 @@ export interface Settings {
   favorVegetablesDaily: boolean
   uiLocale: UiLocale
   measurementPreference: MeasurementPreference
+  catalogSort: CatalogSort
+  catalogGroup: CatalogGroup
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -36,6 +46,8 @@ export const DEFAULT_SETTINGS: Settings = {
   favorVegetablesDaily: false,
   uiLocale: DEFAULT_UI_LOCALE,
   measurementPreference: DEFAULT_MEASUREMENT_PREFERENCE,
+  catalogSort: DEFAULT_CATALOG_SORT,
+  catalogGroup: DEFAULT_CATALOG_GROUP,
 }
 
 /** Merge missing planning-preference fields onto a stored settings row. */
@@ -63,5 +75,7 @@ export function mergeSettingsDefaults(row: Partial<Settings> & { id: 'app-settin
       typeof row.householdSize === 'number' ? row.householdSize : DEFAULT_SETTINGS.householdSize,
     uiLocale: parseUiLocale(row.uiLocale),
     measurementPreference: parseMeasurementPreference(row.measurementPreference),
+    catalogSort: parseCatalogSort(row.catalogSort),
+    catalogGroup: parseCatalogGroup(row.catalogGroup),
   }
 }

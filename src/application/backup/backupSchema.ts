@@ -107,6 +107,10 @@ const settingsSchema = z.object({
   favorVegetablesDaily: z.boolean(),
   uiLocale: z.enum(['en']).optional(),
   measurementPreference: z.enum(['as-entered', 'metric', 'us-customary']).optional(),
+  catalogSort: z
+    .enum(['relevance', 'name', 'recent-added', 'recent-edited', 'shortest-time'])
+    .optional(),
+  catalogGroup: z.enum(['none', 'kind', 'dish-type']).optional(),
 })
 
 const planSchema = z.object({

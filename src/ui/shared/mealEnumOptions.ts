@@ -1,4 +1,8 @@
 import {
+  CATALOG_GROUP_LABELS,
+  CATALOG_GROUPS,
+  CATALOG_SORT_LABELS,
+  CATALOG_SORTS,
   DISH_TYPE_LABELS,
   DISH_TYPES,
   EFFORT_LABELS,
@@ -27,4 +31,14 @@ export const effortOptions = EFFORT_LEVELS.map((effort) => ({
 export const dishTypeOptions = DISH_TYPES.map((dishType) => ({
   value: dishType,
   label: DISH_TYPE_LABELS[dishType],
+}))
+
+export const catalogSortOptions = CATALOG_SORTS.map((sort) => ({
+  value: sort,
+  label: CATALOG_SORT_LABELS[sort],
+}))
+
+export const catalogGroupOptions = CATALOG_GROUPS.map((group) => ({
+  value: group,
+  label: CATALOG_GROUP_LABELS[group],
 }))

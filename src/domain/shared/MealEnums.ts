@@ -77,3 +77,44 @@ export const DISH_TYPE_LABELS: Record<DishType, string> = {
   'side-dish': 'Side dish',
   other: 'Other',
 }
+
+export const CATALOG_SORTS = [
+  'relevance',
+  'name',
+  'recent-added',
+  'recent-edited',
+  'shortest-time',
+] as const
+export type CatalogSort = (typeof CATALOG_SORTS)[number]
+
+export const CATALOG_GROUPS = ['none', 'kind', 'dish-type'] as const
+export type CatalogGroup = (typeof CATALOG_GROUPS)[number]
+
+export const DEFAULT_CATALOG_SORT: CatalogSort = 'relevance'
+export const DEFAULT_CATALOG_GROUP: CatalogGroup = 'none'
+
+export const CATALOG_SORT_LABELS: Record<CatalogSort, string> = {
+  relevance: 'Relevance',
+  name: 'Name',
+  'recent-added': 'Recently added',
+  'recent-edited': 'Recently edited',
+  'shortest-time': 'Shortest time',
+}
+
+export const CATALOG_GROUP_LABELS: Record<CatalogGroup, string> = {
+  none: 'None',
+  kind: 'Item kind',
+  'dish-type': 'Primary dish type',
+}
+
+export function parseCatalogSort(value: unknown): CatalogSort {
+  return (CATALOG_SORTS as readonly string[]).includes(value as string)
+    ? (value as CatalogSort)
+    : DEFAULT_CATALOG_SORT
+}
+
+export function parseCatalogGroup(value: unknown): CatalogGroup {
+  return (CATALOG_GROUPS as readonly string[]).includes(value as string)
+    ? (value as CatalogGroup)
+    : DEFAULT_CATALOG_GROUP
+}

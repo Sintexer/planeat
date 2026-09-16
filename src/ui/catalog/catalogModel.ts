@@ -1,10 +1,20 @@
 import type { CookingEvent } from '../../domain/plans/CookingEvent'
 import type { SuggestionCandidate } from '../../domain/plans/componentSuggestions'
 import type { Recipe } from '../../domain/recipes/Recipe'
-import type { Effort, MealType, RecipeRole } from '../../domain/shared/MealEnums'
+import {
+  DISH_TYPE_LABELS,
+  type CatalogGroup,
+  type CatalogSort,
+  type DishType,
+  type Effort,
+  type MealType,
+  type RecipeRole,
+} from '../../domain/shared/MealEnums'
 import type { Quantity } from '../../domain/shared/Quantity'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
 import type { TagId } from '../../domain/tags/Tag'
+
+export type { CatalogGroup, CatalogSort }
 
 export type DishCatalogKind = 'recipe' | 'simple-food' | 'leftover'
 
@@ -29,6 +39,9 @@ export type DishCatalogItem = {
   ineligibleReason?: string
   activeTimeMinutes?: number
   totalTimeMinutes?: number
+  createdAt?: number
+  updatedAt?: number
+  dishType?: string
 }
 
 export type DishCatalogFilters = {
@@ -83,6 +96,9 @@ export function recipeToCatalogItem(
     reason: extra?.reason,
     activeTimeMinutes: recipe.activeTimeMinutes,
     totalTimeMinutes: recipe.totalTimeMinutes,
+    createdAt: recipe.createdAt,
+    updatedAt: recipe.updatedAt,
+    dishType: recipe.dishType,
   }
 }
 
@@ -103,6 +119,8 @@ export function simpleFoodToCatalogItem(
     subtitle: extra?.subtitle ?? 'Simple food',
     score: extra?.score,
     reason: extra?.reason,
+    createdAt: food.createdAt,
+    updatedAt: food.updatedAt,
   }
 }
 
@@ -151,6 +169,40 @@ export function itemMatchesFilters(item: DishCatalogItem, filters: DishCatalogFi
   return true
 }
 
+function compareForSort(a: DishCatalogItem, b: DishCatalogItem, sort: CatalogSort): number {
+  switch (sort) {
+    case 'name':
+      return a.name.localeCompare(b.name)
+    case 'recent-added':
+      return (b.createdAt ?? 0) - (a.createdAt ?? 0) || a.name.localeCompare(b.name)
+    case 'recent-edited':
+      return (b.updatedAt ?? 0) - (a.updatedAt ?? 0) || a.name.localeCompare(b.name)
+    case 'shortest-time': {
+      const at = a.totalTimeMinutes
+      const bt = b.totalTimeMinutes
+      if (at === undefined && bt === undefined) return a.name.localeCompare(b.name)
+      if (at === undefined) return 1
+      if (bt === undefined) return -1
+      return at - bt || a.name.localeCompare(b.name)
+    }
+    case 'relevance':
+      return 0
+  }
+}
+
+/**
+ * `'relevance'` is a pass-through: the caller has already produced the right base
+ * order (Fuse's ranked order while searching, or the score-desc/name default
+ * otherwise) before calling this. Every other mode re-sorts from scratch.
+ */
+export function sortCatalogItems(items: DishCatalogItem[], sort: CatalogSort): DishCatalogItem[] {
+  if (sort === 'relevance' || items.length === 0) return items
+  return items
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => compareForSort(a.item, b.item, sort) || a.index - b.index)
+    .map((entry) => entry.item)
+}
+
 export type TagFacet = { id: TagId; name: string }
 
 export function uniqueTagFacets(
@@ -176,12 +228,74 @@ export function uniqueTagFacets(
 
 export type DishCatalogGroup = { id: string; title: string; items: DishCatalogItem[] }
 
+export type GroupCatalogItemsOptions = {
+  searching: boolean
+  /** Meal-picker context (AddComponentFlow): peel off scored items into a Suggested bucket first. */
+  suggestedFirst?: boolean
+  /** Library-screen context (RecipesScreen): how to bucket the non-suggested remainder. */
+  mode?: CatalogGroup
+}
+
+function dishTypeGroupLabel(dishType: string): string {
+  return DISH_TYPE_LABELS[dishType as DishType] ?? dishType
+}
+
+function groupRestByMode(rest: DishCatalogItem[], mode: CatalogGroup): DishCatalogGroup[] {
+  if (rest.length === 0) return []
+
+  if (mode === 'kind') {
+    const recipes = rest.filter((item) => item.kind === 'recipe')
+    const foods = rest.filter((item) => item.kind === 'simple-food')
+    const other = rest.filter((item) => item.kind !== 'recipe' && item.kind !== 'simple-food')
+    const groups: DishCatalogGroup[] = []
+    if (recipes.length > 0) groups.push({ id: 'recipes', title: 'Recipes', items: recipes })
+    if (foods.length > 0) groups.push({ id: 'foods', title: 'Simple foods', items: foods })
+    if (other.length > 0) groups.push({ id: 'other', title: 'Other', items: other })
+    return groups
+  }
+
+  if (mode === 'dish-type') {
+    const byType = new Map<string, DishCatalogItem[]>()
+    const unclassified: DishCatalogItem[] = []
+    for (const item of rest) {
+      if (item.dishType === undefined) {
+        unclassified.push(item)
+        continue
+      }
+      const bucket = byType.get(item.dishType)
+      if (bucket) bucket.push(item)
+      else byType.set(item.dishType, [item])
+    }
+    const groups = [...byType.entries()]
+      .sort((a, b) => dishTypeGroupLabel(a[0]).localeCompare(dishTypeGroupLabel(b[0])))
+      .map(([dishType, groupItems]) => ({
+        id: `dish-type:${dishType}`,
+        title: dishTypeGroupLabel(dishType),
+        items: groupItems,
+      }))
+    if (unclassified.length > 0) {
+      groups.push({ id: 'unclassified', title: 'Unclassified', items: unclassified })
+    }
+    return groups
+  }
+
+  return [{ id: 'all', title: '', items: rest }]
+}
+
 export function groupCatalogItems(
   items: DishCatalogItem[],
-  searching: boolean,
+  options: GroupCatalogItemsOptions,
 ): DishCatalogGroup[] {
+  const { searching, suggestedFirst = false, mode = 'none' } = options
   if (searching || items.length === 0) {
     return items.length === 0 ? [] : [{ id: 'results', title: 'Results', items }]
+  }
+
+  if (!suggestedFirst) {
+    return groupRestByMode(
+      items.filter((item) => item.kind !== 'leftover'),
+      mode,
+    )
   }
 
   const suggested = items.filter((item) => item.kind !== 'leftover' && (item.score ?? 0) > 0)
@@ -192,10 +306,6 @@ export function groupCatalogItems(
   if (suggested.length > 0) {
     groups.push({ id: 'suggested', title: 'Suggested', items: suggested })
   }
-
-  const recipes = rest.filter((item) => item.kind === 'recipe')
-  const foods = rest.filter((item) => item.kind === 'simple-food')
-  if (recipes.length > 0) groups.push({ id: 'recipes', title: 'Recipes', items: recipes })
-  if (foods.length > 0) groups.push({ id: 'foods', title: 'Simple foods', items: foods })
+  groups.push(...groupRestByMode(rest, mode === 'none' ? 'kind' : mode))
   return groups
 }
