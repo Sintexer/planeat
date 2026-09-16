@@ -251,6 +251,12 @@ Sprint 14 is the remaining presentation pass (consistent application to details,
 
 **Current code to change (orientation):** `RecipesScreen` holds `DishCatalogFilters` in `useState` (lost on unmount). Selecting a simple food navigates to the simple-foods manager, not an item. Cards always bake effort into the recipe subtitle.
 
+**Work chunks (implementation audit, 2026-09-16).** Already satisfied — no work needed: the shared compact card component (`DishCatalog`/`ItemRow`), the offline-safe photo placeholder (`RecipePhotoThumb`), the distinct empty-library vs. no-search-results states, and the `isCommon` "Usually have at home" copy.
+
+1. **Persist browse state across navigation.** Move `RecipesScreen`'s `DishCatalogFilters` and scroll position out of local `useState` (`RecipesScreen.tsx:25`, reset on every mount) into something that survives the round-trip to a detail/edit screen and back, and restore scroll position on return.
+2. **Give simple foods a browsable detail page.** Selecting a simple food from the library currently jumps to the whole `/recipes/simple-foods` manager (`RecipesScreen.tsx:128-133`) instead of an item — add a simple-food detail (or read-mode of the edit form) so "open and return" applies the same way it already does for recipes.
+3. **Card polish.** Give item-kind (Recipe vs. Simple food) a dedicated badge/icon instead of only text baked into the subtitle; add known time to the card subtitle, following the omit-if-missing rule the detail screen already uses (`RecipeDetailScreen.tsx:184-189`).
+
 ---
 
 ## Sprint 8 — Household tags: create, assign, rename
@@ -285,6 +291,15 @@ Sprint 14 is the remaining presentation pass (consistent application to details,
 
 **Introduce a test runner here** (Vitest, Vite-native) for tag identity, rename, duplicate prevention, and backup migration. Explain the new dependency in `AGENTS.md` when adding it.
 
+**Work chunks (implementation audit, 2026-09-16).** This sprint is almost entirely new work — today `recipes.tags`/`simpleFoods.tags` are a flat `string[]`, edited via one comma-separated `TextInput` (`RecipeEditor.tsx:275`); there is no `Tag` entity, autocomplete, or management screen anywhere in the codebase, and `SimpleFood`'s editor has no tags field at all.
+
+1. **Tag domain + storage.** New `Tag` entity, `TagRepository`/`TagService`, additive Dexie `tags` table, migration of existing string tags into rows (one ID per distinct trimmed label, case-conservative dedupe on create), backup schema bump plus a restore-time migration for older backups.
+2. **Switch live assignments to tag IDs.** Update `Recipe`/`SimpleFood` write paths to store tag IDs instead of strings. Keep `cookingEvents.recipeSnapshot.tags` as the historical label strings it already stores — never rewritten when a live tag is renamed.
+3. **Editor UI.** Replace the comma-separated `TextInput` with a tag autocomplete/multi-select that can create-and-assign a new tag in one step; add the same field to the `SimpleFood` create/edit form.
+4. **Tag management screen.** New screen listing tags with usage counts and rename, surfacing duplicate-name conflicts as a service-level error, not an exception.
+5. **Display.** Render tag chips on `RecipeDetailScreen` (currently absent — only roles/mealTypes are shown there); confirm the existing `DishCatalog` card chips resolve IDs to current labels.
+6. **Test runner.** Introduce Vitest; cover tag identity, rename, duplicate prevention, and backup migration. Record the new dependency in `AGENTS.md`.
+
 ---
 
 ## Sprint 9 — Clear recipe classification
@@ -316,6 +331,12 @@ Sprint 14 is the remaining presentation pass (consistent application to details,
 
 6. **Demo script.** Edit vegetable soup → Organization: Lunch + Dinner, Main, dish type Soup, keep tag “vegetable”. Save. Detail shows four distinct facts. Create a new recipe with no organization filled — it lists. Restore a pre-sprint backup; old `mealTypes` / `roles` / string tags still load.
 
+**Work chunks (implementation audit, 2026-09-16).** Meal occasion (`mealTypes`), meal role (`roles`), and the free-text `cuisine` field already exist with the stored-key/display-label separation this sprint asks for (`MealEnums.ts`) — reuse, don't rebuild, those.
+
+1. **Primary dish type.** New curated enum + label map alongside `MealEnums.ts`; optional field on `Recipe` (and `SimpleFood` if the section is shared); additive persistence; unknown/legacy-value passthrough on save.
+2. **Organization section.** `RecipeEditor.tsx` has no field grouping today — meal occasion, role, cuisine, and tags sit scattered in one flat `Stack` (`RecipeEditor.tsx:191-357`). Add a visually distinct Organization section (reusing the `<Title order={4}>` section-header pattern already used on `RecipeDetailScreen.tsx`) containing meal occasion, role, dish type, tags (Sprint 8), and cuisine.
+3. **Detail-screen display.** Show the four facts (occasion, role, dish type, tags) as separate, non-conflated badges/rows on `RecipeDetailScreen`.
+
 ---
 
 ## Sprint 10 — Basic library filtering
@@ -328,6 +349,13 @@ Sprint 14 is the remaining presentation pass (consistent application to details,
 
 **Done when.** “Lunch or dinner” plus “Kids’ picks” produces predictable results, and removing one filter does not reset the others.
 
+**Work chunks (implementation audit, 2026-09-16).** Cross-facet AND matching (`itemMatchesFilters`, `catalogModel.ts:117-128`) and a distinct no-match empty state already exist — extend, don't reintroduce, those.
+
+1. **Multi-select facets.** Convert `DishCatalogFilters`' single-value facets (`mealType`, `role`, `tag`) to sets, and update `itemMatchesFilters` for OR-within-facet / AND-between-facet combination.
+2. **Filter drawer with staged apply.** A Mantine `Drawer` (none exists in the app today) replacing the inline collapsible chip panel for mobile, holding a draft filter state with a "Show N items" commit action instead of today's apply-on-every-toggle behavior.
+3. **Applied-filter chips, Clear actions, and no-match polish.** A removable chip per active filter, a "Clear filters" action distinct from clearing the search text (neither exists today — only a filter-count badge on the toggle button), and a "Clear filters" call-to-action inline in the existing generic no-match message.
+4. **Household-tag facet.** Swap the free-text tag matching for the Sprint 8 tag-ID model once it ships; blocked on Sprint 8, sequence accordingly.
+
 ---
 
 ## Sprint 11 — Sorting and simple grouping
@@ -339,6 +367,13 @@ Sprint 14 is the remaining presentation pass (consistent application to details,
 **Boundaries.** One grouping level. No grouping by multi-valued tags or cuisine. No “recently cooked” sort based on planning history.
 
 **Done when.** Each item appears once, unclassified items remain visible, and missing time values sort last.
+
+**Work chunks (implementation audit, 2026-09-16).** Fuse.js already orders search results by relevance (`DishCatalog.tsx:216-220`) and `groupCatalogItems` already guarantees each item appears once — reuse both instead of rebuilding. `rankComponentSuggestions` (`componentSuggestions.ts`) is a separate, already-cleanly-isolated planning-history ranking system — keep it that way; a new date-based sort must not fold in its scoring.
+
+1. **Expose timestamps to the catalog layer.** `DishCatalogItem` doesn't carry `createdAt`/`updatedAt` today; add them in `recipeToCatalogItem`/`simpleFoodToCatalogItem` so a date-based sort has something to sort on.
+2. **Sort control.** New sort control + comparators: name, recently added, recently edited, shortest total time (missing-last), relevance-while-searching (reuse the existing Fuse ordering as the default while a query is active).
+3. **Group control.** Rework `groupCatalogItems` to support a user-selectable mode (none / item kind / primary dish type — the last depends on Sprint 9), while preserving the existing Suggested-first behavior used by the meal picker (`AddComponentFlow`) as a distinct context from the plain library screen.
+4. **Persist the preference.** Add sort/group fields to the `Settings` entity (`Settings.ts`) via the existing additive-merge pattern (`mergeSettingsDefaults`) — there is no `localStorage` precedent in this app, so keep using Settings/Dexie.
 
 ### Release checkpoint A
 
