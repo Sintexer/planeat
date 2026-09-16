@@ -18,16 +18,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { notifications } from '@mantine/notifications'
 import { useServices } from '../../app/servicesContext'
-import {
-  EFFORT_LABELS,
-  EFFORT_LEVELS,
-  MEAL_TYPE_LABELS,
-  MEAL_TYPES,
-  RECIPE_ROLE_LABELS,
-  RECIPE_ROLES,
-  REUSE_POLICIES,
-  REUSE_POLICY_LABELS,
-} from '../../domain/shared/MealEnums'
+import { REUSE_POLICIES, REUSE_POLICY_LABELS } from '../../domain/shared/MealEnums'
 import type { Recipe } from '../../domain/recipes/Recipe'
 import { useIngredients } from '../hooks/useIngredients'
 import { QuantityFields } from '../components/QuantityFields'
@@ -42,19 +33,8 @@ import {
   recipeToFormValues,
   type RecipeFormValues,
 } from '../recipes/recipeForm'
+import { effortOptions, mealTypeOptions, roleOptions } from '../shared/mealEnumOptions'
 
-const roleOptions = RECIPE_ROLES.map((role) => ({
-  value: role,
-  label: RECIPE_ROLE_LABELS[role],
-}))
-const mealTypeOptions = MEAL_TYPES.map((mealType) => ({
-  value: mealType,
-  label: MEAL_TYPE_LABELS[mealType],
-}))
-const effortOptions = EFFORT_LEVELS.map((effort) => ({
-  value: effort,
-  label: EFFORT_LABELS[effort],
-}))
 const reuseOptions = REUSE_POLICIES.map((policy) => ({
   value: policy,
   label: REUSE_POLICY_LABELS[policy],

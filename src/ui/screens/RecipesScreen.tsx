@@ -1,11 +1,10 @@
 import { ActionIcon, Group, Stack, Text } from '@mantine/core'
 import { IconFileImport, IconPlus, IconCarrot, IconApple } from '@tabler/icons-react'
-import { useMemo, useState } from 'react'
+import { useLayoutEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { EFFORT_LABELS } from '../../domain/shared/MealEnums'
 import { DishCatalog } from '../catalog/DishCatalog'
 import {
-  defaultDishCatalogFilters,
   recipeToCatalogItem,
   simpleFoodToCatalogItem,
   type DishCatalogFilters,
@@ -15,6 +14,7 @@ import { useRecipes } from '../hooks/useRecipes'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
 import { useLocalization } from '../localization/LocalizationContext'
+import { recipesBrowseState } from './recipesBrowseState'
 
 export function RecipesScreen() {
   const recipes = useRecipes()
@@ -22,21 +22,44 @@ export function RecipesScreen() {
   const navigate = useNavigate()
   const formatQty = useFormatQuantity()
   const { t } = useLocalization()
-  const [filters, setFilters] = useState<DishCatalogFilters>(() => defaultDishCatalogFilters('all'))
+  const [filters, setFilters] = useState<DishCatalogFilters>(() => recipesBrowseState.filters)
+
+  const setFiltersAndPersist = (next: DishCatalogFilters) => {
+    recipesBrowseState.filters = next
+    setFilters(next)
+  }
 
   const items = useMemo(() => {
     const recipeItems = (recipes ?? []).map((recipe) =>
       recipeToCatalogItem(recipe, {
-        subtitle: `Recipe · Yield ${formatQty(recipe.yield)} · ${EFFORT_LABELS[recipe.effort]}`,
+        subtitle:
+          `Yield ${formatQty(recipe.yield)} · ${EFFORT_LABELS[recipe.effort]}` +
+          (recipe.totalTimeMinutes !== undefined ? ` · ${recipe.totalTimeMinutes} min` : ''),
       }),
     )
     const foodItems = (simpleFoods ?? []).map((food) =>
       simpleFoodToCatalogItem(food, {
-        subtitle: `Simple food · ${formatQty(food.defaultPortion)}`,
+        subtitle: formatQty(food.defaultPortion),
       }),
     )
     return [...recipeItems, ...foodItems]
   }, [recipes, simpleFoods, formatQty])
+
+  useLayoutEffect(() => {
+    if (items.length === 0) return
+    window.scrollTo(0, recipesBrowseState.scrollY)
+    // Restore once, right after the library first has content to scroll into.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length > 0])
+
+  // Capture the scroll position at the moment of navigating away, not via an unmount
+  // effect or a continuous scroll listener: React unmounts this screen and mounts the
+  // destination screen in the same commit, so by the time any effect cleanup runs, the
+  // DOM (and window.scrollY) already reflects the new, usually-shorter page. Reading it
+  // here, before navigate() is even called, is the only point where it's still correct.
+  const captureScroll = () => {
+    recipesBrowseState.scrollY = window.scrollY
+  }
 
   return (
     <Stack gap="lg">
@@ -46,6 +69,7 @@ export function RecipesScreen() {
             <ActionIcon
               component={Link}
               to="/recipes/import"
+              onClick={captureScroll}
               variant="default"
               radius="xl"
               size={34}
@@ -56,6 +80,7 @@ export function RecipesScreen() {
             <ActionIcon
               component={Link}
               to="/recipes/new"
+              onClick={captureScroll}
               variant="default"
               radius="xl"
               size={34}
@@ -73,6 +98,7 @@ export function RecipesScreen() {
         <ActionIcon
           component={Link}
           to="/recipes/simple-foods"
+          onClick={captureScroll}
           variant="light"
           radius="xl"
           size={34}
@@ -83,6 +109,7 @@ export function RecipesScreen() {
         <Text
           component={Link}
           to="/recipes/simple-foods"
+          onClick={captureScroll}
           size="sm"
           style={{ textDecoration: 'none' }}
         >
@@ -91,6 +118,7 @@ export function RecipesScreen() {
         <ActionIcon
           component={Link}
           to="/recipes/ingredients"
+          onClick={captureScroll}
           variant="light"
           radius="xl"
           size={34}
@@ -102,6 +130,7 @@ export function RecipesScreen() {
         <Text
           component={Link}
           to="/recipes/ingredients"
+          onClick={captureScroll}
           size="sm"
           style={{ textDecoration: 'none' }}
         >
@@ -123,11 +152,12 @@ export function RecipesScreen() {
         <DishCatalog
           items={items}
           filters={filters}
-          onFiltersChange={setFilters}
+          onFiltersChange={setFiltersAndPersist}
           layout="page"
           onSelect={(item) => {
+            captureScroll()
             if (item.kind === 'simple-food') {
-              void navigate('/recipes/simple-foods')
+              void navigate(`/recipes/simple-foods/${item.id}`)
               return
             }
             void navigate(`/recipes/${item.id}`)

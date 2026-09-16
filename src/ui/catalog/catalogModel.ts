@@ -25,6 +25,8 @@ export type DishCatalogItem = {
   reason?: SuggestionCandidate['reason']
   /** Set when a leftover exists but can't be used on the target day (e.g. same-day-only recipe). */
   ineligibleReason?: string
+  activeTimeMinutes?: number
+  totalTimeMinutes?: number
 }
 
 export type DishCatalogFilters = {
@@ -69,6 +71,8 @@ export function recipeToCatalogItem(
     subtitle: extra?.subtitle ?? 'Recipe',
     score: extra?.score,
     reason: extra?.reason,
+    activeTimeMinutes: recipe.activeTimeMinutes,
+    totalTimeMinutes: recipe.totalTimeMinutes,
   }
 }
 

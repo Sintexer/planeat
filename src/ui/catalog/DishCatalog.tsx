@@ -40,6 +40,11 @@ import {
   type DishCatalogItem,
 } from './catalogModel'
 
+const KIND_BADGE_LABELS: Record<'recipe' | 'simple-food', string> = {
+  recipe: 'Recipe',
+  'simple-food': 'Simple food',
+}
+
 const ROLE_CHIP_LABELS: Record<RecipeRole, string> = {
   complete: 'Complete',
   main: 'Main',
@@ -140,6 +145,16 @@ function ItemRow({
               {item.remaining ? ` · ${formatQty(item.remaining)} left` : ''}
             </Text>
             <Group gap={4}>
+              {(item.kind === 'recipe' || item.kind === 'simple-food') && (
+                <Badge
+                  size="xs"
+                  color={item.kind === 'recipe' ? 'blue' : 'grape'}
+                  variant="dot"
+                  radius="sm"
+                >
+                  {KIND_BADGE_LABELS[item.kind]}
+                </Badge>
+              )}
               {ineligible ? (
                 <Badge
                   size="xs"

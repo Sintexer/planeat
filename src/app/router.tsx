@@ -10,6 +10,7 @@ import { RecipeEditScreen } from '../ui/screens/RecipeEditScreen'
 import { RecipeImportScreen } from '../ui/screens/RecipeImportScreen'
 import { RecipesScreen } from '../ui/screens/RecipesScreen'
 import { SettingsScreen } from '../ui/screens/SettingsScreen'
+import { SimpleFoodDetailScreen } from '../ui/screens/SimpleFoodDetailScreen'
 import { SimpleFoodsScreen } from '../ui/screens/SimpleFoodsScreen'
 
 function RedirectWeekPlanToPlan() {
@@ -35,6 +36,7 @@ export function AppRouter() {
           <Route path="recipes/import" element={<RecipeImportScreen />} />
           <Route path="recipes/ingredients" element={<IngredientsScreen />} />
           <Route path="recipes/simple-foods" element={<SimpleFoodsScreen />} />
+          <Route path="recipes/simple-foods/:simpleFoodId" element={<SimpleFoodDetailScreen />} />
           <Route path="recipes/:recipeId" element={<RecipeDetailScreen />} />
           <Route path="recipes/:recipeId/edit" element={<RecipeEditScreen />} />
           <Route path="settings" element={<SettingsScreen />} />
