@@ -584,4 +584,6 @@ Sprint 8 is done: `Tag` domain entity with stable IDs (`src/domain/tags/Tag.ts`)
 
 Sprint 9 is done: curated but lenient `dishType?: string` on `Recipe` (`DISH_TYPES`/`DISH_TYPE_LABELS` in `MealEnums.ts` drive the editor's `Select`, but storage/backup stay a plain optional string so an unrecognized value always round-trips), a visually distinct "Organization" section in `RecipeEditor`/`RecipeDetailScreen` grouping occasion, role, dish type, cuisine, and tags, and cuisine shown on the detail screen for the first time. No Dexie migration or backup-version bump — purely additive optional field.
 
-**Next:** Sprint 10 (basic library filtering). Sprints 11–22 remain sequenced backlog.
+Sprint 10 is done: `DishCatalogFilters`' `mealType`/`role`/`tag` facets became multi-select arrays (`mealTypes`/`roles`/`tagIds`) with OR-within/AND-across-facet matching in `itemMatchesFilters`; tag filtering moved from display-name string comparison to the Sprint 8 tag-ID model (`DishCatalogItem.tagIds`, `uniqueTagFacets`); a new `FilterDrawer` (Mantine `Drawer`, bottom sheet, staged draft state with a "Show N items" commit action) replaced the inline apply-on-toggle chip panel in `DishCatalog`; an applied-filter-chip row (one removable chip per active value) plus a "Clear filters" action (separate from the search box) were added; and the no-match state gained a filter-aware message with an inline "Clear filters" CTA when facets (not just search text) produced zero results.
+
+**Next:** Sprint 11 (sorting and simple grouping). Sprints 12–22 remain sequenced backlog.

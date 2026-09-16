@@ -398,6 +398,7 @@ export function AddComponentFlow({
             leftovers={leftovers}
             filters={filters}
             onFiltersChange={setFilters}
+            tagNamesById={tagNamesById}
             onSelect={pickCatalogItem}
             disabled={busy}
             showSuggestedFilter

@@ -182,6 +182,7 @@ export function RecipesScreen() {
           items={items}
           filters={filters}
           onFiltersChange={setFiltersAndPersist}
+          tagNamesById={tagNamesById}
           layout="page"
           onSelect={(item) => {
             captureScroll()

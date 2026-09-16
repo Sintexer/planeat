@@ -2,6 +2,7 @@ import {
   Badge,
   Button,
   Chip,
+  CloseButton,
   Group,
   Paper,
   ScrollArea,
@@ -11,31 +12,18 @@ import {
   Tooltip,
   UnstyledButton,
 } from '@mantine/core'
-import {
-  IconAdjustments,
-  IconAlertTriangle,
-  IconChevronDown,
-  IconChevronUp,
-} from '@tabler/icons-react'
+import { IconAdjustments, IconAlertTriangle } from '@tabler/icons-react'
 import Fuse from 'fuse.js'
-import { useMemo, useState, type ReactNode } from 'react'
-import {
-  EFFORT_LABELS,
-  EFFORT_LEVELS,
-  MEAL_TYPE_LABELS,
-  MEAL_TYPES,
-  RECIPE_ROLE_LABELS,
-  RECIPE_ROLES,
-  type Effort,
-  type MealType,
-  type RecipeRole,
-} from '../../domain/shared/MealEnums'
+import { useMemo, useState } from 'react'
+import { EFFORT_LABELS, MEAL_TYPE_LABELS, RECIPE_ROLE_LABELS } from '../../domain/shared/MealEnums'
+import type { TagId } from '../../domain/tags/Tag'
 import { RecipePhotoThumb } from '../components/RecipePhotoThumb'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
+import { FilterDrawer } from './FilterDrawer'
 import {
   groupCatalogItems,
   itemMatchesFilters,
-  uniqueTags,
+  uniqueTagFacets,
   type DishCatalogFilters,
   type DishCatalogItem,
 } from './catalogModel'
@@ -45,12 +33,17 @@ const KIND_BADGE_LABELS: Record<'recipe' | 'simple-food', string> = {
   'simple-food': 'Simple food',
 }
 
-const ROLE_CHIP_LABELS: Record<RecipeRole, string> = {
+const ROLE_CHIP_LABELS: Record<string, string> = {
   complete: 'Complete',
   main: 'Main',
   side: 'Side',
   vegetable: 'Veg',
   'breakfast-component': 'Breakfast bit',
+}
+
+const KIND_FILTER_LABELS: Record<'recipe' | 'simple-food', string> = {
+  recipe: 'Recipes',
+  'simple-food': 'Simple foods',
 }
 
 interface DishCatalogProps {
@@ -59,6 +52,7 @@ interface DishCatalogProps {
   filters: DishCatalogFilters
   onFiltersChange: (next: DishCatalogFilters) => void
   onSelect: (item: DishCatalogItem) => void
+  tagNamesById: Map<TagId, string>
   disabled?: boolean
   showKindFilter?: boolean
   showSuggestedFilter?: boolean
@@ -67,39 +61,15 @@ interface DishCatalogProps {
   layout?: 'modal' | 'page'
 }
 
-function toggleMeal(current: MealType | 'all', value: MealType): MealType | 'all' {
-  return current === value ? 'all' : value
-}
-
-function toggleRole(current: RecipeRole | 'all', value: RecipeRole): RecipeRole | 'all' {
-  return current === value ? 'all' : value
-}
-
-function toggleEffort(current: Effort | 'all', value: Effort): Effort | 'all' {
-  return current === value ? 'all' : value
-}
-
 function activeFilterCount(filters: DishCatalogFilters, showSuggested: boolean): number {
   let count = 0
   if (showSuggested && filters.suggestedOnly) count += 1
   if (filters.kind !== 'all') count += 1
-  if (filters.mealType !== 'all') count += 1
-  if (filters.role !== 'all') count += 1
+  count += filters.mealTypes.length
+  count += filters.roles.length
+  count += filters.tagIds.length
   if (filters.effort !== 'all') count += 1
   return count
-}
-
-function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <Stack gap={6}>
-      <Text size="xs" fw={700} c="dimmed" tt="uppercase">
-        {label}
-      </Text>
-      <Group gap={6} wrap="wrap">
-        {children}
-      </Group>
-    </Stack>
-  )
 }
 
 function ItemRow({
@@ -207,10 +177,11 @@ export function DishCatalog({
   showKindFilter = true,
   showSuggestedFilter = false,
   emptyMessage = 'No matching dishes.',
+  tagNamesById,
   layout = 'modal',
 }: DishCatalogProps) {
-  const [fullFiltersOpen, setFullFiltersOpen] = useState(false)
-  const tags = useMemo(() => uniqueTags(items), [items])
+  const [filterDrawerOpened, setFilterDrawerOpened] = useState(false)
+  const tagFacets = useMemo(() => uniqueTagFacets(items, tagNamesById), [items, tagNamesById])
   const extraFilters = activeFilterCount(filters, showSuggestedFilter)
 
   const visibleLeftovers = useMemo(() => {
@@ -244,18 +215,46 @@ export function DishCatalog({
     onFiltersChange({ ...filters, ...patch })
   }
 
-  const tagChips = tags.map((tag) => (
-    <Chip
-      key={tag}
-      size="xs"
-      radius="xl"
-      variant="outline"
-      checked={filters.tag === tag}
-      onChange={() => setFilters({ tag: filters.tag === tag ? null : tag })}
-    >
-      {tag}
-    </Chip>
-  ))
+  const clearFilters = () => {
+    setFilters({ kind: 'all', mealTypes: [], roles: [], effort: 'all', tagIds: [] })
+  }
+
+  const appliedChips: { key: string; label: string; onRemove: () => void }[] = []
+  if (filters.kind !== 'all') {
+    appliedChips.push({
+      key: `kind:${filters.kind}`,
+      label: KIND_FILTER_LABELS[filters.kind],
+      onRemove: () => setFilters({ kind: 'all' }),
+    })
+  }
+  for (const mealType of filters.mealTypes) {
+    appliedChips.push({
+      key: `meal:${mealType}`,
+      label: MEAL_TYPE_LABELS[mealType],
+      onRemove: () => setFilters({ mealTypes: filters.mealTypes.filter((m) => m !== mealType) }),
+    })
+  }
+  for (const role of filters.roles) {
+    appliedChips.push({
+      key: `role:${role}`,
+      label: ROLE_CHIP_LABELS[role],
+      onRemove: () => setFilters({ roles: filters.roles.filter((r) => r !== role) }),
+    })
+  }
+  if (filters.effort !== 'all') {
+    appliedChips.push({
+      key: `effort:${filters.effort}`,
+      label: EFFORT_LABELS[filters.effort],
+      onRemove: () => setFilters({ effort: 'all' }),
+    })
+  }
+  for (const tagId of filters.tagIds) {
+    appliedChips.push({
+      key: `tag:${tagId}`,
+      label: tagNamesById.get(tagId) ?? tagId,
+      onRemove: () => setFilters({ tagIds: filters.tagIds.filter((id) => id !== tagId) }),
+    })
+  }
 
   const list = (
     <Stack gap="md">
@@ -271,9 +270,16 @@ export function DishCatalog({
       )}
 
       {groups.length === 0 && visibleLeftovers.length === 0 && (
-        <Text size="sm" c="dimmed">
-          {emptyMessage}
-        </Text>
+        <Stack gap={4}>
+          <Text size="sm" c="dimmed">
+            {extraFilters > 0 ? 'No dishes match your filters.' : emptyMessage}
+          </Text>
+          {extraFilters > 0 && (
+            <Button size="compact-xs" variant="subtle" onClick={clearFilters} w="fit-content">
+              Clear filters
+            </Button>
+          )}
+        </Stack>
       )}
 
       {groups.map((group) => (
@@ -312,94 +318,50 @@ export function DishCatalog({
               Suggested
             </Chip>
           )}
-          {tagChips}
+          {appliedChips.map((chip) => (
+            <Badge
+              key={chip.key}
+              size="sm"
+              variant="light"
+              radius="xl"
+              rightSection={
+                <CloseButton
+                  size={12}
+                  variant="transparent"
+                  aria-label={`Remove ${chip.label} filter`}
+                  onClick={chip.onRemove}
+                />
+              }
+            >
+              {chip.label}
+            </Badge>
+          ))}
+          {extraFilters > 0 && (
+            <Button size="compact-xs" variant="subtle" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          )}
         </Group>
         <Button
           size="compact-xs"
-          variant={fullFiltersOpen ? 'light' : 'default'}
+          variant="default"
           radius="sm"
           leftSection={<IconAdjustments size={14} />}
-          rightSection={
-            fullFiltersOpen ? <IconChevronUp size={12} /> : <IconChevronDown size={12} />
-          }
-          onClick={() => setFullFiltersOpen((open) => !open)}
+          onClick={() => setFilterDrawerOpened(true)}
         >
           {extraFilters > 0 ? `Filters (${extraFilters})` : 'Filters'}
         </Button>
       </Group>
 
-      {fullFiltersOpen && (
-        <Stack
-          gap="sm"
-          p="sm"
-          style={{
-            border: '1px solid var(--mantine-color-default-border)',
-            borderRadius: 'var(--mantine-radius-md)',
-          }}
-        >
-          {showKindFilter && (
-            <FilterGroup label="Type">
-              <Chip
-                size="xs"
-                radius="sm"
-                checked={filters.kind === 'recipe'}
-                onChange={() => setFilters({ kind: filters.kind === 'recipe' ? 'all' : 'recipe' })}
-              >
-                Recipes
-              </Chip>
-              <Chip
-                size="xs"
-                radius="sm"
-                checked={filters.kind === 'simple-food'}
-                onChange={() =>
-                  setFilters({ kind: filters.kind === 'simple-food' ? 'all' : 'simple-food' })
-                }
-              >
-                Simple foods
-              </Chip>
-            </FilterGroup>
-          )}
-          <FilterGroup label="Meal type">
-            {MEAL_TYPES.map((meal) => (
-              <Chip
-                key={meal}
-                size="xs"
-                radius="sm"
-                checked={filters.mealType === meal}
-                onChange={() => setFilters({ mealType: toggleMeal(filters.mealType, meal) })}
-              >
-                {MEAL_TYPE_LABELS[meal]}
-              </Chip>
-            ))}
-          </FilterGroup>
-          <FilterGroup label="Dish">
-            {RECIPE_ROLES.map((role) => (
-              <Chip
-                key={role}
-                size="xs"
-                radius="sm"
-                checked={filters.role === role}
-                onChange={() => setFilters({ role: toggleRole(filters.role, role) })}
-              >
-                {ROLE_CHIP_LABELS[role]}
-              </Chip>
-            ))}
-          </FilterGroup>
-          <FilterGroup label="Effort">
-            {EFFORT_LEVELS.map((effort) => (
-              <Chip
-                key={effort}
-                size="xs"
-                radius="sm"
-                checked={filters.effort === effort}
-                onChange={() => setFilters({ effort: toggleEffort(filters.effort, effort) })}
-              >
-                {EFFORT_LABELS[effort]}
-              </Chip>
-            ))}
-          </FilterGroup>
-        </Stack>
-      )}
+      <FilterDrawer
+        opened={filterDrawerOpened}
+        onClose={() => setFilterDrawerOpened(false)}
+        appliedFilters={filters}
+        onApply={onFiltersChange}
+        items={items}
+        tagFacets={tagFacets}
+        showKindFilter={showKindFilter}
+      />
 
       {layout === 'page' ? (
         list

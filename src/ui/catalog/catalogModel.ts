@@ -17,6 +17,7 @@ export type DishCatalogItem = {
   roles: RecipeRole[]
   mealTypes: MealType[]
   tags: string[]
+  tagIds: TagId[]
   effort?: Effort
   subtitle: string
   remaining?: Quantity
@@ -33,10 +34,10 @@ export type DishCatalogItem = {
 export type DishCatalogFilters = {
   query: string
   kind: 'all' | 'recipe' | 'simple-food'
-  mealType: MealType | 'all'
-  role: RecipeRole | 'all'
+  mealTypes: MealType[]
+  roles: RecipeRole[]
   effort: Effort | 'all'
-  tag: string | null
+  tagIds: TagId[]
   suggestedOnly: boolean
 }
 
@@ -47,10 +48,10 @@ export function defaultDishCatalogFilters(
   return {
     query: '',
     kind: 'all',
-    mealType,
-    role: 'all',
+    mealTypes: mealType === 'all' ? [] : [mealType],
+    roles: [],
     effort: 'all',
-    tag: null,
+    tagIds: [],
     suggestedOnly,
   }
 }
@@ -75,6 +76,7 @@ export function recipeToCatalogItem(
     roles: recipe.roles,
     mealTypes: recipe.mealTypes,
     tags: resolveTagNames(recipe.tagIds, tagNamesById),
+    tagIds: recipe.tagIds,
     effort: recipe.effort,
     subtitle: extra?.subtitle ?? 'Recipe',
     score: extra?.score,
@@ -97,6 +99,7 @@ export function simpleFoodToCatalogItem(
     roles: food.roles,
     mealTypes: food.mealTypes,
     tags: resolveTagNames(food.tagIds, tagNamesById),
+    tagIds: food.tagIds,
     subtitle: extra?.subtitle ?? 'Simple food',
     score: extra?.score,
     reason: extra?.reason,
@@ -118,6 +121,7 @@ export function leftoverToCatalogItem(
     roles: recipe.roles,
     mealTypes: recipe.mealTypes,
     tags: recipe.tags,
+    tagIds: [],
     effort: recipe.effort,
     remaining,
     recipeId: event.recipeId,
@@ -130,29 +134,44 @@ export function leftoverToCatalogItem(
 export function itemMatchesFilters(item: DishCatalogItem, filters: DishCatalogFilters): boolean {
   if (item.kind === 'leftover') return true
   if (filters.kind !== 'all' && item.kind !== filters.kind) return false
-  if (filters.mealType !== 'all' && !item.mealTypes.includes(filters.mealType)) return false
-  if (filters.role !== 'all' && !item.roles.includes(filters.role)) return false
+  if (
+    filters.mealTypes.length > 0 &&
+    !filters.mealTypes.some((mealType) => item.mealTypes.includes(mealType))
+  ) {
+    return false
+  }
+  if (filters.roles.length > 0 && !filters.roles.some((role) => item.roles.includes(role))) {
+    return false
+  }
   if (filters.effort !== 'all' && item.effort !== filters.effort) return false
-  if (filters.tag && !item.tags.some((tag) => tag.toLowerCase() === filters.tag?.toLowerCase())) {
+  if (filters.tagIds.length > 0 && !filters.tagIds.some((id) => item.tagIds.includes(id))) {
     return false
   }
   if (filters.suggestedOnly && !(item.score && item.score > 0)) return false
   return true
 }
 
-export function uniqueTags(items: DishCatalogItem[], limit = 8): string[] {
-  const counts = new Map<string, number>()
+export type TagFacet = { id: TagId; name: string }
+
+export function uniqueTagFacets(
+  items: DishCatalogItem[],
+  tagNamesById: Map<TagId, string>,
+  limit = 8,
+): TagFacet[] {
+  const counts = new Map<TagId, number>()
   for (const item of items) {
-    for (const tag of item.tags) {
-      const key = tag.trim()
-      if (!key) continue
-      counts.set(key, (counts.get(key) ?? 0) + 1)
+    for (const id of item.tagIds) {
+      counts.set(id, (counts.get(id) ?? 0) + 1)
     }
   }
   return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([id, count]) => ({ id, name: tagNamesById.get(id), count }))
+    .filter(
+      (entry): entry is { id: TagId; name: string; count: number } => entry.name !== undefined,
+    )
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
     .slice(0, limit)
-    .map(([tag]) => tag)
+    .map(({ id, name }) => ({ id, name }))
 }
 
 export type DishCatalogGroup = { id: string; title: string; items: DishCatalogItem[] }
