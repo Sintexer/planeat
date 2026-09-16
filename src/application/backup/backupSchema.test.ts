@@ -120,3 +120,68 @@ describe('backupFileSchema — tag catalog + tagIds shape', () => {
     expect(result.success).toBe(false)
   })
 })
+
+describe('backupFileSchema — ingredient line quantity shapes (Sprint 12)', () => {
+  function roundTrip(recipe: Recipe) {
+    const data = emptyData()
+    data.recipes = [recipe]
+    const file = {
+      format: 'family-menu-planner',
+      schemaVersion: CURRENT_BACKUP_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    }
+    return backupFileSchema.safeParse(JSON.parse(JSON.stringify(file)))
+  }
+
+  it('round-trips a non-numeric quantityText line', () => {
+    const result = roundTrip({
+      ...baseRecipe(),
+      ingredientLines: [
+        { ingredientId: 'ing-1', quantity: null, quantityText: 'to taste', displayText: 'Salt' },
+      ],
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.data.recipes[0]?.ingredientLines[0]?.quantityText).toBe('to taste')
+      expect(result.data.data.recipes[0]?.ingredientLines[0]?.quantity).toBeNull()
+    }
+  })
+
+  it('round-trips a bare legacy unit (e.g. "cup") unchanged, without inventing a convention', () => {
+    const result = roundTrip({
+      ...baseRecipe(),
+      ingredientLines: [
+        {
+          ingredientId: 'ing-1',
+          quantity: { value: 1, unit: 'cup' },
+          displayText: 'Flour',
+        },
+      ],
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.data.recipes[0]?.ingredientLines[0]?.quantity).toEqual({
+        value: 1,
+        unit: 'cup',
+      })
+    }
+  })
+
+  it('keeps explicit US and metric cup units distinct after a round-trip', () => {
+    const result = roundTrip({
+      ...baseRecipe(),
+      ingredientLines: [
+        { ingredientId: 'ing-1', quantity: { value: 1, unit: 'cup-us' }, displayText: 'Flour' },
+        { ingredientId: 'ing-2', quantity: { value: 1, unit: 'cup-metric' }, displayText: 'Milk' },
+      ],
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      const lines = result.data.data.recipes[0]?.ingredientLines ?? []
+      expect(lines[0]?.quantity?.unit).toBe('cup-us')
+      expect(lines[1]?.quantity?.unit).toBe('cup-metric')
+      expect(lines[0]?.quantity?.unit).not.toBe(lines[1]?.quantity?.unit)
+    }
+  })
+})

@@ -6,6 +6,7 @@ import {
   MultiSelect,
   NumberInput,
   Select,
+  SegmentedControl,
   Stack,
   Switch,
   TagsInput,
@@ -356,16 +357,41 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
                   <IconTrash size={18} />
                 </ActionIcon>
               </Group>
-              <QuantityFields
-                value={line.quantityValue}
-                unit={line.quantityUnit}
-                onValueChange={(value) =>
-                  form.setFieldValue(`ingredientLines.${index}.quantityValue`, value)
-                }
-                onUnitChange={(unit) =>
-                  form.setFieldValue(`ingredientLines.${index}.quantityUnit`, unit)
+              <SegmentedControl
+                size="xs"
+                data={[
+                  { label: 'Amount + unit', value: 'amount' },
+                  { label: 'Describe amount', value: 'text' },
+                ]}
+                value={line.quantityMode}
+                onChange={(next) =>
+                  form.setFieldValue(`ingredientLines.${index}.quantityMode`, next)
                 }
               />
+              {line.quantityMode === 'text' ? (
+                <TextInput
+                  label="Amount"
+                  placeholder="e.g. to taste, a pinch"
+                  value={line.quantityText}
+                  onChange={(event) =>
+                    form.setFieldValue(
+                      `ingredientLines.${index}.quantityText`,
+                      event.currentTarget.value,
+                    )
+                  }
+                />
+              ) : (
+                <QuantityFields
+                  value={line.quantityValue}
+                  unit={line.quantityUnit}
+                  onValueChange={(value) =>
+                    form.setFieldValue(`ingredientLines.${index}.quantityValue`, value)
+                  }
+                  onUnitChange={(unit) =>
+                    form.setFieldValue(`ingredientLines.${index}.quantityUnit`, unit)
+                  }
+                />
+              )}
               <TextInput
                 label="Note"
                 placeholder="optional"

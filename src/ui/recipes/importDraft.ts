@@ -52,8 +52,10 @@ export function importedDraftToFormValues(draft: ImportedRecipeDraft): RecipeFor
         ? draft.ingredientLines.map((line) => ({
             key: crypto.randomUUID(),
             name: line.name,
+            quantityMode: 'amount' as const,
             quantityValue: line.quantityValue,
             quantityUnit: line.quantityUnit,
+            quantityText: '',
             note: line.note,
           }))
         : [emptyIngredientLine()],

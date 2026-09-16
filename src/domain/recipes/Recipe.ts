@@ -8,6 +8,8 @@ export type RecipeId = string
 export interface RecipeIngredientLine {
   ingredientId: IngredientId
   quantity: Quantity | null
+  /** Free-form non-numeric amount (e.g. "to taste"). Mutually exclusive with `quantity` by UI convention. */
+  quantityText?: string
   note?: string
   displayText: string
 }

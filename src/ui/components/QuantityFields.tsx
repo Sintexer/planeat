@@ -1,8 +1,6 @@
 import { NumberInput, Select, SimpleGrid } from '@mantine/core'
-import { QUANTITY_UNITS } from '../../domain/shared/Quantity'
+import { unitOptionsFor } from '../shared/unitOptions'
 import { precisionStep } from './quantityStep'
-
-const unitOptions = QUANTITY_UNITS.map((unit) => ({ value: unit, label: unit }))
 
 interface QuantityFieldsProps {
   valueLabel?: string
@@ -36,8 +34,8 @@ export function QuantityFields({
       />
       <Select
         label={unitLabel}
-        data={unitOptions}
-        value={QUANTITY_UNITS.includes(unit as (typeof QUANTITY_UNITS)[number]) ? unit : 'piece'}
+        data={unitOptionsFor(unit)}
+        value={unit}
         allowDeselect={false}
         onChange={(next) => onUnitChange(next ?? unit)}
       />

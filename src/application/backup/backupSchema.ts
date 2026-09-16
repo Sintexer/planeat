@@ -15,6 +15,7 @@ const quantitySchema = z.object({
 const recipeIngredientLineSchema = z.object({
   ingredientId: z.string(),
   quantity: quantitySchema.nullable(),
+  quantityText: z.string().optional(),
   note: z.string().optional(),
   displayText: z.string(),
 })

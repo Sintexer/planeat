@@ -5,8 +5,10 @@ import type { TagId } from '../../domain/tags/Tag'
 export type RecipeFormIngredientLine = {
   key: string
   name: string
+  quantityMode: 'amount' | 'text'
   quantityValue: number | ''
   quantityUnit: string
+  quantityText: string
   note: string
 }
 
@@ -39,8 +41,10 @@ export function emptyIngredientLine(): RecipeFormIngredientLine {
   return {
     key: crypto.randomUUID(),
     name: '',
+    quantityMode: 'amount',
     quantityValue: '',
     quantityUnit: 'g',
+    quantityText: '',
     note: '',
   }
 }
@@ -109,8 +113,10 @@ export function recipeToFormValues(
         : recipe.ingredientLines.map((line) => ({
             key: crypto.randomUUID(),
             name: ingredientNamesById.get(line.ingredientId) ?? line.displayText,
+            quantityMode: line.quantityText ? ('text' as const) : ('amount' as const),
             quantityValue: line.quantity?.value ?? '',
             quantityUnit: line.quantity?.unit ?? 'g',
+            quantityText: line.quantityText ?? '',
             note: line.note ?? '',
           })),
   }
@@ -157,9 +163,11 @@ export function formLineToIngredientLine(
   line: RecipeFormIngredientLine,
   ingredientId: string,
 ): RecipeIngredientLine {
+  const isTextMode = line.quantityMode === 'text'
   return {
     ingredientId,
-    quantity: quantityFromForm(line.quantityValue, line.quantityUnit),
+    quantity: isTextMode ? null : quantityFromForm(line.quantityValue, line.quantityUnit),
+    quantityText: isTextMode ? line.quantityText.trim() || undefined : undefined,
     note: line.note.trim() || undefined,
     displayText: line.name.trim(),
   }

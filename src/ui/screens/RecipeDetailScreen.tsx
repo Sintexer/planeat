@@ -254,12 +254,17 @@ export function RecipeDetailScreen() {
       ) : (
         <List spacing="xs">
           {recipe.ingredientLines.map((line, index) => {
-            const scaled = quantityService.scale(line.quantity, factor)
             const name = ingredientNames.get(line.ingredientId) ?? line.displayText
+            const amountText = line.quantityText
+              ? line.quantityText
+              : (() => {
+                  const scaled = quantityService.scale(line.quantity, factor)
+                  return formatQty(scaled ?? null)
+                })()
             return (
               <List.Item key={`${line.ingredientId}-${index}`}>
                 {name}
-                {scaled ? ` — ${formatQty(scaled)}` : ` — ${formatQty(null)}`}
+                {` — ${amountText}`}
                 {line.note ? ` (${line.note})` : ''}
               </List.Item>
             )
