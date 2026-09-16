@@ -22,7 +22,7 @@ export class DexieSimpleFoodRepository implements SimpleFoodRepository {
       defaultPortion: input.defaultPortion,
       roles: input.roles ?? [],
       mealTypes: input.mealTypes ?? [],
-      tags: (input.tags ?? []).map((t) => t.trim()).filter(Boolean),
+      tagIds: input.tagIds ?? [],
       enabledInSuggestions: input.enabledInSuggestions ?? true,
       createdAt: now,
       updatedAt: now,

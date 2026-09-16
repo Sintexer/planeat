@@ -11,6 +11,7 @@ import type { Ingredient } from '../../domain/ingredients/Ingredient'
 import type { Recipe } from '../../domain/recipes/Recipe'
 import type { Settings } from '../../domain/shared/Settings'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
+import type { Tag } from '../../domain/tags/Tag'
 import { applyMigrations } from './migrations'
 import Dexie, { type EntityTable } from 'dexie'
 
@@ -28,6 +29,7 @@ export class AppDatabase extends Dexie {
   groceryItems!: EntityTable<GroceryItem, 'id'>
   mealFavorites!: EntityTable<MealFavorite, 'id'>
   recipePairings!: EntityTable<RecipePairing, 'id'>
+  tags!: EntityTable<Tag, 'id'>
 
   constructor() {
     super('planeat')

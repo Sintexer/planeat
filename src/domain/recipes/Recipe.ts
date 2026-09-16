@@ -1,6 +1,7 @@
 import type { IngredientId } from '../ingredients/Ingredient'
 import type { Effort, MealType, RecipeRole, ReusePolicy } from '../shared/MealEnums'
 import type { Quantity } from '../shared/Quantity'
+import type { TagId } from '../tags/Tag'
 
 export type RecipeId = string
 
@@ -26,7 +27,7 @@ export interface Recipe {
   reusePolicy: ReusePolicy
   freezerFriendly: boolean
   freezingNotes?: string
-  tags: string[]
+  tagIds: TagId[]
   sourceUrl?: string
   photoUrl?: string
   cuisine?: string

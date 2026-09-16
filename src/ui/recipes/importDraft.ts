@@ -40,7 +40,7 @@ export function importedDraftToFormValues(draft: ImportedRecipeDraft): RecipeFor
     reusePolicy: draft.reusePolicy,
     freezerFriendly: draft.freezerFriendly,
     freezingNotes: draft.freezingNotes,
-    tagsText: draft.tagsText,
+    tagIds: [],
     sourceUrl: draft.sourceUrl,
     photoUrl: draft.photoUrl ?? '',
     cuisine: draft.cuisine,

@@ -168,7 +168,6 @@ export function normalizeImportedRecipe(node: SchemaOrgRecipeNode): NormalizedIm
     reusePolicy: 'fresh-only',
     freezerFriendly: false,
     freezingNotes: '',
-    tagsText: '',
     sourceUrl,
     photoUrl,
     cuisine: '',

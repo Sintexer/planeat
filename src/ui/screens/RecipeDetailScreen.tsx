@@ -31,6 +31,7 @@ import { usePairings } from '../hooks/usePairings'
 import { useRecipe } from '../hooks/useRecipe'
 import { useRecipes } from '../hooks/useRecipes'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
+import { useTags } from '../hooks/useTags'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
 
 export function RecipeDetailScreen() {
@@ -41,6 +42,7 @@ export function RecipeDetailScreen() {
   const recipes = useRecipes()
   const simpleFoods = useSimpleFoods()
   const pairings = usePairings()
+  const tags = useTags()
   const { recipeService, quantityService, pairingService } = useServices()
   const formatQty = useFormatQuantity()
 
@@ -54,6 +56,12 @@ export function RecipeDetailScreen() {
     }
     return map
   }, [ingredients])
+
+  const tagsById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const tag of tags ?? []) map.set(tag.id, tag.name)
+    return map
+  }, [tags])
 
   const recipePairings = useMemo(() => {
     if (!recipe || !pairings) return []
@@ -174,6 +182,20 @@ export function RecipeDetailScreen() {
           </Badge>
         ))}
       </Group>
+
+      {recipe.tagIds.length > 0 && (
+        <Group gap={4}>
+          {recipe.tagIds.map((tagId) => {
+            const name = tagsById.get(tagId)
+            if (!name) return null
+            return (
+              <Badge key={tagId} variant="dot">
+                {name}
+              </Badge>
+            )
+          })}
+        </Group>
+      )}
 
       <Text size="sm">
         {EFFORT_LABELS[recipe.effort]} · {REUSE_POLICY_LABELS[recipe.reusePolicy]}

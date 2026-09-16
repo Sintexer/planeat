@@ -39,7 +39,7 @@ export class SimpleFoodService {
       name,
       roles: input.roles ?? [],
       mealTypes: input.mealTypes ?? [],
-      tags: (input.tags ?? []).map((t) => t.trim()).filter(Boolean),
+      tagIds: input.tagIds ?? [],
       enabledInSuggestions: input.enabledInSuggestions ?? true,
     })
     return { ok: true, simpleFood }
@@ -68,7 +68,6 @@ export class SimpleFoodService {
       name: nextName,
       defaultPortion: nextPortion,
       ingredientId: nextIngredientId,
-      tags: changes.tags?.map((t) => t.trim()).filter(Boolean),
     })
     return { ok: true }
   }

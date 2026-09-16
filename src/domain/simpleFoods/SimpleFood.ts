@@ -1,6 +1,7 @@
 import type { IngredientId } from '../ingredients/Ingredient'
 import type { MealType, RecipeRole } from '../shared/MealEnums'
 import type { Quantity } from '../shared/Quantity'
+import type { TagId } from '../tags/Tag'
 
 export type SimpleFoodId = string
 
@@ -11,7 +12,7 @@ export interface SimpleFood {
   defaultPortion: Quantity
   roles: RecipeRole[]
   mealTypes: MealType[]
-  tags: string[]
+  tagIds: TagId[]
   enabledInSuggestions: boolean
   createdAt: number
   updatedAt: number

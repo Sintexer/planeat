@@ -1,6 +1,7 @@
 import type { Ingredient } from '../../../domain/ingredients/Ingredient'
 import type { Recipe } from '../../../domain/recipes/Recipe'
 import type { SimpleFood } from '../../../domain/simpleFoods/SimpleFood'
+import type { Tag } from '../../../domain/tags/Tag'
 
 /** Stable ids so seed rows are deterministic across installs. */
 export const SEED_INGREDIENT_IDS = {
@@ -39,6 +40,15 @@ export const SEED_SIMPLE_FOOD_IDS = {
   banana: 'seed-sf-banana',
 } as const
 
+export const SEED_TAG_IDS = {
+  batch: 'seed-tag-batch',
+  soup: 'seed-tag-soup',
+  vegetable: 'seed-tag-vegetable',
+  pasta: 'seed-tag-pasta',
+  italian: 'seed-tag-italian',
+  side: 'seed-tag-side',
+} as const
+
 function line(
   ingredientId: string,
   name: string,
@@ -62,8 +72,19 @@ export function buildStarterCatalog(now: number): {
   ingredients: Ingredient[]
   recipes: Recipe[]
   simpleFoods: SimpleFood[]
+  tags: Tag[]
 } {
   const ids = SEED_INGREDIENT_IDS
+  const tagIds = SEED_TAG_IDS
+
+  const tags: Tag[] = [
+    { id: tagIds.batch, name: 'batch', createdAt: now, updatedAt: now },
+    { id: tagIds.soup, name: 'soup', createdAt: now, updatedAt: now },
+    { id: tagIds.vegetable, name: 'vegetable', createdAt: now, updatedAt: now },
+    { id: tagIds.pasta, name: 'pasta', createdAt: now, updatedAt: now },
+    { id: tagIds.italian, name: 'italian', createdAt: now, updatedAt: now },
+    { id: tagIds.side, name: 'side', createdAt: now, updatedAt: now },
+  ]
 
   const ingredients: Ingredient[] = [
     {
@@ -255,7 +276,7 @@ export function buildStarterCatalog(now: number): {
       reusePolicy: 'batch-friendly',
       freezerFriendly: true,
       freezingNotes: 'Freeze cooked cutlets; reheat in oven or pan.',
-      tags: ['batch'],
+      tagIds: [tagIds.batch],
       cuisine: 'home',
       createdAt: now,
       updatedAt: now,
@@ -282,7 +303,7 @@ export function buildStarterCatalog(now: number): {
       totalTimeMinutes: 40,
       reusePolicy: 'batch-friendly',
       freezerFriendly: true,
-      tags: ['soup', 'vegetable'],
+      tagIds: [tagIds.soup, tagIds.vegetable],
       createdAt: now,
       updatedAt: now,
     },
@@ -309,7 +330,7 @@ export function buildStarterCatalog(now: number): {
       totalTimeMinutes: 25,
       reusePolicy: 'fresh-only',
       freezerFriendly: false,
-      tags: ['pasta', 'italian'],
+      tagIds: [tagIds.pasta, tagIds.italian],
       cuisine: 'italian',
       createdAt: now,
       updatedAt: now,
@@ -329,7 +350,7 @@ export function buildStarterCatalog(now: number): {
       totalTimeMinutes: 25,
       reusePolicy: 'same-day',
       freezerFriendly: false,
-      tags: ['side'],
+      tagIds: [tagIds.side],
       createdAt: now,
       updatedAt: now,
     },
@@ -352,7 +373,7 @@ export function buildStarterCatalog(now: number): {
       totalTimeMinutes: 25,
       reusePolicy: 'same-day',
       freezerFriendly: false,
-      tags: ['side'],
+      tagIds: [tagIds.side],
       createdAt: now,
       updatedAt: now,
     },
@@ -371,7 +392,7 @@ export function buildStarterCatalog(now: number): {
       totalTimeMinutes: 30,
       reusePolicy: 'same-day',
       freezerFriendly: false,
-      tags: ['side', 'vegetable'],
+      tagIds: [tagIds.side, tagIds.vegetable],
       createdAt: now,
       updatedAt: now,
     },
@@ -385,7 +406,7 @@ export function buildStarterCatalog(now: number): {
       defaultPortion: { value: 2, unit: 'piece' },
       roles: ['breakfast-component', 'side'],
       mealTypes: ['breakfast', 'lunch', 'dinner'],
-      tags: [],
+      tagIds: [],
       enabledInSuggestions: true,
       createdAt: now,
       updatedAt: now,
@@ -397,7 +418,7 @@ export function buildStarterCatalog(now: number): {
       defaultPortion: { value: 150, unit: 'g' },
       roles: ['breakfast-component'],
       mealTypes: ['breakfast'],
-      tags: [],
+      tagIds: [],
       enabledInSuggestions: false,
       createdAt: now,
       updatedAt: now,
@@ -409,12 +430,12 @@ export function buildStarterCatalog(now: number): {
       defaultPortion: { value: 1, unit: 'piece' },
       roles: ['breakfast-component'],
       mealTypes: ['breakfast'],
-      tags: [],
+      tagIds: [],
       enabledInSuggestions: true,
       createdAt: now,
       updatedAt: now,
     },
   ]
 
-  return { ingredients, recipes, simpleFoods }
+  return { ingredients, recipes, simpleFoods, tags }
 }

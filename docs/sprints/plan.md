@@ -578,4 +578,8 @@ Checkpoint (catalog / photos / unified Plan) is done.
 
 Localization settings foundation is done (`uiLocale`, `measurementPreference`, formatting, “usually at home” copy, photo/offline rules).
 
-**Next:** Sprint 7 (library browsing session), then 8 (household tag IDs), then 9 (classification). Sprints 10–22 remain sequenced backlog.
+Sprint 7 is done: browse-state (search/filters/scroll) persists across a round-trip to a recipe or simple-food detail screen, a dedicated simple-food detail page (inline-editable), and catalog cards show a kind badge plus known recipe time.
+
+Sprint 8 is done: `Tag` domain entity with stable IDs (`src/domain/tags/Tag.ts`), `TagRepository`/`TagService`/`DexieTagRepository` mirroring the ingredient pattern, Dexie schema v6 migrating existing `recipes`/`simpleFoods` string tags into linked `tagIds`, backup format version 6 with a separate frozen-label `recipeSnapshot` schema, `TagsInput`-based autocomplete-or-create assignment in the recipe editor and simple-food detail screen, a `/recipes/tags` management screen (rename + usage counts), and the first Vitest test runner (`bun run test`) covering tag identity/rename/dedupe and backup version handling via in-memory repository test doubles.
+
+**Next:** Sprint 9 (clear recipe classification). Sprints 10–22 remain sequenced backlog.

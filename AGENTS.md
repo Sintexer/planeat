@@ -16,6 +16,7 @@ bun run typecheck       # tsc -b --noEmit
 bun run format          # prettier --write .
 bun run format:check    # prettier --check .
 bun run generate-icons  # regenerate public/ PWA icons from public/favicon.svg
+bun run test            # vitest run — domain/application unit tests (no Dexie/DOM)
 ```
 
 Run format, lint, typecheck, and build before reporting a task complete. Report any manual/browser verification you did not perform.
@@ -64,6 +65,7 @@ Already installed, beyond the core stack (React/Mantine/Dexie/Zod/Day.js/vite-pl
 | `fuse.js`                                                  | Fuzzy recipe/component picker search and ranking (never ingredient identity merge)                                                                                  |
 | `@mantine/dropzone`                                        | Recipe import file drop target (always paired with a visible Choose file button)                                                                                    |
 | `schema-dts`                                               | Compile-time Schema.org `Recipe` typing for JSON-LD import (Zod remains runtime validation)                                                                         |
+| `vitest`                                                   | First test runner (Sprint 8): domain/application unit tests via in-memory repository test doubles — no Dexie/IndexedDB polyfill, no DOM/testing-library needed yet  |
 
 No further libraries are currently earmarked for a scheduled sprint.
 

@@ -26,6 +26,7 @@ import { usePairings } from '../hooks/usePairings'
 import { useRecipes } from '../hooks/useRecipes'
 import { useSettings } from '../hooks/useSettings'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
+import { useTags } from '../hooks/useTags'
 import { usePlanByStartDate } from '../hooks/usePlanByStartDate'
 import { QuantityFields } from './QuantityFields'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
@@ -99,6 +100,7 @@ export function AddComponentFlow({
   const { planService } = useServices()
   const recipes = useRecipes()
   const simpleFoods = useSimpleFoods()
+  const tags = useTags()
   const favorites = useMealFavorites()
   const pairings = usePairings()
   const settings = useSettings()
@@ -127,6 +129,12 @@ export function AddComponentFlow({
     return ids
   }, [previousWeek])
 
+  const tagNamesById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const tag of tags ?? []) map.set(tag.id, tag.name)
+    return map
+  }, [tags])
+
   const ranked = useMemo(() => {
     if (!recipes || !simpleFoods || !favorites || !pairings || !settings) return []
     return rankComponentSuggestions({
@@ -140,8 +148,19 @@ export function AddComponentFlow({
       settings,
       previousWeekRecipeIds,
       query: '',
+      tagNamesById,
     })
-  }, [recipes, simpleFoods, favorites, pairings, settings, graph, slot, previousWeekRecipeIds])
+  }, [
+    recipes,
+    simpleFoods,
+    favorites,
+    pairings,
+    settings,
+    graph,
+    slot,
+    previousWeekRecipeIds,
+    tagNamesById,
+  ])
 
   const catalogItems = useMemo((): DishCatalogItem[] => {
     return ranked
@@ -150,7 +169,7 @@ export function AddComponentFlow({
         if (item.kind === 'recipe') {
           const recipe = recipes?.find((r) => r.id === item.id)
           if (!recipe) return null
-          return recipeToCatalogItem(recipe, {
+          return recipeToCatalogItem(recipe, tagNamesById, {
             score: item.score,
             reason: item.reason,
             subtitle: hint ? `Recipe · ${hint}` : 'Recipe',
@@ -158,14 +177,14 @@ export function AddComponentFlow({
         }
         const food = simpleFoods?.find((f) => f.id === item.id)
         if (!food) return null
-        return simpleFoodToCatalogItem(food, {
+        return simpleFoodToCatalogItem(food, tagNamesById, {
           score: item.score,
           reason: item.reason,
           subtitle: hint ? `Simple food · ${hint}` : 'Simple food',
         })
       })
       .filter((item): item is DishCatalogItem => item !== null)
-  }, [ranked, recipes, simpleFoods])
+  }, [ranked, recipes, simpleFoods, tagNamesById])
 
   const leftovers = useMemo((): DishCatalogItem[] => {
     const rows: DishCatalogItem[] = []

@@ -33,7 +33,7 @@ export function migrateLegacyRecipeV1(legacy: LegacyRecipeV1): Recipe {
     effort: 'regular',
     reusePolicy: 'fresh-only',
     freezerFriendly: false,
-    tags: [],
+    tagIds: [],
     createdAt: legacy.createdAt,
     updatedAt: legacy.updatedAt,
   }
@@ -156,6 +156,58 @@ export function applyMigrations(dexie: Dexie): void {
           })
         }
         await eventsTable.put({ ...record, sessionId })
+      }
+    })
+
+  dexie
+    .version(6)
+    .stores({
+      recipes: 'id, name',
+      settings: 'id',
+      ingredients: 'id, name',
+      simpleFoods: 'id, name, ingredientId',
+      plans: 'id, startDate',
+      mealSlots: 'id, planId, [planId+date+mealType]',
+      mealComponents: 'id, slotId',
+      cookingEvents: 'id, planId, sessionId',
+      prepSessions: 'id, planId, [planId+date]',
+      groceryLists: 'id, status, sourcePlanId',
+      groceryItems: 'id, listId',
+      mealFavorites: 'id, name',
+      recipePairings: 'id, recipeId',
+      tags: 'id, name',
+    })
+    .upgrade(async (tx) => {
+      const tagsTable = tx.table('tags')
+      const idByNormalizedName = new Map<string, string>()
+
+      async function resolveTagId(rawName: string): Promise<string | null> {
+        const trimmed = rawName.trim()
+        if (!trimmed) return null
+        const key = trimmed.toLowerCase()
+        const existing = idByNormalizedName.get(key)
+        if (existing) return existing
+        const id = crypto.randomUUID()
+        idByNormalizedName.set(key, id)
+        const now = Date.now()
+        await tagsTable.put({ id, name: trimmed, createdAt: now, updatedAt: now })
+        return id
+      }
+
+      // cookingEvents.recipeSnapshot.tags are frozen historical labels — left untouched.
+      for (const tableName of ['recipes', 'simpleFoods']) {
+        const table = tx.table(tableName)
+        for (const row of await table.toArray()) {
+          const record = row as Record<string, unknown>
+          const legacyTags = Array.isArray(record.tags) ? (record.tags as string[]) : []
+          const tagIds: string[] = []
+          for (const rawName of legacyTags) {
+            const id = await resolveTagId(rawName)
+            if (id) tagIds.push(id)
+          }
+          delete record.tags
+          await table.put({ ...record, tagIds })
+        }
       }
     })
 }

@@ -2,10 +2,11 @@ import type { CookingEventDependent, PlanRepository } from '../ports/PlanReposit
 import type { RecipeRepository } from '../ports/RecipeRepository'
 import type { SettingsRepository } from '../ports/SettingsRepository'
 import type { SimpleFoodRepository } from '../ports/SimpleFoodRepository'
+import type { TagRepository } from '../ports/TagRepository'
 import type { QuantityService } from '../quantities/QuantityService'
 import type { MealSlot, MealSlotId } from '../../domain/plans/MealSlot'
 import type { MealComponent, MealComponentId } from '../../domain/plans/MealComponent'
-import type { CookingEvent, CookingEventId } from '../../domain/plans/CookingEvent'
+import type { CookingEvent, CookingEventId, RecipeSnapshot } from '../../domain/plans/CookingEvent'
 import type { Plan, PlanId } from '../../domain/plans/Plan'
 import type { PlanGraph } from '../../domain/plans/PlanGraph'
 import {
@@ -65,6 +66,7 @@ export class PlanService {
   private readonly simpleFoods: SimpleFoodRepository
   private readonly settings: SettingsRepository
   private readonly quantities: QuantityService
+  private readonly tags: TagRepository
 
   constructor(
     plans: PlanRepository,
@@ -72,12 +74,14 @@ export class PlanService {
     simpleFoods: SimpleFoodRepository,
     settings: SettingsRepository,
     quantities: QuantityService,
+    tags: TagRepository,
   ) {
     this.plans = plans
     this.recipes = recipes
     this.simpleFoods = simpleFoods
     this.settings = settings
     this.quantities = quantities
+    this.tags = tags
   }
 
   getPlan(id: PlanId): Promise<PlanGraph | undefined> {
@@ -193,10 +197,18 @@ export class PlanService {
     if (cmp === null) return { ok: false, error: 'incompatible-quantity' }
     if (cmp > 0) return { ok: false, error: 'over-allocated' }
 
+    const tagRows = await this.tags.getByIds(recipe.tagIds)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { tagIds, ...recipeRest } = recipe
+    const recipeSnapshot: RecipeSnapshot = {
+      ...recipeRest,
+      tags: tagRows.map((tag) => tag.name),
+    }
+
     const component = await this.plans.addCookingEventComponent(ctx.plan.id, {
       slotId,
       recipeId: recipe.id,
-      recipeSnapshot: recipe,
+      recipeSnapshot,
       outputQuantity,
       allocatedQuantity,
       role,

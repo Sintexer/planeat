@@ -5,6 +5,7 @@ import type { Recipe } from '../recipes/Recipe'
 import type { MealType, RecipeRole } from '../shared/MealEnums'
 import type { Settings } from '../shared/Settings'
 import type { SimpleFood } from '../simpleFoods/SimpleFood'
+import type { TagId } from '../tags/Tag'
 
 export type SuggestionKind = 'recipe' | 'simple-food'
 
@@ -14,7 +15,6 @@ export interface SuggestionCandidate {
   name: string
   roles: RecipeRole[]
   mealTypes: MealType[]
-  tags: string[]
   score: number
   reason: 'pairing' | 'favorite' | 'role' | 'variety' | 'other'
 }
@@ -30,10 +30,18 @@ export interface RankSuggestionsInput {
   settings: Settings
   previousWeekRecipeIds: Set<string>
   query: string
+  /** Resolves live tag IDs to their current label, for the "vegetable" tag heuristic below. */
+  tagNamesById: Map<TagId, string>
 }
 
 function providesVegetable(roles: RecipeRole[], tags: string[]): boolean {
   return roles.includes('vegetable') || tags.some((t) => t.toLowerCase() === 'vegetable')
+}
+
+function resolveTagNames(tagIds: TagId[], tagNamesById: Map<TagId, string>): string[] {
+  return tagIds
+    .map((id) => tagNamesById.get(id))
+    .filter((name): name is string => name !== undefined)
 }
 
 function slotRecipeIds(graph: PlanGraph, slotId: string): Set<string> {
@@ -53,6 +61,7 @@ function slotHasVegetable(
   date: string,
   recipes: Recipe[],
   foods: SimpleFood[],
+  tagNamesById: Map<TagId, string>,
 ): boolean {
   const slotIds = new Set(graph.slots.filter((s) => s.date === date).map((s) => s.id))
   for (const component of graph.components) {
@@ -65,10 +74,14 @@ function slotHasVegetable(
         return true
       }
       const recipe = recipes.find((r) => r.id === event?.recipeId)
-      if (recipe && providesVegetable(recipe.roles, recipe.tags)) return true
+      if (recipe && providesVegetable(recipe.roles, resolveTagNames(recipe.tagIds, tagNamesById))) {
+        return true
+      }
     } else {
       const food = foods.find((f) => f.id === source.simpleFoodId)
-      if (food && providesVegetable(food.roles, food.tags)) return true
+      if (food && providesVegetable(food.roles, resolveTagNames(food.tagIds, tagNamesById))) {
+        return true
+      }
     }
   }
   return false
@@ -88,10 +101,13 @@ export function rankComponentSuggestions(input: RankSuggestionsInput): Suggestio
     favorites,
     settings,
     previousWeekRecipeIds,
+    tagNamesById,
   } = input
 
   const slot = graph.slots.find((s) => s.id === slotId)
-  const dayHasVeg = slot ? slotHasVegetable(graph, slot.date, recipes, simpleFoods) : false
+  const dayHasVeg = slot
+    ? slotHasVegetable(graph, slot.date, recipes, simpleFoods, tagNamesById)
+    : false
   const currentRecipeIds = slotRecipeIds(graph, slotId)
 
   const pairingTargets = new Set<string>()
@@ -156,7 +172,7 @@ export function rankComponentSuggestions(input: RankSuggestionsInput): Suggestio
     if (
       settings.favorVegetablesDaily &&
       !dayHasVeg &&
-      providesVegetable(recipe.roles, recipe.tags)
+      providesVegetable(recipe.roles, resolveTagNames(recipe.tagIds, tagNamesById))
     ) {
       score += 15
       if (reason === 'other') reason = 'variety'
@@ -172,7 +188,6 @@ export function rankComponentSuggestions(input: RankSuggestionsInput): Suggestio
       name: recipe.name,
       roles: recipe.roles,
       mealTypes: recipe.mealTypes,
-      tags: recipe.tags,
       score,
       reason,
     })
@@ -201,7 +216,11 @@ export function rankComponentSuggestions(input: RankSuggestionsInput): Suggestio
       score += 20
       if (reason === 'other') reason = 'role'
     }
-    if (settings.favorVegetablesDaily && !dayHasVeg && providesVegetable(food.roles, food.tags)) {
+    if (
+      settings.favorVegetablesDaily &&
+      !dayHasVeg &&
+      providesVegetable(food.roles, resolveTagNames(food.tagIds, tagNamesById))
+    ) {
       score += 15
       if (reason === 'other') reason = 'variety'
     }
@@ -212,7 +231,6 @@ export function rankComponentSuggestions(input: RankSuggestionsInput): Suggestio
       name: food.name,
       roles: food.roles,
       mealTypes: food.mealTypes,
-      tags: food.tags,
       score,
       reason,
     })

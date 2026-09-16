@@ -4,6 +4,7 @@ import type { Recipe } from '../../domain/recipes/Recipe'
 import type { Effort, MealType, RecipeRole } from '../../domain/shared/MealEnums'
 import type { Quantity } from '../../domain/shared/Quantity'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
+import type { TagId } from '../../domain/tags/Tag'
 
 export type DishCatalogKind = 'recipe' | 'simple-food' | 'leftover'
 
@@ -54,8 +55,15 @@ export function defaultDishCatalogFilters(
   }
 }
 
+function resolveTagNames(tagIds: TagId[], tagNamesById: Map<TagId, string>): string[] {
+  return tagIds
+    .map((id) => tagNamesById.get(id))
+    .filter((name): name is string => name !== undefined)
+}
+
 export function recipeToCatalogItem(
   recipe: Recipe,
+  tagNamesById: Map<TagId, string>,
   extra?: Partial<Pick<DishCatalogItem, 'score' | 'reason' | 'subtitle'>>,
 ): DishCatalogItem {
   return {
@@ -66,7 +74,7 @@ export function recipeToCatalogItem(
     photoUrl: recipe.photoUrl,
     roles: recipe.roles,
     mealTypes: recipe.mealTypes,
-    tags: recipe.tags,
+    tags: resolveTagNames(recipe.tagIds, tagNamesById),
     effort: recipe.effort,
     subtitle: extra?.subtitle ?? 'Recipe',
     score: extra?.score,
@@ -78,6 +86,7 @@ export function recipeToCatalogItem(
 
 export function simpleFoodToCatalogItem(
   food: SimpleFood,
+  tagNamesById: Map<TagId, string>,
   extra?: Partial<Pick<DishCatalogItem, 'score' | 'reason' | 'subtitle'>>,
 ): DishCatalogItem {
   return {
@@ -87,7 +96,7 @@ export function simpleFoodToCatalogItem(
     name: food.name,
     roles: food.roles,
     mealTypes: food.mealTypes,
-    tags: food.tags,
+    tags: resolveTagNames(food.tagIds, tagNamesById),
     subtitle: extra?.subtitle ?? 'Simple food',
     score: extra?.score,
     reason: extra?.reason,

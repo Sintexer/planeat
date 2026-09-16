@@ -1,10 +1,9 @@
-import type { CookingEvent, CookingEventId } from '../../domain/plans/CookingEvent'
+import type { CookingEvent, CookingEventId, RecipeSnapshot } from '../../domain/plans/CookingEvent'
 import type { MealComponent, MealComponentId } from '../../domain/plans/MealComponent'
 import type { MealSlot, MealSlotId } from '../../domain/plans/MealSlot'
 import type { Plan, PlanId } from '../../domain/plans/Plan'
 import type { PlanGraph } from '../../domain/plans/PlanGraph'
 import type { LocalDate } from '../../domain/shared/LocalDate'
-import type { Recipe } from '../../domain/recipes/Recipe'
 import type { Quantity } from '../../domain/shared/Quantity'
 import type { RecipeRole } from '../../domain/shared/MealEnums'
 import type { SimpleFoodId } from '../../domain/simpleFoods/SimpleFood'
@@ -14,7 +13,7 @@ import type { MealType } from '../../domain/shared/MealEnums'
 export interface AddCookingEventComponentInput {
   slotId: MealSlotId
   recipeId: RecipeId
-  recipeSnapshot: Recipe
+  recipeSnapshot: RecipeSnapshot
   outputQuantity: Quantity
   allocatedQuantity: Quantity
   role?: RecipeRole

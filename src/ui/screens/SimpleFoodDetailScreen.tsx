@@ -1,4 +1,14 @@
-import { Badge, Button, Group, MultiSelect, Stack, Switch, Text, TextInput } from '@mantine/core'
+import {
+  Badge,
+  Button,
+  Group,
+  MultiSelect,
+  Stack,
+  Switch,
+  TagsInput,
+  Text,
+  TextInput,
+} from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import { useMemo, useState } from 'react'
@@ -7,24 +17,29 @@ import { useServices } from '../../app/servicesContext'
 import type { MealType, RecipeRole } from '../../domain/shared/MealEnums'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
 import type { SimpleFoodService } from '../../application/simpleFoods/SimpleFoodService'
+import type { TagService } from '../../application/tags/TagService'
 import { QuantityFields } from '../components/QuantityFields'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { useIngredients } from '../hooks/useIngredients'
 import { useSimpleFood } from '../hooks/useSimpleFood'
+import { useTags } from '../hooks/useTags'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
 import { mealTypeOptions, roleOptions } from '../shared/mealEnumOptions'
 
 function SimpleFoodEditableFields({
   food,
   simpleFoodService,
+  tagService,
+  tagsById,
 }: {
   food: SimpleFood
   simpleFoodService: SimpleFoodService
+  tagService: TagService
+  tagsById: Map<string, string>
 }) {
   // Keyed by food.id from the parent, so these initial values are only read once
   // per loaded item — no effect needed to resync when the async load completes.
   const [name, setName] = useState(food.name)
-  const [tagsText, setTagsText] = useState(food.tags.join(', '))
   const [portionValue, setPortionValue] = useState<number | ''>(food.defaultPortion.value)
   const [portionUnit, setPortionUnit] = useState(food.defaultPortion.unit)
 
@@ -35,13 +50,22 @@ function SimpleFoodEditableFields({
     void simpleFoodService.updateSimpleFood(food.id, { name: trimmed })
   }
 
-  const handleTagsChange = (value: string) => {
-    setTagsText(value)
-    const tags = value
-      .split(',')
-      .map((tag) => tag.trim())
-      .filter(Boolean)
-    void simpleFoodService.updateSimpleFood(food.id, { tags })
+  const handleTagNamesChange = async (names: string[]) => {
+    const ids: string[] = []
+    for (const rawName of names) {
+      const trimmed = rawName.trim()
+      if (!trimmed) continue
+      const existing = [...tagsById.entries()].find(
+        ([, existingName]) => existingName.toLowerCase() === trimmed.toLowerCase(),
+      )
+      if (existing) {
+        ids.push(existing[0])
+        continue
+      }
+      const result = await tagService.createOrLinkByName(trimmed)
+      if (result.ok) ids.push(result.tag.id)
+    }
+    void simpleFoodService.updateSimpleFood(food.id, { tagIds: ids })
   }
 
   const handlePortionValueChange = (value: number | '') => {
@@ -95,11 +119,12 @@ function SimpleFoodEditableFields({
         }
       />
 
-      <TextInput
+      <TagsInput
         label="Tags"
-        description="Comma-separated"
-        value={tagsText}
-        onChange={(event) => handleTagsChange(event.currentTarget.value)}
+        description="Pick an existing tag or type a new one"
+        data={[...tagsById.values()]}
+        value={food.tagIds.map((id) => tagsById.get(id)).filter((name) => name !== undefined)}
+        onChange={(names) => void handleTagNamesChange(names)}
       />
 
       <Switch
@@ -118,7 +143,8 @@ export function SimpleFoodDetailScreen() {
   const navigate = useNavigate()
   const food = useSimpleFood(simpleFoodId)
   const ingredients = useIngredients()
-  const { simpleFoodService } = useServices()
+  const tags = useTags()
+  const { simpleFoodService, tagService } = useServices()
   const formatQty = useFormatQuantity()
 
   const ingredientNames = useMemo(() => {
@@ -128,6 +154,12 @@ export function SimpleFoodDetailScreen() {
     }
     return map
   }, [ingredients])
+
+  const tagsById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const tag of tags ?? []) map.set(tag.id, tag.name)
+    return map
+  }, [tags])
 
   if (food === undefined) {
     return <Text c="dimmed">Loading…</Text>
@@ -185,7 +217,13 @@ export function SimpleFoodDetailScreen() {
         </Text>
       </Group>
 
-      <SimpleFoodEditableFields key={food.id} food={food} simpleFoodService={simpleFoodService} />
+      <SimpleFoodEditableFields
+        key={food.id}
+        food={food}
+        simpleFoodService={simpleFoodService}
+        tagService={tagService}
+        tagsById={tagsById}
+      />
     </Stack>
   )
 }

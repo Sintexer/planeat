@@ -1,5 +1,6 @@
 import type { Recipe, RecipeIngredientLine, RecipeWriteInput } from '../../domain/recipes/Recipe'
 import type { Quantity } from '../../domain/shared/Quantity'
+import type { TagId } from '../../domain/tags/Tag'
 
 export type RecipeFormIngredientLine = {
   key: string
@@ -24,7 +25,7 @@ export type RecipeFormValues = {
   reusePolicy: string
   freezerFriendly: boolean
   freezingNotes: string
-  tagsText: string
+  tagIds: TagId[]
   sourceUrl: string
   photoUrl: string
   cuisine: string
@@ -59,7 +60,7 @@ export function defaultRecipeFormValues(): RecipeFormValues {
     reusePolicy: 'fresh-only',
     freezerFriendly: false,
     freezingNotes: '',
-    tagsText: '',
+    tagIds: [],
     sourceUrl: '',
     photoUrl: '',
     cuisine: '',
@@ -93,7 +94,7 @@ export function recipeToFormValues(
     reusePolicy: recipe.reusePolicy,
     freezerFriendly: recipe.freezerFriendly,
     freezingNotes: recipe.freezingNotes ?? '',
-    tagsText: recipe.tags.join(', '),
+    tagIds: [...recipe.tagIds],
     sourceUrl: recipe.sourceUrl ?? '',
     photoUrl: recipe.photoUrl ?? '',
     cuisine: recipe.cuisine ?? '',
@@ -110,13 +111,6 @@ export function recipeToFormValues(
             note: line.note ?? '',
           })),
   }
-}
-
-export function parseTags(tagsText: string): string[] {
-  return tagsText
-    .split(',')
-    .map((tag) => tag.trim())
-    .filter(Boolean)
 }
 
 export function buildPartialWriteFromForm(values: RecipeFormValues): {
@@ -143,7 +137,7 @@ export function buildPartialWriteFromForm(values: RecipeFormValues): {
       reusePolicy: values.reusePolicy as RecipeWriteInput['reusePolicy'],
       freezerFriendly: values.freezerFriendly,
       freezingNotes: values.freezingNotes.trim() || undefined,
-      tags: parseTags(values.tagsText),
+      tagIds: values.tagIds,
       sourceUrl: values.sourceUrl.trim() || undefined,
       photoUrl: values.photoUrl.trim() || undefined,
       cuisine: values.cuisine.trim() || undefined,

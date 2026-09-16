@@ -63,7 +63,6 @@ export class RecipeService {
       ...input,
       name: input.name.trim(),
       instructions: input.instructions.trim(),
-      tags: input.tags.map((t) => t.trim()).filter(Boolean),
       photoUrl: normalizePhotoUrl(input.photoUrl),
     })
     return { ok: true, recipe }
@@ -97,7 +96,7 @@ export class RecipeService {
       freezerFriendly: changes.freezerFriendly ?? current.freezerFriendly,
       freezingNotes:
         changes.freezingNotes !== undefined ? changes.freezingNotes : current.freezingNotes,
-      tags: changes.tags ?? current.tags,
+      tagIds: changes.tagIds ?? current.tagIds,
       sourceUrl: changes.sourceUrl !== undefined ? changes.sourceUrl : current.sourceUrl,
       photoUrl: changes.photoUrl !== undefined ? changes.photoUrl : current.photoUrl,
       cuisine: changes.cuisine !== undefined ? changes.cuisine : current.cuisine,
@@ -115,7 +114,6 @@ export class RecipeService {
       ...merged,
       name: merged.name.trim(),
       instructions: merged.instructions.trim(),
-      tags: merged.tags.map((t) => t.trim()).filter(Boolean),
       photoUrl: normalizePhotoUrl(merged.photoUrl),
     })
     return { ok: true }

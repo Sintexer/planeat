@@ -34,7 +34,7 @@ const recipeSchema = z.object({
   reusePolicy: z.enum(REUSE_POLICIES),
   freezerFriendly: z.boolean(),
   freezingNotes: z.string().optional(),
-  tags: z.array(z.string()),
+  tagIds: z.array(z.string()),
   sourceUrl: z.string().optional(),
   photoUrl: z.string().optional(),
   cuisine: z.string().optional(),
@@ -42,6 +42,15 @@ const recipeSchema = z.object({
   notes: z.string().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
+})
+
+/**
+ * A frozen historical copy of a recipe, taken at cook time. `tags` holds label
+ * strings as they were then, never live tag IDs, so a later tag rename can never
+ * retroactively change what history shows — see domain `RecipeSnapshot`.
+ */
+const recipeSnapshotSchema = recipeSchema.omit({ tagIds: true }).extend({
+  tags: z.array(z.string()),
 })
 
 const ingredientSchema = z.object({
@@ -61,8 +70,15 @@ const simpleFoodSchema = z.object({
   defaultPortion: quantitySchema,
   roles: z.array(z.enum(RECIPE_ROLES)),
   mealTypes: z.array(z.enum(MEAL_TYPES)),
-  tags: z.array(z.string()),
+  tagIds: z.array(z.string()),
   enabledInSuggestions: z.boolean(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+})
+
+const tagSchema = z.object({
+  id: z.string(),
+  name: z.string(),
   createdAt: z.number(),
   updatedAt: z.number(),
 })
@@ -134,7 +150,7 @@ const cookingEventSchema = z.object({
   planId: z.string(),
   sessionId: z.string(),
   recipeId: z.string(),
-  recipeSnapshot: recipeSchema,
+  recipeSnapshot: recipeSnapshotSchema,
   outputQuantity: quantitySchema,
   scheduledDate: z.string(),
 })
@@ -220,6 +236,7 @@ export const backupFileSchema = z
       groceryItems: z.array(groceryItemSchema),
       mealFavorites: z.array(mealFavoriteSchema),
       recipePairings: z.array(recipePairingSchema),
+      tags: z.array(tagSchema),
     }),
   })
   .refine(
@@ -284,6 +301,13 @@ export const backupFileSchema = z
       return new Set(ids).size === ids.length
     },
     { message: 'Backup contains duplicate recipe-pairing ids', path: ['data', 'recipePairings'] },
+  )
+  .refine(
+    (backup) => {
+      const ids = backup.data.tags.map((tag) => tag.id)
+      return new Set(ids).size === ids.length
+    },
+    { message: 'Backup contains duplicate tag ids', path: ['data', 'tags'] },
   )
 
 /** Re-export for UI selects that want the same unit list as validation awareness. */

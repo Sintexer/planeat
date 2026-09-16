@@ -8,6 +8,7 @@ import {
   Select,
   Stack,
   Switch,
+  TagsInput,
   Text,
   Textarea,
   TextInput,
@@ -21,6 +22,7 @@ import { useServices } from '../../app/servicesContext'
 import { REUSE_POLICIES, REUSE_POLICY_LABELS } from '../../domain/shared/MealEnums'
 import type { Recipe } from '../../domain/recipes/Recipe'
 import { useIngredients } from '../hooks/useIngredients'
+import { useTags } from '../hooks/useTags'
 import { QuantityFields } from '../components/QuantityFields'
 import { RecipePhotoThumb } from '../components/RecipePhotoThumb'
 import { ScreenHeader } from '../components/ScreenHeader'
@@ -47,8 +49,9 @@ interface RecipeEditorProps {
 
 export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
   const navigate = useNavigate()
-  const { recipeService, ingredientService } = useServices()
+  const { recipeService, ingredientService, tagService } = useServices()
   const ingredients = useIngredients()
+  const tags = useTags()
   const [importBootstrap] = useState(() => {
     if (mode !== 'create') return { hints: [] as string[], form: null as RecipeFormValues | null }
     const draft = readAndClearImportDraft()
@@ -64,6 +67,12 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
     }
     return map
   }, [ingredients])
+
+  const tagsById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const tag of tags ?? []) map.set(tag.id, tag.name)
+    return map
+  }, [tags])
 
   const form = useForm<RecipeFormValues>({
     initialValues: importBootstrap.form ?? defaultRecipeFormValues(),
@@ -89,6 +98,24 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
     form.setValues(recipeToFormValues(recipe, ingredientNamesById))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, recipe?.id, ingredients])
+
+  const handleTagNamesChange = async (names: string[]) => {
+    const ids: string[] = []
+    for (const name of names) {
+      const trimmed = name.trim()
+      if (!trimmed) continue
+      const existing = [...tagsById.entries()].find(
+        ([, existingName]) => existingName.toLowerCase() === trimmed.toLowerCase(),
+      )
+      if (existing) {
+        ids.push(existing[0])
+        continue
+      }
+      const result = await tagService.createOrLinkByName(trimmed)
+      if (result.ok) ids.push(result.tag.id)
+    }
+    form.setFieldValue('tagIds', ids)
+  }
 
   const handleSubmit = form.onSubmit(async (values) => {
     const built = buildPartialWriteFromForm(values)
@@ -252,7 +279,15 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
 
         <TextInput label="Source URL" {...form.getInputProps('sourceUrl')} />
         <TextInput label="Cuisine" {...form.getInputProps('cuisine')} />
-        <TextInput label="Tags" description="Comma-separated" {...form.getInputProps('tagsText')} />
+        <TagsInput
+          label="Tags"
+          description="Pick an existing tag or type a new one"
+          data={[...tagsById.values()]}
+          value={form.values.tagIds
+            .map((id) => tagsById.get(id))
+            .filter((name) => name !== undefined)}
+          onChange={(names) => void handleTagNamesChange(names)}
+        />
         <NumberInput
           label="Max preferred repeats in a plan"
           min={1}

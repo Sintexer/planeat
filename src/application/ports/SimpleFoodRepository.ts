@@ -2,6 +2,7 @@ import type { SimpleFood, SimpleFoodId } from '../../domain/simpleFoods/SimpleFo
 import type { IngredientId } from '../../domain/ingredients/Ingredient'
 import type { MealType, RecipeRole } from '../../domain/shared/MealEnums'
 import type { Quantity } from '../../domain/shared/Quantity'
+import type { TagId } from '../../domain/tags/Tag'
 
 export type CreateSimpleFoodInput = {
   ingredientId: IngredientId
@@ -9,7 +10,7 @@ export type CreateSimpleFoodInput = {
   defaultPortion: Quantity
   roles?: RecipeRole[]
   mealTypes?: MealType[]
-  tags?: string[]
+  tagIds?: TagId[]
   enabledInSuggestions?: boolean
 }
 
@@ -21,7 +22,7 @@ export type UpdateSimpleFoodInput = Partial<
     | 'defaultPortion'
     | 'roles'
     | 'mealTypes'
-    | 'tags'
+    | 'tagIds'
     | 'enabledInSuggestions'
   >
 >

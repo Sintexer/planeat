@@ -1,5 +1,5 @@
 import { ActionIcon, Group, Stack, Text } from '@mantine/core'
-import { IconFileImport, IconPlus, IconCarrot, IconApple } from '@tabler/icons-react'
+import { IconFileImport, IconPlus, IconCarrot, IconApple, IconTag } from '@tabler/icons-react'
 import { useLayoutEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { EFFORT_LABELS } from '../../domain/shared/MealEnums'
@@ -12,6 +12,7 @@ import {
 import { PageTitle } from '../components/ScreenHeader'
 import { useRecipes } from '../hooks/useRecipes'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
+import { useTags } from '../hooks/useTags'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
 import { useLocalization } from '../localization/LocalizationContext'
 import { recipesBrowseState } from './recipesBrowseState'
@@ -19,6 +20,7 @@ import { recipesBrowseState } from './recipesBrowseState'
 export function RecipesScreen() {
   const recipes = useRecipes()
   const simpleFoods = useSimpleFoods()
+  const tags = useTags()
   const navigate = useNavigate()
   const formatQty = useFormatQuantity()
   const { t } = useLocalization()
@@ -29,21 +31,27 @@ export function RecipesScreen() {
     setFilters(next)
   }
 
+  const tagNamesById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const tag of tags ?? []) map.set(tag.id, tag.name)
+    return map
+  }, [tags])
+
   const items = useMemo(() => {
     const recipeItems = (recipes ?? []).map((recipe) =>
-      recipeToCatalogItem(recipe, {
+      recipeToCatalogItem(recipe, tagNamesById, {
         subtitle:
           `Yield ${formatQty(recipe.yield)} · ${EFFORT_LABELS[recipe.effort]}` +
           (recipe.totalTimeMinutes !== undefined ? ` · ${recipe.totalTimeMinutes} min` : ''),
       }),
     )
     const foodItems = (simpleFoods ?? []).map((food) =>
-      simpleFoodToCatalogItem(food, {
+      simpleFoodToCatalogItem(food, tagNamesById, {
         subtitle: formatQty(food.defaultPortion),
       }),
     )
     return [...recipeItems, ...foodItems]
-  }, [recipes, simpleFoods, formatQty])
+  }, [recipes, simpleFoods, formatQty, tagNamesById])
 
   useLayoutEffect(() => {
     if (items.length === 0) return
@@ -135,6 +143,27 @@ export function RecipesScreen() {
           style={{ textDecoration: 'none' }}
         >
           Ingredients
+        </Text>
+        <ActionIcon
+          component={Link}
+          to="/recipes/tags"
+          onClick={captureScroll}
+          variant="light"
+          radius="xl"
+          size={34}
+          aria-label="Tags"
+          ml="sm"
+        >
+          <IconTag size={18} />
+        </ActionIcon>
+        <Text
+          component={Link}
+          to="/recipes/tags"
+          onClick={captureScroll}
+          size="sm"
+          style={{ textDecoration: 'none' }}
+        >
+          Tags
         </Text>
       </Group>
 

@@ -21,7 +21,6 @@ export type ImportedRecipeDraft = {
   reusePolicy: string
   freezerFriendly: boolean
   freezingNotes: string
-  tagsText: string
   sourceUrl: string
   photoUrl: string
   cuisine: string
