@@ -3,23 +3,21 @@ import Fraction from 'fraction.js'
 import type { Quantity } from '../../domain/shared/Quantity'
 import { formatQuantity as formatQuantityPlain } from '../../domain/shared/formatQuantity'
 import { scaleQuantity as scaleQuantityPure } from '../../domain/shared/scaleQuantity'
+import { findUnitDefinition } from '../../domain/shared/UnitRegistry'
 
 /**
- * Map app quantity units onto convert-units abbreviations.
- * `piece` / `serving` are countable and never cross-converted.
+ * Map app quantity units onto convert-units abbreviations, via the explicit
+ * unit registry. `legacy` units (bare `cup`/`tbsp`, pre-Sprint-12) are
+ * deliberately excluded here — an unspecified cup must stay unspecified, so
+ * it only ever matches another exact-string `cup` via the same-unit fast
+ * path in `add`/`subtract`/`compare`/`canConvert` below, never cross-converts
+ * with `ml`/`l`/`cup-us`/etc. `piece` / `serving` / `cup-metric` have no
+ * `convertUnit` in the registry and are likewise never cross-converted.
  */
-const CONVERT_UNIT_ALIAS: Record<string, string> = {
-  g: 'g',
-  kg: 'kg',
-  ml: 'ml',
-  l: 'l',
-  tsp: 'tsp',
-  tbsp: 'Tbs',
-  cup: 'cup',
-}
-
 function toConvertUnit(unit: string): string | null {
-  return CONVERT_UNIT_ALIAS[unit] ?? null
+  const definition = findUnitDefinition(unit)
+  if (!definition || definition.legacy) return null
+  return definition.convertUnit ?? null
 }
 
 /**
