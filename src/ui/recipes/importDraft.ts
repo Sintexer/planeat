@@ -44,6 +44,7 @@ export function importedDraftToFormValues(draft: ImportedRecipeDraft): RecipeFor
     sourceUrl: draft.sourceUrl,
     photoUrl: draft.photoUrl ?? '',
     cuisine: draft.cuisine,
+    dishType: '',
     maxPreferredRepeats: draft.maxPreferredRepeats,
     notes: draft.notes,
     ingredientLines:

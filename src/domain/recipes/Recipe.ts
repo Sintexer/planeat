@@ -31,6 +31,8 @@ export interface Recipe {
   sourceUrl?: string
   photoUrl?: string
   cuisine?: string
+  /** Free string, not the DISH_TYPES union — an unrecognized/legacy value must always round-trip. */
+  dishType?: string
   maxPreferredRepeats?: number
   notes?: string
   createdAt: number

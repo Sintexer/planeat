@@ -16,6 +16,27 @@ export type Effort = (typeof EFFORT_LEVELS)[number]
 export const REUSE_POLICIES = ['fresh-only', 'same-day', 'batch-friendly'] as const
 export type ReusePolicy = (typeof REUSE_POLICIES)[number]
 
+/**
+ * Curated suggestions for the "primary dish type" Select. UI-facing only —
+ * `Recipe.dishType` is stored as a plain string so an unrecognized value
+ * (removed option, hand-edited data, older/newer build) always round-trips.
+ */
+export const DISH_TYPES = [
+  'soup',
+  'salad',
+  'stew',
+  'casserole',
+  'pasta',
+  'roast',
+  'grill',
+  'sandwich',
+  'baked-good',
+  'dessert',
+  'side-dish',
+  'other',
+] as const
+export type DishType = (typeof DISH_TYPES)[number]
+
 export const MEAL_TYPE_LABELS: Record<MealType, string> = {
   breakfast: 'Breakfast',
   lunch: 'Lunch',
@@ -40,4 +61,19 @@ export const REUSE_POLICY_LABELS: Record<ReusePolicy, string> = {
   'fresh-only': 'Fresh only',
   'same-day': 'Same day',
   'batch-friendly': 'Batch-friendly',
+}
+
+export const DISH_TYPE_LABELS: Record<DishType, string> = {
+  soup: 'Soup',
+  salad: 'Salad',
+  stew: 'Stew',
+  casserole: 'Casserole',
+  pasta: 'Pasta',
+  roast: 'Roast',
+  grill: 'Grill',
+  sandwich: 'Sandwich',
+  'baked-good': 'Baked good',
+  dessert: 'Dessert',
+  'side-dish': 'Side dish',
+  other: 'Other',
 }

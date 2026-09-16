@@ -12,6 +12,7 @@ import {
   Text,
   Textarea,
   TextInput,
+  Title,
 } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { IconPlus, IconTrash } from '@tabler/icons-react'
@@ -35,7 +36,12 @@ import {
   recipeToFormValues,
   type RecipeFormValues,
 } from '../recipes/recipeForm'
-import { effortOptions, mealTypeOptions, roleOptions } from '../shared/mealEnumOptions'
+import {
+  dishTypeOptions,
+  effortOptions,
+  mealTypeOptions,
+  roleOptions,
+} from '../shared/mealEnumOptions'
 
 const reuseOptions = REUSE_POLICIES.map((policy) => ({
   value: policy,
@@ -89,6 +95,14 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
       },
     },
   })
+
+  const dishTypeData = useMemo(() => {
+    const current = form.values.dishType
+    if (!current || dishTypeOptions.some((option) => option.value === current)) {
+      return dishTypeOptions
+    }
+    return [...dishTypeOptions, { value: current, label: current }]
+  }, [form.values.dishType])
 
   const hydratedRecipeId = useRef<string | undefined>(undefined)
   useEffect(() => {
@@ -231,12 +245,32 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
           onUnitChange={(unit) => form.setFieldValue('portionUnit', unit)}
         />
 
-        <MultiSelect label="Roles" data={roleOptions} {...form.getInputProps('roles')} />
-        <MultiSelect
-          label="Meal types"
-          data={mealTypeOptions}
-          {...form.getInputProps('mealTypes')}
-        />
+        <Stack gap="sm">
+          <Title order={4}>Organization</Title>
+          <MultiSelect label="Roles" data={roleOptions} {...form.getInputProps('roles')} />
+          <MultiSelect
+            label="Meal types"
+            data={mealTypeOptions}
+            {...form.getInputProps('mealTypes')}
+          />
+          <Select
+            label="Primary dish type"
+            data={dishTypeData}
+            clearable
+            {...form.getInputProps('dishType')}
+          />
+          <TextInput label="Cuisine" {...form.getInputProps('cuisine')} />
+          <TagsInput
+            label="Tags"
+            description="Pick an existing tag or type a new one"
+            data={[...tagsById.values()]}
+            value={form.values.tagIds
+              .map((id) => tagsById.get(id))
+              .filter((name) => name !== undefined)}
+            onChange={(names) => void handleTagNamesChange(names)}
+          />
+        </Stack>
+
         <Select
           label="Effort"
           data={effortOptions}
@@ -278,16 +312,6 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
         )}
 
         <TextInput label="Source URL" {...form.getInputProps('sourceUrl')} />
-        <TextInput label="Cuisine" {...form.getInputProps('cuisine')} />
-        <TagsInput
-          label="Tags"
-          description="Pick an existing tag or type a new one"
-          data={[...tagsById.values()]}
-          value={form.values.tagIds
-            .map((id) => tagsById.get(id))
-            .filter((name) => name !== undefined)}
-          onChange={(names) => void handleTagNamesChange(names)}
-        />
         <NumberInput
           label="Max preferred repeats in a plan"
           min={1}

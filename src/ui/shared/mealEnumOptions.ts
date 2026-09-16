@@ -1,4 +1,6 @@
 import {
+  DISH_TYPE_LABELS,
+  DISH_TYPES,
   EFFORT_LABELS,
   EFFORT_LEVELS,
   MEAL_TYPE_LABELS,
@@ -20,4 +22,9 @@ export const mealTypeOptions = MEAL_TYPES.map((mealType) => ({
 export const effortOptions = EFFORT_LEVELS.map((effort) => ({
   value: effort,
   label: EFFORT_LABELS[effort],
+}))
+
+export const dishTypeOptions = DISH_TYPES.map((dishType) => ({
+  value: dishType,
+  label: DISH_TYPE_LABELS[dishType],
 }))

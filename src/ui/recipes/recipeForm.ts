@@ -29,6 +29,7 @@ export type RecipeFormValues = {
   sourceUrl: string
   photoUrl: string
   cuisine: string
+  dishType: string
   maxPreferredRepeats: number | ''
   notes: string
   ingredientLines: RecipeFormIngredientLine[]
@@ -64,6 +65,7 @@ export function defaultRecipeFormValues(): RecipeFormValues {
     sourceUrl: '',
     photoUrl: '',
     cuisine: '',
+    dishType: '',
     maxPreferredRepeats: '',
     notes: '',
     ingredientLines: [emptyIngredientLine()],
@@ -98,6 +100,7 @@ export function recipeToFormValues(
     sourceUrl: recipe.sourceUrl ?? '',
     photoUrl: recipe.photoUrl ?? '',
     cuisine: recipe.cuisine ?? '',
+    dishType: recipe.dishType ?? '',
     maxPreferredRepeats: recipe.maxPreferredRepeats ?? '',
     notes: recipe.notes ?? '',
     ingredientLines:
@@ -141,6 +144,7 @@ export function buildPartialWriteFromForm(values: RecipeFormValues): {
       sourceUrl: values.sourceUrl.trim() || undefined,
       photoUrl: values.photoUrl.trim() || undefined,
       cuisine: values.cuisine.trim() || undefined,
+      dishType: values.dishType || undefined,
       maxPreferredRepeats:
         values.maxPreferredRepeats === '' ? undefined : Number(values.maxPreferredRepeats),
       notes: values.notes.trim() || undefined,

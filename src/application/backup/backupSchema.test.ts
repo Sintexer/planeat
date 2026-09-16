@@ -88,6 +88,22 @@ describe('backupFileSchema — tag catalog + tagIds shape', () => {
     expect(result.success).toBe(true)
   })
 
+  it('round-trips a dishType value outside the curated Select list (lenient string, not an enum)', () => {
+    const data = emptyData()
+    data.recipes = [{ ...baseRecipe(), dishType: 'some-future-or-legacy-value' }]
+
+    const result = backupFileSchema.safeParse({
+      format: 'family-menu-planner',
+      schemaVersion: CURRENT_BACKUP_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.data.recipes[0]?.dishType).toBe('some-future-or-legacy-value')
+    }
+  })
+
   it('rejects duplicate tag ids', () => {
     const data = emptyData()
     data.tags = [

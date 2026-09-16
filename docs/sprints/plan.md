@@ -582,4 +582,6 @@ Sprint 7 is done: browse-state (search/filters/scroll) persists across a round-t
 
 Sprint 8 is done: `Tag` domain entity with stable IDs (`src/domain/tags/Tag.ts`), `TagRepository`/`TagService`/`DexieTagRepository` mirroring the ingredient pattern, Dexie schema v6 migrating existing `recipes`/`simpleFoods` string tags into linked `tagIds`, backup format version 6 with a separate frozen-label `recipeSnapshot` schema, `TagsInput`-based autocomplete-or-create assignment in the recipe editor and simple-food detail screen, a `/recipes/tags` management screen (rename + usage counts), and the first Vitest test runner (`bun run test`) covering tag identity/rename/dedupe and backup version handling via in-memory repository test doubles.
 
-**Next:** Sprint 9 (clear recipe classification). Sprints 10–22 remain sequenced backlog.
+Sprint 9 is done: curated but lenient `dishType?: string` on `Recipe` (`DISH_TYPES`/`DISH_TYPE_LABELS` in `MealEnums.ts` drive the editor's `Select`, but storage/backup stay a plain optional string so an unrecognized value always round-trips), a visually distinct "Organization" section in `RecipeEditor`/`RecipeDetailScreen` grouping occasion, role, dish type, cuisine, and tags, and cuisine shown on the detail screen for the first time. No Dexie migration or backup-version bump — purely additive optional field.
+
+**Next:** Sprint 10 (basic library filtering). Sprints 11–22 remain sequenced backlog.

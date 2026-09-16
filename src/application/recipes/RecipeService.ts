@@ -100,6 +100,7 @@ export class RecipeService {
       sourceUrl: changes.sourceUrl !== undefined ? changes.sourceUrl : current.sourceUrl,
       photoUrl: changes.photoUrl !== undefined ? changes.photoUrl : current.photoUrl,
       cuisine: changes.cuisine !== undefined ? changes.cuisine : current.cuisine,
+      dishType: changes.dishType !== undefined ? changes.dishType : current.dishType,
       maxPreferredRepeats:
         changes.maxPreferredRepeats !== undefined
           ? changes.maxPreferredRepeats

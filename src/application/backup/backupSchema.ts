@@ -38,6 +38,9 @@ const recipeSchema = z.object({
   sourceUrl: z.string().optional(),
   photoUrl: z.string().optional(),
   cuisine: z.string().optional(),
+  // Lenient (not z.enum(DISH_TYPES)) so a value outside the curated Select list —
+  // legacy, hand-edited, or from a different build — always round-trips.
+  dishType: z.string().optional(),
   maxPreferredRepeats: z.number().optional(),
   notes: z.string().optional(),
   createdAt: z.number(),

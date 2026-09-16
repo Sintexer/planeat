@@ -19,10 +19,12 @@ import { useServices } from '../../app/servicesContext'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { RecipePhotoThumb } from '../components/RecipePhotoThumb'
 import {
+  DISH_TYPE_LABELS,
   EFFORT_LABELS,
   MEAL_TYPE_LABELS,
   RECIPE_ROLE_LABELS,
   REUSE_POLICY_LABELS,
+  type DishType,
 } from '../../domain/shared/MealEnums'
 import { scaleFactor } from '../../domain/shared/scaleQuantity'
 import { precisionStep } from '../components/quantityStep'
@@ -170,32 +172,41 @@ export function RecipeDetailScreen() {
         person
       </Text>
 
-      <Group gap={4}>
-        {recipe.roles.map((role) => (
-          <Badge key={role} variant="light">
-            {RECIPE_ROLE_LABELS[role]}
-          </Badge>
-        ))}
-        {recipe.mealTypes.map((mealType) => (
-          <Badge key={mealType} variant="outline">
-            {MEAL_TYPE_LABELS[mealType]}
-          </Badge>
-        ))}
-      </Group>
-
-      {recipe.tagIds.length > 0 && (
+      <Stack gap="xs">
+        <Title order={4}>Organization</Title>
         <Group gap={4}>
-          {recipe.tagIds.map((tagId) => {
-            const name = tagsById.get(tagId)
-            if (!name) return null
-            return (
-              <Badge key={tagId} variant="dot">
-                {name}
-              </Badge>
-            )
-          })}
+          {recipe.roles.map((role) => (
+            <Badge key={role} variant="light">
+              {RECIPE_ROLE_LABELS[role]}
+            </Badge>
+          ))}
+          {recipe.mealTypes.map((mealType) => (
+            <Badge key={mealType} variant="outline">
+              {MEAL_TYPE_LABELS[mealType]}
+            </Badge>
+          ))}
+          {recipe.dishType && (
+            <Badge variant="filled">
+              {DISH_TYPE_LABELS[recipe.dishType as DishType] ?? recipe.dishType}
+            </Badge>
+          )}
+          {recipe.cuisine && <Badge variant="outline">{recipe.cuisine}</Badge>}
         </Group>
-      )}
+
+        {recipe.tagIds.length > 0 && (
+          <Group gap={4}>
+            {recipe.tagIds.map((tagId) => {
+              const name = tagsById.get(tagId)
+              if (!name) return null
+              return (
+                <Badge key={tagId} variant="dot">
+                  {name}
+                </Badge>
+              )
+            })}
+          </Group>
+        )}
+      </Stack>
 
       <Text size="sm">
         {EFFORT_LABELS[recipe.effort]} · {REUSE_POLICY_LABELS[recipe.reusePolicy]}
