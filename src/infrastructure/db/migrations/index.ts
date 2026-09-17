@@ -210,4 +210,22 @@ export function applyMigrations(dexie: Dexie): void {
         }
       }
     })
+
+  dexie.version(7).stores({
+    recipes: 'id, name',
+    settings: 'id',
+    ingredients: 'id, name',
+    simpleFoods: 'id, name, ingredientId',
+    plans: 'id, startDate',
+    mealSlots: 'id, planId, [planId+date+mealType]',
+    mealComponents: 'id, slotId',
+    cookingEvents: 'id, planId, sessionId',
+    prepSessions: 'id, planId, [planId+date]',
+    groceryLists: 'id, status, sourcePlanId',
+    groceryItems: 'id, listId',
+    mealFavorites: 'id, name',
+    recipePairings: 'id, recipeId',
+    tags: 'id, name',
+    libraryViews: 'id, name',
+  })
 }

@@ -75,6 +75,8 @@ interface DishCatalogProps {
   pickerSections?: boolean
   /** Archived tags stay out of the filter drawer unless already applied. */
   archivedTagIds?: ReadonlySet<TagId>
+  skipTagIds?: ReadonlySet<TagId>
+  skipIngredientIds?: ReadonlySet<string>
 }
 
 function activeFilterCount(filters: DishCatalogFilters, showSuggested: boolean): number {
@@ -206,6 +208,8 @@ export function DishCatalog({
   ingredientOptions = [],
   pickerSections = false,
   archivedTagIds,
+  skipTagIds,
+  skipIngredientIds,
 }: DishCatalogProps) {
   const [filterDrawerOpened, setFilterDrawerOpened] = useState(false)
   const tagFacets = useMemo(
@@ -226,7 +230,9 @@ export function DishCatalog({
   }, [leftovers, filters.query])
 
   const filtered = useMemo(() => {
-    const matched = items.filter((item) => itemMatchesFilters(item, filters))
+    const matched = items.filter((item) =>
+      itemMatchesFilters(item, filters, { skipTagIds, skipIngredientIds }),
+    )
     const q = filters.query.trim()
     if (!q) {
       return [...matched].sort(
@@ -238,7 +244,7 @@ export function DishCatalog({
       threshold: 0.4,
     })
     return fuse.search(q).map((result) => result.item)
-  }, [items, filters])
+  }, [items, filters, skipTagIds, skipIngredientIds])
 
   const searching = filters.query.trim().length > 0
 
@@ -316,7 +322,7 @@ export function DishCatalog({
     })
   }
   const ingredientLabel = (id: string) =>
-    ingredientOptions.find((option) => option.id === id)?.label ?? id
+    ingredientOptions.find((option) => option.id === id)?.label ?? 'Unavailable ingredient'
   for (const id of filters.containsIngredientIds) {
     appliedChips.push({
       key: `contains:${id}`,
@@ -467,6 +473,8 @@ export function DishCatalog({
         tagFacets={tagFacets}
         showKindFilter={showKindFilter}
         ingredientOptions={ingredientOptions}
+        skipTagIds={skipTagIds}
+        skipIngredientIds={skipIngredientIds}
       />
 
       {layout === 'page' ? (

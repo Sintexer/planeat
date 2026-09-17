@@ -30,7 +30,7 @@ Displayed quantities follow the household measurement presentation preference wi
 
 Full recipe library (create/edit/detail, ingredient catalog, simple foods, scale preview, household tags, optional dish type / cuisine). Recipes and simple foods share catalog UI; they stay separate records. Compact cards show kind and recorded time when present.
 
-Library search is Fuse on name/tags/subtitle. Filters live in a drawer: kind, meal occasion, meal role, effort, household tags, maximum recorded total time, contains/exclude catalog ingredients (IDs; aliases only help pick the row). Missing total time is not treated as zero. Unlinked imported ingredient lines do not satisfy contains/exclude; the drawer states this is not an allergy-safety guarantee. Sort and grouping persist in settings.
+Library search is Fuse on name/tags/subtitle. Filters live in a drawer: kind, meal occasion, meal role, effort, household tags, maximum recorded total time, contains/exclude catalog ingredients (IDs; aliases only help pick the row). Missing total time is not treated as zero. Unlinked imported ingredient lines do not satisfy contains/exclude; the drawer states this is not an allergy-safety guarantee. Sort and grouping persist in settings. Named saved views store the current query, filters, sort, and grouping; restoring a view re-runs it against the live catalog. Changing browse state never silently overwrites a view — use Update view or Save as new. Deleted tag/ingredient filter ids stay visible to clear; they are skipped while matching so the library is not emptied. Archived tags still filter by live assignments.
 
 Household tags can be renamed, archived, merged, or deleted from `/recipes/tags`. Merge collapses duplicate live assignments; delete removes the tag only (recipes and simple foods stay) after confirming affected-item counts. Archived tags stay on assigned items and remain recoverable from tag management, but they are omitted from create autocomplete and default filter facets. Applied filters and chips still work if a tag is archived or missing. Cooking-event snapshots keep frozen historical label strings.
 
@@ -40,6 +40,6 @@ Structured import (JSON / JSON-LD / HTML with embedded JSON-LD) prefills a draft
 
 ## Settings
 
-Household size, week-start day, planning preferences, catalog sort/group, UI locale, measurement presentation (default as-entered), JSON backup export/restore (replace-all).
+Household size, week-start day, planning preferences, catalog sort/group, UI locale, measurement presentation (default as-entered), JSON backup export/restore (replace-all), including saved library views.
 
 Locale and measurement presentation must not change stored quantities, IDs, or local calendar dates.

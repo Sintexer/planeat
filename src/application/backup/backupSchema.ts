@@ -244,6 +244,28 @@ const groceryItemSchema = z.object({
   shoppingSection: z.string().optional(),
 })
 
+const libraryViewCriteriaSchema = z.object({
+  query: z.string(),
+  kind: z.enum(['all', 'recipe', 'simple-food']),
+  mealTypes: z.array(z.enum(MEAL_TYPES)),
+  roles: z.array(z.enum(RECIPE_ROLES)),
+  effort: z.union([z.enum(EFFORT_LEVELS), z.literal('all')]),
+  tagIds: z.array(z.string()),
+  maxTotalTimeMinutes: z.union([z.number(), z.literal('')]),
+  containsIngredientIds: z.array(z.string()),
+  excludeIngredientIds: z.array(z.string()),
+  sort: z.enum(['relevance', 'name', 'recent-added', 'recent-edited', 'shortest-time']),
+  group: z.enum(['none', 'kind', 'dish-type']),
+})
+
+const libraryViewSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  criteria: libraryViewCriteriaSchema,
+  createdAt: z.number(),
+  updatedAt: z.number(),
+})
+
 export const backupFileSchema = z
   .object({
     format: z.literal('family-menu-planner'),
@@ -264,6 +286,7 @@ export const backupFileSchema = z
       mealFavorites: z.array(mealFavoriteSchema),
       recipePairings: z.array(recipePairingSchema),
       tags: z.array(tagSchema),
+      libraryViews: z.array(libraryViewSchema),
     }),
   })
   .refine(
@@ -335,6 +358,13 @@ export const backupFileSchema = z
       return new Set(ids).size === ids.length
     },
     { message: 'Backup contains duplicate tag ids', path: ['data', 'tags'] },
+  )
+  .refine(
+    (backup) => {
+      const ids = backup.data.libraryViews.map((view) => view.id)
+      return new Set(ids).size === ids.length
+    },
+    { message: 'Backup contains duplicate library-view ids', path: ['data', 'libraryViews'] },
   )
 
 /** Re-export for UI selects that want the same unit list as validation awareness. */

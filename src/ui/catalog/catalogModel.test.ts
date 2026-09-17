@@ -184,6 +184,20 @@ describe('itemMatchesFilters', () => {
     expect(itemMatchesFilters(item, { ...base, tagIds: ['archived-or-gone'] })).toBe(true)
     expect(itemMatchesFilters(item, { ...base, tagIds: ['other'] })).toBe(false)
   })
+
+  it('skips missing tag ids so a deleted-tag filter does not empty the library', () => {
+    const pasta = makeItem({ key: 'pasta', tagIds: ['kids'] })
+    const filters = { ...base, tagIds: ['deleted', 'kids'] }
+    expect(itemMatchesFilters(pasta, filters)).toBe(true)
+    expect(itemMatchesFilters(pasta, filters, { skipTagIds: new Set(['deleted']) })).toBe(true)
+    expect(
+      itemMatchesFilters(
+        pasta,
+        { ...base, tagIds: ['deleted'] },
+        { skipTagIds: new Set(['deleted']) },
+      ),
+    ).toBe(true)
+  })
 })
 
 describe('uniqueTagFacets', () => {

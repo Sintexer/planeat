@@ -1,4 +1,5 @@
-import { ActionIcon, Group, Stack, Text } from '@mantine/core'
+import { ActionIcon, Alert, Group, Stack, Text } from '@mantine/core'
+import { notifications } from '@mantine/notifications'
 import { IconFileImport, IconPlus, IconCarrot, IconApple, IconTag } from '@tabler/icons-react'
 import { useLayoutEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
@@ -10,8 +11,18 @@ import {
   type CatalogGroup,
   type CatalogSort,
 } from '../../domain/shared/MealEnums'
-import { DishCatalog } from '../catalog/DishCatalog'
 import {
+  findStaleLibraryViewRefs,
+  libraryViewCriteriaEquals,
+  skipIdsForMatching,
+  type LibraryView,
+  type LibraryViewId,
+} from '../../domain/libraryViews/LibraryView'
+import { DishCatalog } from '../catalog/DishCatalog'
+import { LibraryViewsBar } from '../catalog/LibraryViewsBar'
+import {
+  catalogBrowseFromCriteria,
+  criteriaFromCatalogBrowse,
   defaultDishCatalogFilters,
   recipeToCatalogItem,
   simpleFoodToCatalogItem,
@@ -20,6 +31,7 @@ import {
 } from '../catalog/catalogModel'
 import { PageTitle } from '../components/ScreenHeader'
 import { useIngredients } from '../hooks/useIngredients'
+import { useLibraryViews } from '../hooks/useLibraryViews'
 import { useRecipes } from '../hooks/useRecipes'
 import { useSettings } from '../hooks/useSettings'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
@@ -30,13 +42,20 @@ import { useIngredientLabel } from '../localization/useIngredientLabel'
 import { useLocalization } from '../localization/LocalizationContext'
 import { recipesBrowseState } from './recipesBrowseState'
 
+function viewErrorMessage(error: 'empty-name' | 'name-collision' | 'not-found'): string {
+  if (error === 'empty-name') return 'View name cannot be empty'
+  if (error === 'name-collision') return 'Another view already has that name'
+  return 'Saved view not found'
+}
+
 export function RecipesScreen() {
   const recipes = useRecipes()
   const simpleFoods = useSimpleFoods()
   const tags = useTags()
   const ingredients = useIngredients()
   const settings = useSettings()
-  const { settingsRepository } = useServices()
+  const views = useLibraryViews()
+  const { settingsRepository, libraryViewService } = useServices()
   const navigate = useNavigate()
   const formatQty = useFormatQuantity()
   const { t } = useLocalization()
@@ -45,6 +64,9 @@ export function RecipesScreen() {
     ...defaultDishCatalogFilters('all'),
     ...recipesBrowseState.filters,
   }))
+  const [loadedViewId, setLoadedViewId] = useState<LibraryViewId | null>(
+    () => recipesBrowseState.loadedViewId,
+  )
 
   const sort: CatalogSort = settings?.catalogSort ?? DEFAULT_CATALOG_SORT
   const group: CatalogGroup = settings?.catalogGroup ?? DEFAULT_CATALOG_GROUP
@@ -54,12 +76,51 @@ export function RecipesScreen() {
     setFilters(next)
   }
 
+  const applyView = (view: LibraryView) => {
+    const browse = catalogBrowseFromCriteria(view.criteria)
+    recipesBrowseState.filters = browse.filters
+    recipesBrowseState.loadedViewId = view.id
+    setFilters(browse.filters)
+    setLoadedViewId(view.id)
+    void settingsRepository.update({
+      catalogSort: browse.sort,
+      catalogGroup: browse.group,
+    })
+  }
+
+  const currentCriteria = useMemo(
+    () => criteriaFromCatalogBrowse(filters, sort, group),
+    [filters, sort, group],
+  )
+
+  const loadedView = views?.find((view) => view.id === loadedViewId)
+  const dirty = Boolean(
+    loadedView && !libraryViewCriteriaEquals(loadedView.criteria, currentCriteria),
+  )
+
   const tagNamesById = useMemo(() => {
     const map = new Map<string, string>()
     for (const tag of tags ?? []) map.set(tag.id, tag.name)
     return map
   }, [tags])
   const archivedTagIds = useMemo(() => archivedTagIdSet(tags ?? []), [tags])
+  const tagsById = useMemo(() => {
+    const records = new Map<string, { archived?: boolean }>()
+    for (const tag of tags ?? []) records.set(tag.id, { archived: tag.archived })
+    return records
+  }, [tags])
+  const knownIngredientIds = useMemo(
+    () => new Set((ingredients ?? []).map((ingredient) => ingredient.id)),
+    [ingredients],
+  )
+  const staleRefs = useMemo(
+    () => findStaleLibraryViewRefs(currentCriteria, tagsById, knownIngredientIds),
+    [currentCriteria, tagsById, knownIngredientIds],
+  )
+  const { skipTagIds, skipIngredientIds } = useMemo(
+    () => skipIdsForMatching(staleRefs),
+    [staleRefs],
+  )
 
   const items = useMemo(() => {
     const recipeItems = (recipes ?? []).map((recipe) =>
@@ -98,11 +159,6 @@ export function RecipesScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items.length > 0])
 
-  // Capture the scroll position at the moment of navigating away, not via an unmount
-  // effect or a continuous scroll listener: React unmounts this screen and mounts the
-  // destination screen in the same commit, so by the time any effect cleanup runs, the
-  // DOM (and window.scrollY) already reflects the new, usually-shorter page. Reading it
-  // here, before navigate() is even called, is the only point where it's still correct.
   const captureScroll = () => {
     recipesBrowseState.scrollY = window.scrollY
   }
@@ -215,6 +271,70 @@ export function RecipesScreen() {
         </Stack>
       )}
 
+      {(recipes !== undefined || simpleFoods !== undefined) && (
+        <LibraryViewsBar
+          views={views ?? []}
+          loadedViewId={loadedViewId}
+          dirty={dirty}
+          onSelectView={(id) => {
+            if (!id) {
+              recipesBrowseState.loadedViewId = null
+              setLoadedViewId(null)
+              return
+            }
+            const view = views?.find((candidate) => candidate.id === id)
+            if (view) applyView(view)
+          }}
+          onSaveAsNew={async (name) => {
+            const result = await libraryViewService.create(name, currentCriteria)
+            if (!result.ok) {
+              notifications.show({ message: viewErrorMessage(result.error), color: 'red' })
+              return false
+            }
+            recipesBrowseState.loadedViewId = result.view.id
+            setLoadedViewId(result.view.id)
+            notifications.show({ message: `Saved “${result.view.name}”`, color: 'green' })
+            return true
+          }}
+          onUpdate={async () => {
+            if (!loadedViewId) return
+            const result = await libraryViewService.updateCriteria(loadedViewId, currentCriteria)
+            if (!result.ok) {
+              notifications.show({ message: viewErrorMessage(result.error), color: 'red' })
+            }
+          }}
+          onRename={async (name) => {
+            if (!loadedViewId) return false
+            const result = await libraryViewService.rename(loadedViewId, name)
+            if (!result.ok) {
+              notifications.show({ message: viewErrorMessage(result.error), color: 'red' })
+              return false
+            }
+            notifications.show({ message: 'View renamed', color: 'green' })
+            return true
+          }}
+          onDelete={async () => {
+            if (!loadedViewId) return
+            const result = await libraryViewService.delete(loadedViewId)
+            if (!result.ok) {
+              notifications.show({ message: viewErrorMessage(result.error), color: 'red' })
+              return
+            }
+            recipesBrowseState.loadedViewId = null
+            setLoadedViewId(null)
+            notifications.show({ message: 'View deleted', color: 'green' })
+          }}
+        />
+      )}
+
+      {staleRefs.length > 0 && (
+        <Alert color="yellow" title="Some filters are no longer in the catalog">
+          Archived tags still apply by name. Deleted tags and missing ingredients stay visible as
+          chips so you can clear them; they are ignored while matching so this view does not empty
+          the library.
+        </Alert>
+      )}
+
       {(recipes !== undefined || simpleFoods !== undefined) && items.length > 0 && (
         <DishCatalog
           items={items}
@@ -222,6 +342,8 @@ export function RecipesScreen() {
           onFiltersChange={setFiltersAndPersist}
           tagNamesById={tagNamesById}
           archivedTagIds={archivedTagIds}
+          skipTagIds={skipTagIds}
+          skipIngredientIds={skipIngredientIds}
           sort={sort}
           onSortChange={(next) => void settingsRepository.update({ catalogSort: next })}
           group={group}

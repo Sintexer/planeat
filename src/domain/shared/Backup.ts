@@ -10,6 +10,7 @@ import type { PrepSession } from '../plans/PrepSession'
 import type { Ingredient } from '../ingredients/Ingredient'
 import type { Recipe } from '../recipes/Recipe'
 import type { SimpleFood } from '../simpleFoods/SimpleFood'
+import type { LibraryView } from '../libraryViews/LibraryView'
 import type { Tag } from '../tags/Tag'
 import type { Settings } from './Settings'
 
@@ -32,5 +33,6 @@ export interface BackupFile {
     mealFavorites: MealFavorite[]
     recipePairings: RecipePairing[]
     tags: Tag[]
+    libraryViews: LibraryView[]
   }
 }
