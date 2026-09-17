@@ -426,6 +426,7 @@ export function AddComponentFlow({
             disabled={busy}
             showSuggestedFilter
             ingredientOptions={ingredientOptions}
+            pickerSections
           />
         )}
 
