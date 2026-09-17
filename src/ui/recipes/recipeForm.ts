@@ -1,3 +1,4 @@
+import type { MeasurementStatus } from '../../application/recipes/ImportedRecipeDraft'
 import type { Recipe, RecipeIngredientLine, RecipeWriteInput } from '../../domain/recipes/Recipe'
 import type { Quantity } from '../../domain/shared/Quantity'
 import type { TagId } from '../../domain/tags/Tag'
@@ -12,6 +13,8 @@ export type RecipeFormIngredientLine = {
   quantityUnit: string
   quantityText: string
   note: string
+  sourceText?: string
+  measurementStatus?: MeasurementStatus
 }
 
 export type RecipeFormValues = {
@@ -121,6 +124,12 @@ export function recipeToFormValues(
             quantityUnit: line.quantity?.unit ?? 'g',
             quantityText: line.quantityText ?? '',
             note: line.note ?? '',
+            sourceText: line.sourceText,
+            measurementStatus: line.quantity?.unit
+              ? measurementStatusForUnit(line.quantity.unit)
+              : line.quantityText
+                ? ('unresolved' as const)
+                : undefined,
           })),
   }
 }
@@ -162,6 +171,13 @@ export function buildPartialWriteFromForm(values: RecipeFormValues): {
   }
 }
 
+export function measurementStatusForUnit(unit: string): MeasurementStatus {
+  if (unit === 'cup') return 'ambiguous-cup'
+  if (unit === 'tbsp') return 'ambiguous-tbsp'
+  if (unit === 'oz') return 'ambiguous-oz'
+  return 'known'
+}
+
 export function formLineToIngredientLine(
   line: RecipeFormIngredientLine,
   ingredientId: string,
@@ -173,5 +189,6 @@ export function formLineToIngredientLine(
     quantityText: isTextMode ? line.quantityText.trim() || undefined : undefined,
     note: line.note.trim() || undefined,
     displayText: line.name.trim(),
+    sourceText: line.sourceText?.trim() || undefined,
   }
 }

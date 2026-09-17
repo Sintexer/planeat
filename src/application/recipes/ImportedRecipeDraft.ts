@@ -1,8 +1,16 @@
+export type MeasurementStatus =
+  'known' | 'ambiguous-cup' | 'ambiguous-tbsp' | 'ambiguous-oz' | 'unresolved'
+
 export type ImportedIngredientLine = {
   name: string
   quantityValue: number | ''
   quantityUnit: string
+  /** Non-numeric / unresolved amount text (e.g. "to taste", a range). */
+  quantityText: string
   note: string
+  /** Decoded original recipeIngredient string — always preserved. */
+  originalText: string
+  measurementStatus: MeasurementStatus
 }
 
 /** Application-layer draft that maps 1:1 onto RecipeFormValues in the UI. */

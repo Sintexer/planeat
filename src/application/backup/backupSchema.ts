@@ -18,6 +18,7 @@ const recipeIngredientLineSchema = z.object({
   quantityText: z.string().optional(),
   note: z.string().optional(),
   displayText: z.string(),
+  sourceText: z.string().optional(),
 })
 
 const recipeSchema = z.object({

@@ -1,6 +1,7 @@
-import type { ImportedIngredientLine } from './ImportedRecipeDraft'
-import { isQuantityUnit } from '../../domain/shared/Quantity'
+import { findUnitDefinition } from '../../domain/shared/UnitRegistry'
+import type { ImportedIngredientLine, MeasurementStatus } from './ImportedRecipeDraft'
 
+/** Word → registry key (or the unspecified `oz` token). Never maps oz/lb onto `piece`. */
 const UNIT_ALIASES: Record<string, string> = {
   g: 'g',
   gram: 'g',
@@ -26,12 +27,9 @@ const UNIT_ALIASES: Record<string, string> = {
   tsp: 'tsp',
   teaspoon: 'tsp',
   teaspoons: 'tsp',
-  oz: 'piece', // not in QUANTITY_UNITS — map to piece for storage
-  ounce: 'piece',
-  ounces: 'piece',
-  lb: 'piece',
-  pound: 'piece',
-  pounds: 'piece',
+  oz: 'oz',
+  ounce: 'oz',
+  ounces: 'oz',
   piece: 'piece',
   pieces: 'piece',
   serving: 'serving',
@@ -106,7 +104,6 @@ function parseNumberToken(token: string): number | undefined {
     const v = evalFraction(t)
     return Number.isFinite(v) && v > 0 ? v : undefined
   }
-  // Mixed number like 1.5 already decimal, or "1 1/2" handled before this
   const v = Number(t)
   return Number.isFinite(v) && v > 0 ? v : undefined
 }
@@ -114,11 +111,9 @@ function parseNumberToken(token: string): number | undefined {
 function normalizeUnicodeFractions(text: string): string {
   let result = text
   for (const [glyph, ascii] of Object.entries(VULGAR_FRACTIONS)) {
-    // Mixed number: digit immediately before vulgar fraction → "1 1/2"
     result = result.replace(new RegExp(`(\\d)${glyph}`, 'g'), `$1 ${ascii}`)
     result = result.replaceAll(glyph, ascii)
   }
-  // Collapse "1 1/2" into a single evaluable form later via regex
   return result
 }
 
@@ -129,18 +124,15 @@ function stripTrailingPrice(text: string): string {
 function extractTrailingNotes(text: string): { remainder: string; notes: string[] } {
   const notes: string[] = []
   let remainder = text.trim()
-  // Pull trailing parentheticals from the end repeatedly
   while (true) {
     const match = /^(.*)\(([^)]+)\)\s*$/.exec(remainder)
     if (!match) break
     const before = match[1].trim()
     const inside = match[2].trim()
-    // Don't treat a lone price leftover as note (already stripped), but keep other notes
     if (/^\$[0-9.]+[*]*$/.test(inside)) {
       remainder = before
       continue
     }
-    // Notes that embed a price: "freshly cracked, $0.02" → drop the price part
     const cleaned = inside
       .replace(/,?\s*\$[0-9.]+[*]*\s*/g, '')
       .replace(/\s*,\s*$/g, '')
@@ -151,10 +143,24 @@ function extractTrailingNotes(text: string): { remainder: string; notes: string[
   return { remainder: remainder.trim(), notes }
 }
 
-function resolveUnit(raw: string): string | undefined {
+function statusForUnit(unit: string): MeasurementStatus {
+  if (unit === 'cup') return 'ambiguous-cup'
+  if (unit === 'tbsp') return 'ambiguous-tbsp'
+  if (unit === 'oz') return 'ambiguous-oz'
+  const definition = findUnitDefinition(unit)
+  if (definition?.legacy) {
+    if (definition.key === 'cup') return 'ambiguous-cup'
+    if (definition.key === 'tbsp') return 'ambiguous-tbsp'
+  }
+  return 'known'
+}
+
+function classifyUnit(raw: string): { unit: string; status: MeasurementStatus } | undefined {
   const key = raw.toLowerCase()
-  if (UNIT_ALIASES[key]) return UNIT_ALIASES[key]
-  if (isQuantityUnit(key)) return key
+  const aliased = UNIT_ALIASES[key]
+  if (aliased) return { unit: aliased, status: statusForUnit(aliased) }
+  const definition = findUnitDefinition(key)
+  if (definition) return { unit: definition.key, status: statusForUnit(definition.key) }
   return undefined
 }
 
@@ -162,21 +168,50 @@ function joinNotes(parts: string[]): string {
   return parts.filter(Boolean).join('; ')
 }
 
+function parsedLine(
+  fields: Omit<ImportedIngredientLine, 'originalText'> & { originalText: string },
+): ImportedIngredientLine {
+  return fields
+}
+
+function unresolvedLine(input: {
+  originalText: string
+  name: string
+  quantityText: string
+  note: string
+}): ImportedIngredientLine {
+  return {
+    name: input.name,
+    quantityValue: '',
+    quantityUnit: '',
+    quantityText: input.quantityText,
+    note: input.note,
+    originalText: input.originalText,
+    measurementStatus: 'unresolved',
+  }
+}
+
 /**
  * Parse a free-text recipeIngredient line into name + qty/unit/note.
- * Name is the cleaned remainder (not the full original string).
+ * Always keeps `originalText`. Does not invent a cup/tbsp convention, oz family, or range endpoint.
  */
 export function parseIngredientLine(line: string): ImportedIngredientLine {
   const decoded = decodeHtmlEntities(line).trim()
   const withoutPrice = stripTrailingPrice(decoded)
   const { remainder: afterNotes, notes } = extractTrailingNotes(withoutPrice)
   const normalized = normalizeUnicodeFractions(afterNotes).replace(/\s+/g, ' ').trim()
+  const note = joinNotes(notes)
+  const originalText = decoded
 
   if (!normalized) {
-    return { name: withoutPrice || decoded, quantityValue: '', quantityUnit: 'g', note: '' }
+    return unresolvedLine({
+      originalText,
+      name: withoutPrice || decoded,
+      quantityText: withoutPrice || decoded,
+      note,
+    })
   }
 
-  // Mixed number: "1 1/2 tsp …"
   const mixed =
     /^(\d+)\s+(\d+\/\d+)\s+([a-zA-Z]+)\b(?:\s+of\s+|\s+)?(.+)$/i.exec(normalized) ??
     /^(\d+)\s+(\d+\/\d+)\s+(.+)$/i.exec(normalized)
@@ -187,102 +222,131 @@ export function parseIngredientLine(line: string): ImportedIngredientLine {
     const value = whole + frac
     if (Number.isFinite(value) && value > 0) {
       if (mixed.length === 5) {
-        const unit = resolveUnit(mixed[3])
-        if (unit) {
-          return {
+        const classified = classifyUnit(mixed[3])
+        if (classified) {
+          return parsedLine({
             name: mixed[4].trim(),
             quantityValue: value,
-            quantityUnit: unit,
-            note: joinNotes(notes),
-          }
+            quantityUnit: classified.unit,
+            quantityText: '',
+            note,
+            originalText,
+            measurementStatus: classified.status,
+          })
         }
+        if (COUNT_WORDS.has(mixed[3].toLowerCase())) {
+          return parsedLine({
+            name: `${mixed[3]} ${mixed[4]}`.trim(),
+            quantityValue: value,
+            quantityUnit: 'piece',
+            quantityText: '',
+            note,
+            originalText,
+            measurementStatus: 'known',
+          })
+        }
+        return unresolvedLine({
+          originalText,
+          name: mixed[4].trim(),
+          quantityText: `${mixed[1]} ${mixed[2]} ${mixed[3]}`,
+          note,
+        })
       }
-      return {
-        name: (mixed.length === 5 ? `${mixed[3]} ${mixed[4]}` : mixed[3]).trim(),
+      return parsedLine({
+        name: mixed[3].trim(),
         quantityValue: value,
         quantityUnit: 'piece',
-        note: joinNotes(notes),
-      }
+        quantityText: '',
+        note,
+        originalText,
+        measurementStatus: 'known',
+      })
     }
   }
 
-  // Range with unit: "1-3 tsp salt" / "1–3 tsp salt"
   const ranged =
     /^(\d+(?:\.\d+)?)\s*[-–—]\s*(\d+(?:\.\d+)?)\s+([a-zA-Z]+)\b(?:\s+of\s+|\s+)?(.+)$/i.exec(
       normalized,
-    )
+    ) ?? /^(\d+(?:\.\d+)?)\s*[-–—]\s*(\d+(?:\.\d+)?)\s+(.+)$/i.exec(normalized)
   if (ranged) {
-    const low = Number(ranged[1])
-    const high = Number(ranged[2])
-    const unit = resolveUnit(ranged[3])
-    if (Number.isFinite(low) && low > 0 && unit) {
-      return {
-        name: ranged[4].trim(),
-        quantityValue: low,
-        quantityUnit: unit,
-        note: joinNotes([...notes, `range ${ranged[1]}-${ranged[2]}`]),
-      }
-    }
-    if (Number.isFinite(low) && low > 0) {
-      return {
-        name: normalized.replace(/^\d+(?:\.\d+)?\s*[-–—]\s*\d+(?:\.\d+)?\s*/, '').trim(),
-        quantityValue: low,
-        quantityUnit: 'piece',
-        note: joinNotes([...notes, Number.isFinite(high) ? `range ${ranged[1]}-${ranged[2]}` : '']),
-      }
-    }
+    const classified = ranged.length === 5 ? classifyUnit(ranged[3]) : undefined
+    const name =
+      ranged.length === 5
+        ? classified
+          ? ranged[4].trim()
+          : `${ranged[3]} ${ranged[4]}`.trim()
+        : ranged[3].trim()
+    const amountPhrase =
+      ranged.length === 5 ? `${ranged[1]}-${ranged[2]} ${ranged[3]}` : `${ranged[1]}-${ranged[2]}`
+    return unresolvedLine({
+      originalText,
+      name,
+      quantityText: amountPhrase,
+      note,
+    })
   }
 
-  // Qty + unit + name: "8 cups chicken broth" / "1/4 tsp black pepper"
-  const withUnit = /^(\d+(?:\.\d+)?|\d+\/\d+)\s*([a-zA-Z]+)\b(?:\s+of\s+|\s+)?(.+)$/i.exec(
+  const withUnit = /^(\d+(?:\.\d+)?|\d+\/\d+)\s*([a-zA-Z-]+)\b(?:\s+of\s+|\s+)?(.+)$/i.exec(
     normalized,
   )
   if (withUnit) {
     const value = parseNumberToken(withUnit[1])
     const unitRaw = withUnit[2]
     const rest = withUnit[3].trim()
-    const unit = resolveUnit(unitRaw)
-    if (value !== undefined && unit) {
-      return {
+    const classified = classifyUnit(unitRaw)
+    if (value !== undefined && classified) {
+      return parsedLine({
         name: rest,
         quantityValue: value,
-        quantityUnit: unit,
-        note: joinNotes(notes),
-      }
+        quantityUnit: classified.unit,
+        quantityText: '',
+        note,
+        originalText,
+        measurementStatus: classified.status,
+      })
     }
-    // Count word as unit: "3 garlic cloves" already covered if cloves is rest;
-    // "3 cloves garlic" → unitRaw cloves
     if (value !== undefined && COUNT_WORDS.has(unitRaw.toLowerCase())) {
-      return {
+      return parsedLine({
         name: rest ? `${unitRaw} ${rest}`.trim() : unitRaw,
         quantityValue: value,
         quantityUnit: 'piece',
-        note: joinNotes(notes),
-      }
+        quantityText: '',
+        note,
+        originalText,
+        measurementStatus: 'known',
+      })
+    }
+    if (value !== undefined) {
+      return unresolvedLine({
+        originalText,
+        name: rest,
+        quantityText: `${withUnit[1]} ${unitRaw}`,
+        note,
+      })
     }
   }
 
-  // Qty + name without measure unit: "3 garlic cloves", "1 medium yellow onion"
   const bareQty = /^(\d+(?:\.\d+)?|\d+\/\d+)\s+(.+)$/i.exec(normalized)
   if (bareQty) {
     const value = parseNumberToken(bareQty[1])
     const rest = bareQty[2].trim()
     if (value !== undefined && rest) {
-      // "1 medium yellow onion" — medium is a size adjective, keep in name
-      return {
+      return parsedLine({
         name: rest,
         quantityValue: value,
         quantityUnit: 'piece',
-        note: joinNotes(notes),
-      }
+        quantityText: '',
+        note,
+        originalText,
+        measurementStatus: 'known',
+      })
     }
   }
 
-  // Fraction-only leading without ASCII digits already normalized: "1/4 tsp …" handled above
-  return {
+  return unresolvedLine({
+    originalText,
     name: normalized,
-    quantityValue: '',
-    quantityUnit: 'g',
-    note: joinNotes(notes),
-  }
+    quantityText: normalized,
+    note,
+  })
 }

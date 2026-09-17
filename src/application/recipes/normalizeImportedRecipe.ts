@@ -111,12 +111,12 @@ function parseYield(value: unknown): { value: number | ''; unit: string; hint?: 
     const num = Number(match[1])
     if (Number.isFinite(num) && num > 0) {
       const lower = text.toLowerCase()
-      const unit = lower.includes('cup')
-        ? 'cup'
-        : lower.includes('g')
-          ? 'g'
-          : lower.includes('ml')
-            ? 'ml'
+      const unit = /\bcups?\b/.test(lower)
+        ? 'cup' // unspecified convention — never invent cup-us / cup-metric
+        : /\bml\b/.test(lower)
+          ? 'ml'
+          : /\b(g|grams?)\b/.test(lower)
+            ? 'g'
             : 'serving'
       return { value: num, unit }
     }
@@ -134,8 +134,31 @@ export function normalizeImportedRecipe(node: SchemaOrgRecipeNode): NormalizedIm
   const lines = ingredientStrings(node).map(parseIngredientLine)
   if (lines.length === 0) {
     hints.push('No ingredients found — add them before saving.')
-  } else if (lines.some((l) => l.quantityValue === '')) {
-    hints.push('Some ingredient quantities were ambiguous — check the lines marked with empty qty.')
+  } else {
+    const cupCount = lines.filter((l) => l.measurementStatus === 'ambiguous-cup').length
+    const tbspCount = lines.filter((l) => l.measurementStatus === 'ambiguous-tbsp').length
+    const ozCount = lines.filter((l) => l.measurementStatus === 'ambiguous-oz').length
+    const unresolvedCount = lines.filter((l) => l.measurementStatus === 'unresolved').length
+    if (cupCount > 0) {
+      hints.push(
+        `${cupCount} ingredient line${cupCount === 1 ? '' : 's'} use cup — confirm US, metric, or keep unspecified.`,
+      )
+    }
+    if (tbspCount > 0) {
+      hints.push(
+        `${tbspCount} ingredient line${tbspCount === 1 ? '' : 's'} use tablespoon with no specified convention — keep unspecified or pick a known unit.`,
+      )
+    }
+    if (ozCount > 0) {
+      hints.push(
+        `${ozCount} ingredient line${ozCount === 1 ? '' : 's'} say ounce — confirm weight or fluid, or leave unresolved.`,
+      )
+    }
+    if (unresolvedCount > 0) {
+      hints.push(
+        `${unresolvedCount} ingredient measurement${unresolvedCount === 1 ? '' : 's'} could not be resolved — original text is kept; you can save without resolving.`,
+      )
+    }
   }
 
   const active = parseIso8601DurationMinutes(node.prepTime)
@@ -174,7 +197,19 @@ export function normalizeImportedRecipe(node: SchemaOrgRecipeNode): NormalizedIm
     maxPreferredRepeats: '',
     notes: asString(node.description) ?? '',
     ingredientLines:
-      lines.length > 0 ? lines : [{ name: '', quantityValue: '', quantityUnit: 'g', note: '' }],
+      lines.length > 0
+        ? lines
+        : [
+            {
+              name: '',
+              quantityValue: '',
+              quantityUnit: 'g',
+              quantityText: '',
+              note: '',
+              originalText: '',
+              measurementStatus: 'known',
+            },
+          ],
   }
 
   return { form, hints, displayName }

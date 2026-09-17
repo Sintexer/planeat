@@ -52,11 +52,16 @@ export function importedDraftToFormValues(draft: ImportedRecipeDraft): RecipeFor
         ? draft.ingredientLines.map((line) => ({
             key: crypto.randomUUID(),
             name: line.name,
-            quantityMode: 'amount' as const,
+            quantityMode:
+              line.measurementStatus === 'unresolved' || line.quantityText
+                ? ('text' as const)
+                : ('amount' as const),
             quantityValue: line.quantityValue,
-            quantityUnit: line.quantityUnit,
-            quantityText: '',
+            quantityUnit: line.quantityUnit || 'g',
+            quantityText: line.quantityText,
             note: line.note,
+            sourceText: line.originalText || undefined,
+            measurementStatus: line.measurementStatus,
           }))
         : [emptyIngredientLine()],
   }

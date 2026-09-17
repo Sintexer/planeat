@@ -26,7 +26,7 @@ Full recipe library (create/edit/detail, ingredient catalog, simple foods checkl
 
 On first launch, if the recipe table is empty, the app seeds a small editable starter set (cutlets, soup, carbonara, sides, and a few simple foods). Seeding never runs once any recipe exists and never overwrites user data.
 
-Structured import (JSON / JSON-LD / HTML with embedded JSON-LD) prefills a draft. Ambiguous lines stay visible; Sprints 16–17 add match-and-confirm for units and ingredients without inventing precision.
+Structured import (JSON / JSON-LD / HTML with embedded JSON-LD) prefills a draft. Ambiguous cups/tablespoons/ounces stay visible for confirmation; unresolved measurements keep the original line (`sourceText`) and may be saved as-is. Sprint 17 adds ingredient match-and-confirm without inventing precision.
 
 ## Settings
 

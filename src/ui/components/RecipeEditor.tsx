@@ -28,6 +28,7 @@ import { useIngredients } from '../hooks/useIngredients'
 import { useTags } from '../hooks/useTags'
 import { useLocalization } from '../localization/LocalizationContext'
 import { QuantityFields } from '../components/QuantityFields'
+import { ImportLineMeasurement } from '../components/ImportLineMeasurement'
 import { IngredientNameField } from '../components/IngredientNameField'
 import { linkOrCreateIngredient } from '../components/IngredientCandidateModal'
 import { RecipePhotoThumb } from '../components/RecipePhotoThumb'
@@ -38,6 +39,7 @@ import {
   defaultRecipeFormValues,
   emptyIngredientLine,
   formLineToIngredientLine,
+  measurementStatusForUnit,
   recipeToFormValues,
   type RecipeFormValues,
 } from '../recipes/recipeForm'
@@ -372,6 +374,12 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
                   <IconTrash size={18} />
                 </ActionIcon>
               </Group>
+              <ImportLineMeasurement
+                line={line}
+                onChange={(patch) =>
+                  form.setFieldValue(`ingredientLines.${index}`, { ...line, ...patch })
+                }
+              />
               <SegmentedControl
                 size="xs"
                 data={[
@@ -402,9 +410,13 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
                   onValueChange={(value) =>
                     form.setFieldValue(`ingredientLines.${index}.quantityValue`, value)
                   }
-                  onUnitChange={(unit) =>
+                  onUnitChange={(unit) => {
                     form.setFieldValue(`ingredientLines.${index}.quantityUnit`, unit)
-                  }
+                    form.setFieldValue(
+                      `ingredientLines.${index}.measurementStatus`,
+                      measurementStatusForUnit(unit),
+                    )
+                  }}
                 />
               )}
               <TextInput

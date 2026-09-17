@@ -265,6 +265,11 @@ export function RecipeDetailScreen() {
                 {name}
                 {` — ${amountText}`}
                 {line.note ? ` (${line.note})` : ''}
+                {line.sourceText ? (
+                  <Text size="xs" c="dimmed">
+                    Original: {line.sourceText}
+                  </Text>
+                ) : null}
               </List.Item>
             )
           })}

@@ -12,6 +12,8 @@ export interface RecipeIngredientLine {
   quantityText?: string
   note?: string
   displayText: string
+  /** Original imported ingredient line, preserved when the source text was parsed. */
+  sourceText?: string
 }
 
 export interface Recipe {
