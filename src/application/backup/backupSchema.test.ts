@@ -104,6 +104,26 @@ describe('backupFileSchema — tag catalog + tagIds shape', () => {
     }
   })
 
+  it('round-trips archived on a tag and still accepts tags that omit the field', () => {
+    const data = emptyData()
+    data.tags = [
+      { id: 'tag-1', name: 'batch', archived: true, createdAt: 0, updatedAt: 0 },
+      { id: 'tag-2', name: 'soup', createdAt: 0, updatedAt: 0 },
+    ]
+
+    const file = {
+      format: 'family-menu-planner',
+      schemaVersion: CURRENT_BACKUP_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    }
+    const result = backupFileSchema.safeParse(JSON.parse(JSON.stringify(file)))
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.data.data.tags[0]?.archived).toBe(true)
+    expect(result.data.data.tags[1]?.archived).toBeUndefined()
+  })
+
   it('rejects duplicate tag ids', () => {
     const data = emptyData()
     data.tags = [

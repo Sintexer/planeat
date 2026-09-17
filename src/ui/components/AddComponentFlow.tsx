@@ -33,6 +33,7 @@ import { useRecipes } from '../hooks/useRecipes'
 import { useSettings } from '../hooks/useSettings'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
 import { useTags } from '../hooks/useTags'
+import { archivedTagIdSet } from '../../domain/tags/Tag'
 import { usePlanByStartDate } from '../hooks/usePlanByStartDate'
 import { QuantityFields } from './QuantityFields'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
@@ -131,6 +132,7 @@ export function AddComponentFlow({
     for (const tag of tags ?? []) map.set(tag.id, tag.name)
     return map
   }, [tags])
+  const archivedTagIds = useMemo(() => archivedTagIdSet(tags ?? []), [tags])
 
   const ingredientOptions = useMemo((): IngredientFilterOption[] => {
     return (ingredients ?? []).map((ingredient) => ({
@@ -463,6 +465,7 @@ export function AddComponentFlow({
             filters={filters}
             onFiltersChange={setFilters}
             tagNamesById={tagNamesById}
+            archivedTagIds={archivedTagIds}
             sort={sort}
             onSortChange={setSort}
             onSelect={pickCatalogItem}

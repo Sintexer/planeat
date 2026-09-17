@@ -29,6 +29,7 @@ import { REUSE_POLICIES, REUSE_POLICY_LABELS } from '../../domain/shared/MealEnu
 import type { Recipe } from '../../domain/recipes/Recipe'
 import { useIngredients } from '../hooks/useIngredients'
 import { useTags } from '../hooks/useTags'
+import { tagCreateAutocompleteNames } from '../../domain/tags/Tag'
 import { useLocalization } from '../localization/LocalizationContext'
 import { QuantityFields } from '../components/QuantityFields'
 import { ImportLineMeasurement } from '../components/ImportLineMeasurement'
@@ -328,8 +329,8 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
           <TextInput label="Cuisine" {...form.getInputProps('cuisine')} />
           <TagsInput
             label="Tags"
-            description="Pick an existing tag or type a new one"
-            data={[...tagsById.values()]}
+            description="Pick an existing tag or type a new one. Archived tags stay assigned but are not suggested."
+            data={tagCreateAutocompleteNames(tags ?? [])}
             value={form.values.tagIds
               .map((id) => tagsById.get(id))
               .filter((name) => name !== undefined)}

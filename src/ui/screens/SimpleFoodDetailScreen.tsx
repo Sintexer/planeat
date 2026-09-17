@@ -17,6 +17,7 @@ import { useServices } from '../../app/servicesContext'
 import { resolveIngredientLabel } from '../../domain/ingredients/Ingredient'
 import type { MealType, RecipeRole } from '../../domain/shared/MealEnums'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
+import type { Tag } from '../../domain/tags/Tag'
 import type { SimpleFoodService } from '../../application/simpleFoods/SimpleFoodService'
 import type { TagService } from '../../application/tags/TagService'
 import { QuantityFields } from '../components/QuantityFields'
@@ -24,6 +25,7 @@ import { ScreenHeader } from '../components/ScreenHeader'
 import { useIngredients } from '../hooks/useIngredients'
 import { useSimpleFood } from '../hooks/useSimpleFood'
 import { useTags } from '../hooks/useTags'
+import { tagCreateAutocompleteNames } from '../../domain/tags/Tag'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
 import { useLocalization } from '../localization/LocalizationContext'
 import { mealTypeOptions, roleOptions } from '../shared/mealEnumOptions'
@@ -32,11 +34,13 @@ function SimpleFoodEditableFields({
   food,
   simpleFoodService,
   tagService,
+  tags,
   tagsById,
 }: {
   food: SimpleFood
   simpleFoodService: SimpleFoodService
   tagService: TagService
+  tags: Tag[]
   tagsById: Map<string, string>
 }) {
   // Keyed by food.id from the parent, so these initial values are only read once
@@ -123,8 +127,8 @@ function SimpleFoodEditableFields({
 
       <TagsInput
         label="Tags"
-        description="Pick an existing tag or type a new one"
-        data={[...tagsById.values()]}
+        description="Pick an existing tag or type a new one. Archived tags stay assigned but are not suggested."
+        data={tagCreateAutocompleteNames(tags)}
         value={food.tagIds.map((id) => tagsById.get(id)).filter((name) => name !== undefined)}
         onChange={(names) => void handleTagNamesChange(names)}
       />
@@ -225,6 +229,7 @@ export function SimpleFoodDetailScreen() {
         food={food}
         simpleFoodService={simpleFoodService}
         tagService={tagService}
+        tags={tags ?? []}
         tagsById={tagsById}
       />
     </Stack>

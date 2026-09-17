@@ -3,6 +3,7 @@ import {
   groupCatalogItems,
   itemMatchesFilters,
   sortCatalogItems,
+  uniqueTagFacets,
   defaultDishCatalogFilters,
   type DishCatalogItem,
 } from './catalogModel'
@@ -176,5 +177,34 @@ describe('itemMatchesFilters', () => {
   it('does not use query inside itemMatchesFilters', () => {
     const item = makeItem({ key: 'pasta', name: 'Pasta' })
     expect(itemMatchesFilters(item, { ...base, query: 'zzzz-no-match' })).toBe(true)
+  })
+
+  it('still matches a tag filter when the live item keeps an archived or dangling tagId', () => {
+    const item = makeItem({ key: 'soup', tagIds: ['archived-or-gone'] })
+    expect(itemMatchesFilters(item, { ...base, tagIds: ['archived-or-gone'] })).toBe(true)
+    expect(itemMatchesFilters(item, { ...base, tagIds: ['other'] })).toBe(false)
+  })
+})
+
+describe('uniqueTagFacets', () => {
+  it('omits archived ids from the default list and keeps applied filters visible', () => {
+    const items = [
+      makeItem({ key: 'a', tagIds: ['live', 'archived'] }),
+      makeItem({ key: 'b', tagIds: ['live'] }),
+    ]
+    const names = new Map([
+      ['live', 'soup'],
+      ['archived', 'batch'],
+    ])
+    expect(
+      uniqueTagFacets(items, names, {
+        excludeIds: new Set(['archived']),
+        retainIds: ['archived', 'missing'],
+      }),
+    ).toEqual([
+      { id: 'live', name: 'soup' },
+      { id: 'archived', name: 'batch' },
+      { id: 'missing', name: 'Unavailable tag' },
+    ])
   })
 })

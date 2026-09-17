@@ -1,6 +1,13 @@
-import { tagMatchesName, type Tag, type TagId } from '../../../domain/tags/Tag'
+import {
+  removeTagId,
+  rewriteTagIds,
+  tagMatchesName,
+  type Tag,
+  type TagId,
+} from '../../../domain/tags/Tag'
 import type {
   CreateTagInput,
+  TagLiveUsage,
   TagRepository,
   UpdateTagInput,
 } from '../../../application/ports/TagRepository'
@@ -46,5 +53,70 @@ export class DexieTagRepository implements TagRepository {
 
   async update(id: TagId, changes: UpdateTagInput): Promise<void> {
     await this.db.tags.update(id, { ...changes, updatedAt: Date.now() })
+  }
+
+  async countLiveAssignments(id: TagId): Promise<TagLiveUsage> {
+    const [recipes, simpleFoods] = await Promise.all([
+      this.db.recipes.toArray(),
+      this.db.simpleFoods.toArray(),
+    ])
+    return {
+      recipeCount: recipes.filter((row) => row.tagIds.includes(id)).length,
+      simpleFoodCount: simpleFoods.filter((row) => row.tagIds.includes(id)).length,
+    }
+  }
+
+  async mergeLiveAssignments(sourceId: TagId, targetId: TagId): Promise<void> {
+    await this.db.transaction(
+      'rw',
+      this.db.tags,
+      this.db.recipes,
+      this.db.simpleFoods,
+      async () => {
+        const now = Date.now()
+        for (const recipe of await this.db.recipes.toArray()) {
+          if (!recipe.tagIds.includes(sourceId)) continue
+          await this.db.recipes.update(recipe.id, {
+            tagIds: rewriteTagIds(recipe.tagIds, sourceId, targetId),
+            updatedAt: now,
+          })
+        }
+        for (const food of await this.db.simpleFoods.toArray()) {
+          if (!food.tagIds.includes(sourceId)) continue
+          await this.db.simpleFoods.update(food.id, {
+            tagIds: rewriteTagIds(food.tagIds, sourceId, targetId),
+            updatedAt: now,
+          })
+        }
+        await this.db.tags.delete(sourceId)
+      },
+    )
+  }
+
+  async deleteTagAndUnassign(id: TagId): Promise<void> {
+    await this.db.transaction(
+      'rw',
+      this.db.tags,
+      this.db.recipes,
+      this.db.simpleFoods,
+      async () => {
+        const now = Date.now()
+        for (const recipe of await this.db.recipes.toArray()) {
+          if (!recipe.tagIds.includes(id)) continue
+          await this.db.recipes.update(recipe.id, {
+            tagIds: removeTagId(recipe.tagIds, id),
+            updatedAt: now,
+          })
+        }
+        for (const food of await this.db.simpleFoods.toArray()) {
+          if (!food.tagIds.includes(id)) continue
+          await this.db.simpleFoods.update(food.id, {
+            tagIds: removeTagId(food.tagIds, id),
+            updatedAt: now,
+          })
+        }
+        await this.db.tags.delete(id)
+      },
+    )
   }
 }

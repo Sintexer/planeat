@@ -30,6 +30,6 @@ Agent/contributor conventions: [`AGENTS.md`](AGENTS.md).
 
 ## Next work
 
-**Sprint 21 — tag lifecycle management** is next. Later sequenced work is Sprint 22.
+**Sprint 22 — saved library views** is next.
 
 Start from the Status section in [`docs/sprints/plan.md`](docs/sprints/plan.md#status). Do not invent work from older “Next” headings in this README or from Cursor plan files.
