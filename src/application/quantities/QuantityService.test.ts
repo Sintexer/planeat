@@ -163,3 +163,110 @@ describe('scale', () => {
     expect(service.scale(null, 2)).toBeNull()
   })
 })
+
+describe('presentForDisplay', () => {
+  it('as-entered never changes anything', () => {
+    for (const quantity of [
+      { value: 1, unit: 'g' },
+      { value: 1, unit: 'ml' },
+      { value: 1, unit: 'cup-us' },
+      { value: 1, unit: 'piece' },
+      { value: 1, unit: 'cup' },
+    ]) {
+      expect(service.presentForDisplay(quantity, 'as-entered')).toEqual(quantity)
+    }
+  })
+
+  it('metric converts cup-us into ml', () => {
+    expect(service.presentForDisplay({ value: 1, unit: 'cup-us' }, 'metric')).toEqual({
+      value: expect.closeTo(236.588, 1),
+      unit: 'ml',
+    })
+  })
+
+  it('metric converts oz-mass into g', () => {
+    expect(service.presentForDisplay({ value: 1, unit: 'oz-mass' }, 'metric')).toEqual({
+      value: expect.closeTo(28.35, 1),
+      unit: 'g',
+    })
+  })
+
+  it('metric converts a large oz-fl quantity across the l threshold', () => {
+    const result = service.presentForDisplay({ value: 40, unit: 'oz-fl' }, 'metric')
+    expect(result?.unit).toBe('l')
+    expect(result?.value).toBeCloseTo(1.183, 2)
+  })
+
+  it('metric still applies plain g/kg thresholding with no conversion needed', () => {
+    expect(service.presentForDisplay({ value: 1500, unit: 'g' }, 'metric')).toEqual({
+      value: 1.5,
+      unit: 'kg',
+    })
+  })
+
+  it('us-customary converts ml into cup-us', () => {
+    const result = service.presentForDisplay({ value: 240, unit: 'ml' }, 'us-customary')
+    expect(result?.unit).toBe('cup-us')
+    expect(result?.value).toBeCloseTo(1, 1)
+  })
+
+  it('us-customary keeps a small ml quantity in oz-fl (under the cup threshold)', () => {
+    const result = service.presentForDisplay({ value: 30, unit: 'ml' }, 'us-customary')
+    expect(result?.unit).toBe('oz-fl')
+    expect(result?.value).toBeLessThan(8)
+  })
+
+  it('us-customary converts g into oz-mass', () => {
+    const result = service.presentForDisplay({ value: 100, unit: 'g' }, 'us-customary')
+    expect(result?.unit).toBe('oz-mass')
+    expect(result?.value).toBeCloseTo(3.53, 1)
+  })
+
+  it('never converts legacy cup or tbsp under any preference', () => {
+    for (const preference of ['metric', 'us-customary'] as const) {
+      expect(service.presentForDisplay({ value: 1, unit: 'cup' }, preference)).toEqual({
+        value: 1,
+        unit: 'cup',
+      })
+      expect(service.presentForDisplay({ value: 1, unit: 'tbsp' }, preference)).toEqual({
+        value: 1,
+        unit: 'tbsp',
+      })
+    }
+  })
+
+  it('never converts cup-metric under any preference', () => {
+    for (const preference of ['metric', 'us-customary'] as const) {
+      expect(service.presentForDisplay({ value: 1, unit: 'cup-metric' }, preference)).toEqual({
+        value: 1,
+        unit: 'cup-metric',
+      })
+    }
+  })
+
+  it('never converts piece or serving under any preference', () => {
+    for (const preference of ['metric', 'us-customary'] as const) {
+      expect(service.presentForDisplay({ value: 1, unit: 'piece' }, preference)).toEqual({
+        value: 1,
+        unit: 'piece',
+      })
+      expect(service.presentForDisplay({ value: 1, unit: 'serving' }, preference)).toEqual({
+        value: 1,
+        unit: 'serving',
+      })
+    }
+  })
+
+  it('returns null for a null quantity under every preference', () => {
+    for (const preference of ['as-entered', 'metric', 'us-customary'] as const) {
+      expect(service.presentForDisplay(null, preference)).toBeNull()
+    }
+  })
+
+  it('does not mutate the input quantity', () => {
+    const input = { value: 1, unit: 'cup-us' }
+    const inputCopy = { ...input }
+    service.presentForDisplay(input, 'metric')
+    expect(input).toEqual(inputCopy)
+  })
+})

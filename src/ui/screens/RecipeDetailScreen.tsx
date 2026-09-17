@@ -34,6 +34,7 @@ import { useRecipe } from '../hooks/useRecipe'
 import { useRecipes } from '../hooks/useRecipes'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
 import { useTags } from '../hooks/useTags'
+import { useLocalization } from '../localization/LocalizationContext'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
 
 export function RecipeDetailScreen() {
@@ -47,6 +48,7 @@ export function RecipeDetailScreen() {
   const tags = useTags()
   const { recipeService, quantityService, pairingService } = useServices()
   const formatQty = useFormatQuantity()
+  const { bcp47 } = useLocalization()
 
   const [scaleYieldValue, setScaleYieldValue] = useState<number | ''>('')
   const [pairingPick, setPairingPick] = useState<string | null>(null)
@@ -238,10 +240,7 @@ export function RecipeDetailScreen() {
         />
         {factor !== 1 && (
           <Text size="sm">
-            Factor ×
-            {Number.isInteger(factor)
-              ? String(factor)
-              : factor.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}
+            Factor ×{new Intl.NumberFormat(bcp47, { maximumFractionDigits: 3 }).format(factor)}
           </Text>
         )}
       </Stack>

@@ -3,6 +3,8 @@ export type UnitFamily = 'mass' | 'volume' | 'count'
 export interface UnitDefinition {
   key: string
   label: string
+  /** Short, display-appropriate abbreviation (e.g. "fl oz") — never a translated culinary term. */
+  shortLabel: string
   family: UnitFamily
   /** convert-units code this maps to, when one exists. Absent = not resolvable by QuantityService today. */
   convertUnit?: string
@@ -11,15 +13,28 @@ export interface UnitDefinition {
 }
 
 export const UNIT_REGISTRY: readonly UnitDefinition[] = [
-  { key: 'g', label: 'Gram (g)', family: 'mass', convertUnit: 'g' },
-  { key: 'kg', label: 'Kilogram (kg)', family: 'mass', convertUnit: 'kg' },
-  { key: 'oz-mass', label: 'Ounce, weight (oz)', family: 'mass', convertUnit: 'oz' },
-  { key: 'ml', label: 'Milliliter (ml)', family: 'volume', convertUnit: 'ml' },
-  { key: 'l', label: 'Liter (l)', family: 'volume', convertUnit: 'l' },
-  { key: 'tsp', label: 'Teaspoon (tsp)', family: 'volume', convertUnit: 'tsp' },
+  { key: 'g', label: 'Gram (g)', shortLabel: 'g', family: 'mass', convertUnit: 'g' },
+  { key: 'kg', label: 'Kilogram (kg)', shortLabel: 'kg', family: 'mass', convertUnit: 'kg' },
+  {
+    key: 'oz-mass',
+    label: 'Ounce, weight (oz)',
+    shortLabel: 'oz',
+    family: 'mass',
+    convertUnit: 'oz',
+  },
+  { key: 'ml', label: 'Milliliter (ml)', shortLabel: 'ml', family: 'volume', convertUnit: 'ml' },
+  { key: 'l', label: 'Liter (l)', shortLabel: 'l', family: 'volume', convertUnit: 'l' },
+  {
+    key: 'tsp',
+    label: 'Teaspoon (tsp)',
+    shortLabel: 'tsp',
+    family: 'volume',
+    convertUnit: 'tsp',
+  },
   {
     key: 'tbsp',
     label: 'Tablespoon (legacy — unspecified convention)',
+    shortLabel: 'tbsp',
     family: 'volume',
     convertUnit: 'Tbs',
     legacy: true,
@@ -27,15 +42,28 @@ export const UNIT_REGISTRY: readonly UnitDefinition[] = [
   {
     key: 'cup',
     label: 'Cup (legacy — unspecified convention)',
+    shortLabel: 'cup',
     family: 'volume',
     convertUnit: 'cup',
     legacy: true,
   },
-  { key: 'cup-us', label: 'Cup, US customary (240 ml)', family: 'volume', convertUnit: 'cup' },
-  { key: 'cup-metric', label: 'Cup, metric (250 ml)', family: 'volume' },
-  { key: 'oz-fl', label: 'Ounce, fluid (fl oz)', family: 'volume', convertUnit: 'fl-oz' },
-  { key: 'piece', label: 'Piece', family: 'count' },
-  { key: 'serving', label: 'Serving', family: 'count' },
+  {
+    key: 'cup-us',
+    label: 'Cup, US customary (240 ml)',
+    shortLabel: 'cup',
+    family: 'volume',
+    convertUnit: 'cup',
+  },
+  { key: 'cup-metric', label: 'Cup, metric (250 ml)', shortLabel: 'cup', family: 'volume' },
+  {
+    key: 'oz-fl',
+    label: 'Ounce, fluid (fl oz)',
+    shortLabel: 'fl oz',
+    family: 'volume',
+    convertUnit: 'fl-oz',
+  },
+  { key: 'piece', label: 'Piece', shortLabel: 'piece', family: 'count' },
+  { key: 'serving', label: 'Serving', shortLabel: 'serving', family: 'count' },
 ] as const
 
 export function findUnitDefinition(unit: string): UnitDefinition | undefined {
@@ -53,4 +81,9 @@ export function selectableUnitDefinitions(): UnitDefinition[] {
 /** Registry label for a unit, or the raw string verbatim if it's unrecognized — never invents a meaning. */
 export function unitLabel(unit: string): string {
   return findUnitDefinition(unit)?.label ?? unit
+}
+
+/** Short display abbreviation for a unit, or the raw string verbatim if it's unrecognized. */
+export function unitShortLabel(unit: string): string {
+  return findUnitDefinition(unit)?.shortLabel ?? unit
 }

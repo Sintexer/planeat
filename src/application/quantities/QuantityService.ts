@@ -1,5 +1,7 @@
 import convert from 'convert-units'
 import Fraction from 'fraction.js'
+import type { MeasurementPreference } from '../../domain/shared/Locale'
+import { presentQuantity } from '../../domain/shared/presentQuantity'
 import type { Quantity } from '../../domain/shared/Quantity'
 import { formatQuantity as formatQuantityPlain } from '../../domain/shared/formatQuantity'
 import { scaleQuantity as scaleQuantityPure } from '../../domain/shared/scaleQuantity'
@@ -18,6 +20,15 @@ function toConvertUnit(unit: string): string | null {
   const definition = findUnitDefinition(unit)
   if (!definition || definition.legacy) return null
   return definition.convertUnit ?? null
+}
+
+/** The canonical unit to convert into for display under a given preference, or null if this unit's family isn't converted (count units, or units with no known conversion at all). */
+function canonicalUnitFor(unit: string, preference: MeasurementPreference): string | null {
+  const definition = findUnitDefinition(unit)
+  if (!definition || definition.legacy || preference === 'as-entered') return null
+  if (definition.family === 'mass') return preference === 'metric' ? 'g' : 'oz-mass'
+  if (definition.family === 'volume') return preference === 'metric' ? 'ml' : 'oz-fl'
+  return null
 }
 
 /**
@@ -138,6 +149,32 @@ export class QuantityService {
       return 0
     } catch {
       return null
+    }
+  }
+
+  /**
+   * Converts a quantity into the unit most appropriate for `preference`,
+   * for display only — never mutates or reinterprets the stored quantity.
+   * Legacy units (`cup`/`tbsp`), `cup-metric`, `piece`/`serving`, and any
+   * unrecognized unit have no known conversion and pass through unchanged
+   * under every preference, matching "an unspecified cup stays unspecified."
+   */
+  presentForDisplay(quantity: Quantity | null, preference: MeasurementPreference): Quantity | null {
+    if (quantity === null) return null
+    const targetUnit = canonicalUnitFor(quantity.unit, preference)
+    if (!targetUnit || targetUnit === quantity.unit) {
+      return presentQuantity(quantity, preference)
+    }
+    const fromUnit = toConvertUnit(quantity.unit)
+    const toUnit = toConvertUnit(targetUnit)
+    if (!fromUnit || !toUnit) return quantity
+    try {
+      const converted = convert(quantity.value)
+        .from(fromUnit as convert.Unit)
+        .to(toUnit as convert.Unit)
+      return presentQuantity({ value: converted, unit: targetUnit }, preference)
+    } catch {
+      return quantity
     }
   }
 

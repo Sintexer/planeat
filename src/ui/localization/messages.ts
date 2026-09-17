@@ -22,10 +22,10 @@ export const enMessages = {
   'settings.language': 'Interface language',
   'settings.measurement': 'Measurement display',
   'settings.measurementAsEntered': 'As entered',
-  'settings.measurementMetric': 'Metric (g/kg, mL/L only)',
-  'settings.measurementUs': 'US customary (coming with unit registry)',
+  'settings.measurementMetric': 'Metric (g/kg, mL/L)',
+  'settings.measurementUs': 'US customary (oz, fl oz, cups)',
   'settings.measurementHelp':
-    'This only changes how compatible metric units are shown. Saved recipes, cups, and plans do not change.',
+    'This only changes how compatible units are shown. Saved recipes, cups, and plans do not change.',
   'settings.backupPhotos':
     'Backups include photo URLs, not image files. Offline, missing photos show a placeholder.',
 } as const

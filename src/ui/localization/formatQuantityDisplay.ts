@@ -1,6 +1,6 @@
-import { presentQuantity } from '../../domain/shared/presentQuantity'
 import type { MeasurementPreference } from '../../domain/shared/Locale'
 import type { Quantity } from '../../domain/shared/Quantity'
+import { unitShortLabel } from '../../domain/shared/UnitRegistry'
 
 export function formatQuantityDisplay(
   quantity: Quantity | null,
@@ -8,12 +8,16 @@ export function formatQuantityDisplay(
     locale: string
     measurementPreference: MeasurementPreference
     unspecifiedLabel: string
+    presentForDisplay: (
+      quantity: Quantity | null,
+      preference: MeasurementPreference,
+    ) => Quantity | null
   },
 ): string {
-  if (quantity === null) return options.unspecifiedLabel
-  const presented = presentQuantity(quantity, options.measurementPreference)
+  const presented = options.presentForDisplay(quantity, options.measurementPreference)
+  if (presented === null) return options.unspecifiedLabel
   const number = new Intl.NumberFormat(options.locale, {
     maximumFractionDigits: 3,
   }).format(presented.value)
-  return `${number} ${presented.unit}`
+  return `${number} ${unitShortLabel(presented.unit)}`
 }
