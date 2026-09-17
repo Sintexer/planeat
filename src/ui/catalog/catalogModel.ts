@@ -13,6 +13,7 @@ import {
 import type { Quantity } from '../../domain/shared/Quantity'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
 import type { TagId } from '../../domain/tags/Tag'
+import { leftoverBatchSubtitle } from './pickerWhyThis'
 
 export type { CatalogGroup, CatalogSort }
 
@@ -166,7 +167,7 @@ export function leftoverToCatalogItem(
     remaining,
     recipeId: event.recipeId,
     cookingEvent: event,
-    subtitle: 'Remaining prep',
+    subtitle: leftoverBatchSubtitle(event.scheduledDate),
     ineligibleReason,
     ingredientIds: [],
   }

@@ -60,6 +60,12 @@ export const WEEKDAY_LABELS: Record<WeekStartDay, string> = {
   6: 'Saturday',
 }
 
+/** Weekday of a local calendar date (0 = Sunday). */
+export function weekdayOf(date: LocalDate): WeekStartDay {
+  const [y, m, d] = date.split('-').map(Number)
+  return new Date(y, m - 1, d).getDay() as WeekStartDay
+}
+
 export const WEEKDAY_SHORT_LABELS: Record<WeekStartDay, string> = {
   0: 'S',
   1: 'M',

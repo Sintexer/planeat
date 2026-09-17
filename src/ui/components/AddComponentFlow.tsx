@@ -11,15 +11,18 @@ import {
   type DishCatalogItem,
   type IngredientFilterOption,
 } from '../catalog/catalogModel'
+import {
+  isPlannedThisWeek,
+  matchingFavoriteName,
+  pairingPartnerName,
+  pickerWhyThisCopy,
+} from '../catalog/pickerWhyThis'
 import { useServices } from '../../app/servicesContext'
 import type { CookingEvent } from '../../domain/plans/CookingEvent'
-import {
-  rankComponentSuggestions,
-  type SuggestionCandidate,
-} from '../../domain/plans/componentSuggestions'
+import { rankComponentSuggestions } from '../../domain/plans/componentSuggestions'
 import type { MealSlot } from '../../domain/plans/MealSlot'
 import type { PlanGraph } from '../../domain/plans/PlanGraph'
-import { DEFAULT_CATALOG_SORT } from '../../domain/shared/MealEnums'
+import { DEFAULT_CATALOG_SORT, type CatalogSort } from '../../domain/shared/MealEnums'
 import type { Quantity } from '../../domain/shared/Quantity'
 import { addDays } from '../../domain/shared/LocalDate'
 import { hasUnallocatedRemainder, isReuseAllowed } from '../../domain/plans/CookingEventAllocation'
@@ -79,19 +82,8 @@ function errorMessage(error: string): string {
   }
 }
 
-function reasonLabel(reason: SuggestionCandidate['reason']): string | null {
-  switch (reason) {
-    case 'pairing':
-      return 'Pairs well'
-    case 'favorite':
-      return 'From a favorite'
-    case 'role':
-      return 'Good role fit'
-    case 'variety':
-      return 'Variety / veg'
-    default:
-      return null
-  }
+function defaultPickerFilters(): DishCatalogFilters {
+  return defaultDishCatalogFilters('all', false)
 }
 
 export function AddComponentFlow({
@@ -101,7 +93,7 @@ export function AddComponentFlow({
   graph,
   onOverAllocated,
 }: AddComponentFlowProps) {
-  const { planService, settingsRepository } = useServices()
+  const { planService } = useServices()
   const recipes = useRecipes()
   const simpleFoods = useSimpleFoods()
   const tags = useTags()
@@ -109,15 +101,13 @@ export function AddComponentFlow({
   const favorites = useMealFavorites()
   const pairings = usePairings()
   const settings = useSettings()
-  const sort = settings?.catalogSort ?? DEFAULT_CATALOG_SORT
   const formatQty = useFormatQuantity()
   const ingredientLabel = useIngredientLabel()
   const previousWeekStart = addDays(graph.plan.startDate, -7)
   const previousWeek = usePlanByStartDate(previousWeekStart)
 
-  const [filters, setFilters] = useState<DishCatalogFilters>(() =>
-    defaultDishCatalogFilters('all', false),
-  )
+  const [filters, setFilters] = useState<DishCatalogFilters>(defaultPickerFilters)
+  const [sort, setSort] = useState<CatalogSort>(DEFAULT_CATALOG_SORT)
   const [step, setStep] = useState<Step>({ kind: 'pick' })
   const [allocValue, setAllocValue] = useState<number | ''>('')
   const [allocUnit, setAllocUnit] = useState('piece')
@@ -156,6 +146,24 @@ export function AddComponentFlow({
     }))
   }, [ingredients, ingredientLabel])
 
+  const currentRecipeIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const component of graph.components) {
+      if (component.slotId !== slot.id) continue
+      const source = component.source
+      if (source.type !== 'cooking-event') continue
+      const event = graph.cookingEvents.find((candidate) => candidate.id === source.cookingEventId)
+      if (event) ids.add(event.recipeId)
+    }
+    return ids
+  }, [graph, slot.id])
+
+  const recipeNamesById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const recipe of recipes ?? []) map.set(recipe.id, recipe.name)
+    return map
+  }, [recipes])
+
   const ranked = useMemo(() => {
     if (!recipes || !simpleFoods || !favorites || !pairings || !settings) return []
     return rankComponentSuggestions({
@@ -184,16 +192,34 @@ export function AddComponentFlow({
   ])
 
   const catalogItems = useMemo((): DishCatalogItem[] => {
+    if (!favorites || !pairings) return []
     return ranked
       .map((item) => {
-        const hint = reasonLabel(item.reason)
+        const why = pickerWhyThisCopy({
+          kind: item.kind,
+          reason: item.reason,
+          pairingPartnerName: pairingPartnerName({
+            candidateKind: item.kind,
+            candidateId: item.id,
+            currentRecipeIds,
+            pairings,
+            recipeNamesById,
+          }),
+          favoriteName: matchingFavoriteName({
+            candidateKind: item.kind,
+            candidateId: item.id,
+            currentRecipeIds,
+            favorites,
+          }),
+          plannedThisWeek: isPlannedThisWeek(item.kind, item.id, graph),
+        })
         if (item.kind === 'recipe') {
           const recipe = recipes?.find((r) => r.id === item.id)
           if (!recipe) return null
           return recipeToCatalogItem(recipe, tagNamesById, {
             score: item.score,
             reason: item.reason,
-            subtitle: hint ? `Recipe · ${hint}` : 'Recipe',
+            subtitle: why,
           })
         }
         const food = simpleFoods?.find((f) => f.id === item.id)
@@ -201,11 +227,21 @@ export function AddComponentFlow({
         return simpleFoodToCatalogItem(food, tagNamesById, {
           score: item.score,
           reason: item.reason,
-          subtitle: hint ? `Simple food · ${hint}` : 'Simple food',
+          subtitle: why,
         })
       })
       .filter((item): item is DishCatalogItem => item !== null)
-  }, [ranked, recipes, simpleFoods, tagNamesById])
+  }, [
+    ranked,
+    recipes,
+    simpleFoods,
+    tagNamesById,
+    favorites,
+    pairings,
+    currentRecipeIds,
+    recipeNamesById,
+    graph,
+  ])
 
   const leftovers = useMemo((): DishCatalogItem[] => {
     const rows: DishCatalogItem[] = []
@@ -225,7 +261,14 @@ export function AddComponentFlow({
     return rows
   }, [graph, planService, slot.date])
 
+  const resetPickerBrowseState = () => {
+    setFilters(defaultPickerFilters())
+    setSort(DEFAULT_CATALOG_SORT)
+  }
+
   const handleClose = () => {
+    resetPickerBrowseState()
+    setStep({ kind: 'pick' })
     onClose()
   }
 
@@ -421,7 +464,7 @@ export function AddComponentFlow({
             onFiltersChange={setFilters}
             tagNamesById={tagNamesById}
             sort={sort}
-            onSortChange={(next) => void settingsRepository.update({ catalogSort: next })}
+            onSortChange={setSort}
             onSelect={pickCatalogItem}
             disabled={busy}
             showSuggestedFilter

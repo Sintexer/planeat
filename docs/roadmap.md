@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped through **Sprint 18**. Next implementation card: **Sprint 19**. Full cards and Status log: [`docs/sprints/plan.md`](sprints/plan.md).
+Shipped through **Sprint 19**. Next implementation card: **Sprint 20**. Full cards and Status log: [`docs/sprints/plan.md`](sprints/plan.md).
 
 ## Done — project initialization
 
@@ -70,10 +70,14 @@ Shipped through **Sprint 18**. Next implementation card: **Sprint 19**. Full car
 
 - Maximum recorded total time; contains/exclude catalog ingredients by ID; missing time is not zero; unlinked lines ignored with visible disclaimer.
 
+## Done — Sprint 19 (contextual meal picker)
+
+- Picker sections for leftovers, pairings, favorites, suitable recipes, and All items.
+- Add-dish browse state is separate from the Recipes library; short why-this copy when leftover/pairing/favorite/planned-this-week signals exist.
+
 ## Next — Phase 3 remainder
 
-1. **Sprint 19** — Contextual meal-picker organization (leftovers / suitable / pairings / all / favorites; picker state separate from the library).
-2. **Sprint 20** — Grocery shopping sections. Then checkpoint C.
+1. **Sprint 20** — Grocery shopping sections. Then checkpoint C.
 
 ## Later (optional Phase 4)
 
