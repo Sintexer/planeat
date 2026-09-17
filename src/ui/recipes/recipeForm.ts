@@ -5,6 +5,8 @@ import type { TagId } from '../../domain/tags/Tag'
 export type RecipeFormIngredientLine = {
   key: string
   name: string
+  /** Set once the typed/selected name has been resolved to an ingredient (eagerly, while editing). */
+  ingredientId?: string
   quantityMode: 'amount' | 'text'
   quantityValue: number | ''
   quantityUnit: string
@@ -113,6 +115,7 @@ export function recipeToFormValues(
         : recipe.ingredientLines.map((line) => ({
             key: crypto.randomUUID(),
             name: ingredientNamesById.get(line.ingredientId) ?? line.displayText,
+            ingredientId: line.ingredientId,
             quantityMode: line.quantityText ? ('text' as const) : ('amount' as const),
             quantityValue: line.quantity?.value ?? '',
             quantityUnit: line.quantity?.unit ?? 'g',

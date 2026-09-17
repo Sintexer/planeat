@@ -185,3 +185,57 @@ describe('backupFileSchema — ingredient line quantity shapes (Sprint 12)', () 
     }
   })
 })
+
+describe('backupFileSchema — ingredient preferredLabels/localizedAliases (Sprint 15)', () => {
+  it('round-trips a locale value outside the current UI_LOCALES list unchanged', () => {
+    const data = emptyData()
+    data.ingredients = [
+      {
+        id: 'ing-1',
+        name: 'Eggplant',
+        aliases: ['aubergine'],
+        preferredLabels: [{ locale: 'xx-unknown', label: 'Foo' }],
+        localizedAliases: [{ locale: 'xx-unknown', text: 'bar' }],
+        isCommon: false,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ]
+
+    const file = {
+      format: 'family-menu-planner',
+      schemaVersion: CURRENT_BACKUP_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    }
+    const result = backupFileSchema.safeParse(JSON.parse(JSON.stringify(file)))
+    expect(result.success).toBe(true)
+    if (result.success) {
+      const ingredient = result.data.data.ingredients[0]
+      expect(ingredient?.preferredLabels).toEqual([{ locale: 'xx-unknown', label: 'Foo' }])
+      expect(ingredient?.localizedAliases).toEqual([{ locale: 'xx-unknown', text: 'bar' }])
+    }
+  })
+
+  it('accepts an old-shape ingredient with neither new field present', () => {
+    const data = emptyData()
+    data.ingredients = [
+      {
+        id: 'ing-1',
+        name: 'Eggplant',
+        aliases: ['aubergine'],
+        isCommon: false,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ]
+
+    const result = backupFileSchema.safeParse({
+      format: 'family-menu-planner',
+      schemaVersion: CURRENT_BACKUP_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    })
+    expect(result.success).toBe(true)
+  })
+})

@@ -21,11 +21,15 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { notifications } from '@mantine/notifications'
 import { useServices } from '../../app/servicesContext'
+import { resolveIngredientLabel } from '../../domain/ingredients/Ingredient'
 import { REUSE_POLICIES, REUSE_POLICY_LABELS } from '../../domain/shared/MealEnums'
 import type { Recipe } from '../../domain/recipes/Recipe'
 import { useIngredients } from '../hooks/useIngredients'
 import { useTags } from '../hooks/useTags'
+import { useLocalization } from '../localization/LocalizationContext'
 import { QuantityFields } from '../components/QuantityFields'
+import { IngredientNameField } from '../components/IngredientNameField'
+import { linkOrCreateIngredient } from '../components/IngredientCandidateModal'
 import { RecipePhotoThumb } from '../components/RecipePhotoThumb'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { importedDraftToFormValues, readAndClearImportDraft } from '../recipes/importDraft'
@@ -59,6 +63,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
   const { recipeService, ingredientService, tagService } = useServices()
   const ingredients = useIngredients()
   const tags = useTags()
+  const { locale } = useLocalization()
   const [importBootstrap] = useState(() => {
     if (mode !== 'create') return { hints: [] as string[], form: null as RecipeFormValues | null }
     const draft = readAndClearImportDraft()
@@ -70,10 +75,10 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
   const ingredientNamesById = useMemo(() => {
     const map = new Map<string, string>()
     for (const ingredient of ingredients ?? []) {
-      map.set(ingredient.id, ingredient.name)
+      map.set(ingredient.id, resolveIngredientLabel(ingredient, locale))
     }
     return map
-  }, [ingredients])
+  }, [ingredients, locale])
 
   const tagsById = useMemo(() => {
     const map = new Map<string, string>()
@@ -141,12 +146,20 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
 
     const ingredientLines = []
     for (const line of built.lines) {
-      const linked = await ingredientService.createOrLinkByName(line.name)
-      if (!linked.ok) {
-        notifications.show({ message: 'Ingredient name is required', color: 'red' })
-        return
+      // Most lines are already resolved eagerly while editing (IngredientNameField);
+      // this is only a fallback for a line that was never confirmed via Enter/blur/select.
+      let ingredientId = line.ingredientId
+      if (!ingredientId) {
+        const ingredient = await linkOrCreateIngredient(ingredientService, line.name, (candidate) =>
+          resolveIngredientLabel(candidate, locale),
+        )
+        if (!ingredient) {
+          notifications.show({ message: 'Could not resolve ingredient name', color: 'red' })
+          return
+        }
+        ingredientId = ingredient.id
       }
-      ingredientLines.push(formLineToIngredientLine(line, linked.ingredient.id))
+      ingredientLines.push(formLineToIngredientLine(line, ingredientId))
     }
 
     const write = { ...built.base, ingredientLines }
@@ -332,14 +345,16 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
               style={{ border: '1px solid var(--mantine-color-gray-3)', borderRadius: 8 }}
             >
               <Group align="flex-end" wrap="nowrap">
-                <TextInput
-                  flex={1}
-                  label="Ingredient"
-                  placeholder="e.g. chicken"
+                <IngredientNameField
                   value={line.name}
-                  onChange={(event) =>
-                    form.setFieldValue(`ingredientLines.${index}.name`, event.currentTarget.value)
-                  }
+                  ingredientId={line.ingredientId}
+                  onResolved={({ name, ingredientId }) => {
+                    form.setFieldValue(`ingredientLines.${index}.name`, name)
+                    form.setFieldValue(`ingredientLines.${index}.ingredientId`, ingredientId)
+                  }}
+                  ingredients={ingredients ?? []}
+                  ingredientService={ingredientService}
+                  labelFor={(candidate) => resolveIngredientLabel(candidate, locale)}
                 />
                 <ActionIcon
                   variant="subtle"

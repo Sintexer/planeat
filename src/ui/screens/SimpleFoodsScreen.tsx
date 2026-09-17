@@ -14,11 +14,14 @@ import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import { IconTrash } from '@tabler/icons-react'
 import { useServices } from '../../app/servicesContext'
+import { resolveIngredientLabel } from '../../domain/ingredients/Ingredient'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
+import { linkOrCreateIngredient } from '../components/IngredientCandidateModal'
 import { QuantityFields } from '../components/QuantityFields'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
+import { useLocalization } from '../localization/LocalizationContext'
 
 interface NewSimpleFoodForm {
   name: string
@@ -31,6 +34,7 @@ export function SimpleFoodsScreen() {
   const { simpleFoodService, ingredientService } = useServices()
   const simpleFoods = useSimpleFoods()
   const formatQty = useFormatQuantity()
+  const { locale } = useLocalization()
 
   const form = useForm<NewSimpleFoodForm>({
     initialValues: {
@@ -46,14 +50,16 @@ export function SimpleFoodsScreen() {
   })
 
   const handleCreate = form.onSubmit(async (values) => {
-    const linked = await ingredientService.createOrLinkByName(values.name)
-    if (!linked.ok) {
-      notifications.show({ message: 'Name is required', color: 'red' })
+    const ingredient = await linkOrCreateIngredient(ingredientService, values.name, (candidate) =>
+      resolveIngredientLabel(candidate, locale),
+    )
+    if (!ingredient) {
+      notifications.show({ message: 'Could not resolve ingredient name', color: 'red' })
       return
     }
 
     const result = await simpleFoodService.createSimpleFood({
-      ingredientId: linked.ingredient.id,
+      ingredientId: ingredient.id,
       name: values.name.trim(),
       defaultPortion: {
         value: values.portionValue as number,

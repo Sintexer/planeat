@@ -1,41 +1,102 @@
-import { ActionIcon, Button, Card, Group, Stack, Switch, Text, TextInput } from '@mantine/core'
+import {
+  ActionIcon,
+  Button,
+  Card,
+  Collapse,
+  Group,
+  Stack,
+  Switch,
+  TagsInput,
+  Text,
+  TextInput,
+} from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
-import { IconTrash } from '@tabler/icons-react'
+import { IconChevronDown, IconChevronUp, IconTrash } from '@tabler/icons-react'
+import { useState } from 'react'
 import { useServices } from '../../app/servicesContext'
 import type { Ingredient } from '../../domain/ingredients/Ingredient'
+import { UI_LOCALES } from '../../domain/shared/Locale'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { useIngredients } from '../hooks/useIngredients'
+import { useIngredientLabel } from '../localization/useIngredientLabel'
 import { useLocalization } from '../localization/LocalizationContext'
 
 interface NewIngredientForm {
   name: string
-  aliasesText: string
+  aliases: string[]
   category: string
   isCommon: boolean
+}
+
+function IngredientEditSection({ ingredient }: { ingredient: Ingredient }) {
+  const { ingredientService } = useServices()
+
+  return (
+    <Stack gap="xs" mt="xs">
+      {UI_LOCALES.map((locale) => {
+        const preferredLabel =
+          ingredient.preferredLabels?.find((entry) => entry.locale === locale)?.label ?? ''
+        const localizedAliases = (ingredient.localizedAliases ?? [])
+          .filter((alias) => alias.locale === locale)
+          .map((alias) => alias.text)
+
+        return (
+          <Stack key={locale} gap={4}>
+            <TextInput
+              size="xs"
+              label={`Preferred label (${locale})`}
+              placeholder="Use default name"
+              defaultValue={preferredLabel}
+              onBlur={(event) => {
+                const label = event.currentTarget.value.trim()
+                const otherLabels = (ingredient.preferredLabels ?? []).filter(
+                  (entry) => entry.locale !== locale,
+                )
+                void ingredientService.updateIngredient(ingredient.id, {
+                  preferredLabels: label ? [...otherLabels, { locale, label }] : otherLabels,
+                })
+              }}
+            />
+            <TagsInput
+              size="xs"
+              label={`Aliases (${locale})`}
+              value={localizedAliases}
+              onChange={(texts) => {
+                const otherAliases = (ingredient.localizedAliases ?? []).filter(
+                  (alias) => alias.locale !== locale,
+                )
+                void ingredientService.updateIngredient(ingredient.id, {
+                  localizedAliases: [...otherAliases, ...texts.map((text) => ({ locale, text }))],
+                })
+              }}
+            />
+          </Stack>
+        )
+      })}
+    </Stack>
+  )
 }
 
 export function IngredientsScreen() {
   const { ingredientService } = useServices()
   const ingredients = useIngredients()
   const { t } = useLocalization()
+  const ingredientLabel = useIngredientLabel()
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const form = useForm<NewIngredientForm>({
-    initialValues: { name: '', aliasesText: '', category: '', isCommon: false },
+    initialValues: { name: '', aliases: [], category: '', isCommon: false },
     validate: {
       name: (value) => (value.trim().length === 0 ? 'Name is required' : null),
     },
   })
 
   const handleCreate = form.onSubmit(async (values) => {
-    const aliases = values.aliasesText
-      .split(',')
-      .map((alias) => alias.trim())
-      .filter(Boolean)
     const result = await ingredientService.createIngredient({
       name: values.name,
-      aliases,
+      aliases: values.aliases,
       category: values.category.trim() || undefined,
       isCommon: values.isCommon,
     })
@@ -86,11 +147,7 @@ export function IngredientsScreen() {
       <form onSubmit={handleCreate}>
         <Stack gap="sm">
           <TextInput label="Name" required {...form.getInputProps('name')} />
-          <TextInput
-            label="Aliases"
-            description="Comma-separated"
-            {...form.getInputProps('aliasesText')}
-          />
+          <TagsInput label="Aliases" {...form.getInputProps('aliases')} />
           <TextInput label="Category" {...form.getInputProps('category')} />
           <Switch
             label={t('ingredient.usuallyAtHome')}
@@ -104,44 +161,59 @@ export function IngredientsScreen() {
       {ingredients?.length === 0 && <Text c="dimmed">No ingredients yet.</Text>}
 
       <Stack gap="xs">
-        {ingredients?.map((ingredient) => (
-          <Card key={ingredient.id} withBorder padding="sm">
-            <Group justify="space-between" align="flex-start">
-              <div>
-                <Text fw={500}>{ingredient.name}</Text>
-                {ingredient.aliases.length > 0 && (
-                  <Text size="sm" c="dimmed">
-                    Aliases: {ingredient.aliases.join(', ')}
-                  </Text>
-                )}
-                {ingredient.category && (
-                  <Text size="sm" c="dimmed">
-                    {ingredient.category}
-                  </Text>
-                )}
-                <Switch
-                  mt="xs"
-                  size="sm"
-                  label={t('ingredient.usuallyAtHomeShort')}
-                  checked={ingredient.isCommon}
-                  onChange={(event) => {
-                    void ingredientService.updateIngredient(ingredient.id, {
-                      isCommon: event.currentTarget.checked,
-                    })
-                  }}
-                />
-              </div>
-              <ActionIcon
-                variant="subtle"
-                color="red"
-                aria-label={`Delete ${ingredient.name}`}
-                onClick={() => handleDelete(ingredient)}
-              >
-                <IconTrash size={18} />
-              </ActionIcon>
-            </Group>
-          </Card>
-        ))}
+        {ingredients?.map((ingredient) => {
+          const expanded = expandedId === ingredient.id
+          return (
+            <Card key={ingredient.id} withBorder padding="sm">
+              <Group justify="space-between" align="flex-start">
+                <div>
+                  <Text fw={500}>{ingredientLabel(ingredient)}</Text>
+                  {ingredient.aliases.length > 0 && (
+                    <Text size="sm" c="dimmed">
+                      Aliases: {ingredient.aliases.join(', ')}
+                    </Text>
+                  )}
+                  {ingredient.category && (
+                    <Text size="sm" c="dimmed">
+                      {ingredient.category}
+                    </Text>
+                  )}
+                  <Switch
+                    mt="xs"
+                    size="sm"
+                    label={t('ingredient.usuallyAtHomeShort')}
+                    checked={ingredient.isCommon}
+                    onChange={(event) => {
+                      void ingredientService.updateIngredient(ingredient.id, {
+                        isCommon: event.currentTarget.checked,
+                      })
+                    }}
+                  />
+                </div>
+                <Group gap={4}>
+                  <ActionIcon
+                    variant="subtle"
+                    aria-label={expanded ? 'Collapse edit section' : `Edit ${ingredient.name}`}
+                    onClick={() => setExpandedId(expanded ? null : ingredient.id)}
+                  >
+                    {expanded ? <IconChevronUp size={18} /> : <IconChevronDown size={18} />}
+                  </ActionIcon>
+                  <ActionIcon
+                    variant="subtle"
+                    color="red"
+                    aria-label={`Delete ${ingredient.name}`}
+                    onClick={() => handleDelete(ingredient)}
+                  >
+                    <IconTrash size={18} />
+                  </ActionIcon>
+                </Group>
+              </Group>
+              <Collapse expanded={expanded}>
+                <IngredientEditSection ingredient={ingredient} />
+              </Collapse>
+            </Card>
+          )
+        })}
       </Stack>
     </Stack>
   )

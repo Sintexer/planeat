@@ -8,7 +8,10 @@ export type CreateIngredientInput = {
 }
 
 export type UpdateIngredientInput = Partial<
-  Pick<Ingredient, 'name' | 'aliases' | 'category' | 'isCommon'>
+  Pick<
+    Ingredient,
+    'name' | 'aliases' | 'preferredLabels' | 'localizedAliases' | 'category' | 'isCommon'
+  >
 >
 
 export interface IngredientRepository {
@@ -16,6 +19,8 @@ export interface IngredientRepository {
   getAll(): Promise<Ingredient[]>
   getById(id: IngredientId): Promise<Ingredient | undefined>
   findByNameOrAlias(name: string): Promise<Ingredient | undefined>
+  /** Every ingredient matching `name` by identity or preferred label — for safe link resolution. */
+  findCandidatesByName(name: string): Promise<Ingredient[]>
   update(id: IngredientId, changes: UpdateIngredientInput): Promise<void>
   remove(id: IngredientId): Promise<void>
 }

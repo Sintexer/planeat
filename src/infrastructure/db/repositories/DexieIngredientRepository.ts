@@ -1,4 +1,5 @@
 import {
+  ingredientMatchesAnyIdentifier,
   ingredientMatchesName,
   type Ingredient,
   type IngredientId,
@@ -23,6 +24,8 @@ export class DexieIngredientRepository implements IngredientRepository {
       id: crypto.randomUUID(),
       name: input.name.trim(),
       aliases: (input.aliases ?? []).map((a) => a.trim()).filter(Boolean),
+      preferredLabels: [],
+      localizedAliases: [],
       category: input.category?.trim() || undefined,
       isCommon: input.isCommon ?? false,
       createdAt: now,
@@ -43,6 +46,11 @@ export class DexieIngredientRepository implements IngredientRepository {
   async findByNameOrAlias(name: string): Promise<Ingredient | undefined> {
     const all = await this.db.ingredients.toArray()
     return all.find((ingredient) => ingredientMatchesName(ingredient, name))
+  }
+
+  async findCandidatesByName(name: string): Promise<Ingredient[]> {
+    const all = await this.db.ingredients.toArray()
+    return all.filter((ingredient) => ingredientMatchesAnyIdentifier(ingredient, name))
   }
 
   async update(id: IngredientId, changes: UpdateIngredientInput): Promise<void> {

@@ -57,10 +57,24 @@ const recipeSnapshotSchema = recipeSchema.omit({ tagIds: true }).extend({
   tags: z.array(z.string()),
 })
 
+// Lenient (not z.enum(UI_LOCALES)) so a locale outside the current build's
+// list — legacy, future, or hand-edited — always round-trips.
+const ingredientLabelSchema = z.object({
+  locale: z.string(),
+  label: z.string(),
+})
+
+const localizedAliasSchema = z.object({
+  locale: z.string(),
+  text: z.string(),
+})
+
 const ingredientSchema = z.object({
   id: z.string(),
   name: z.string(),
   aliases: z.array(z.string()),
+  preferredLabels: z.array(ingredientLabelSchema).optional(),
+  localizedAliases: z.array(localizedAliasSchema).optional(),
   category: z.string().optional(),
   isCommon: z.boolean(),
   createdAt: z.number(),

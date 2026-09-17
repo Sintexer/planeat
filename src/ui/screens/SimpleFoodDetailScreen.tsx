@@ -14,6 +14,7 @@ import { notifications } from '@mantine/notifications'
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useServices } from '../../app/servicesContext'
+import { resolveIngredientLabel } from '../../domain/ingredients/Ingredient'
 import type { MealType, RecipeRole } from '../../domain/shared/MealEnums'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
 import type { SimpleFoodService } from '../../application/simpleFoods/SimpleFoodService'
@@ -24,6 +25,7 @@ import { useIngredients } from '../hooks/useIngredients'
 import { useSimpleFood } from '../hooks/useSimpleFood'
 import { useTags } from '../hooks/useTags'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
+import { useLocalization } from '../localization/LocalizationContext'
 import { mealTypeOptions, roleOptions } from '../shared/mealEnumOptions'
 
 function SimpleFoodEditableFields({
@@ -146,14 +148,15 @@ export function SimpleFoodDetailScreen() {
   const tags = useTags()
   const { simpleFoodService, tagService } = useServices()
   const formatQty = useFormatQuantity()
+  const { locale } = useLocalization()
 
   const ingredientNames = useMemo(() => {
     const map = new Map<string, string>()
     for (const ingredient of ingredients ?? []) {
-      map.set(ingredient.id, ingredient.name)
+      map.set(ingredient.id, resolveIngredientLabel(ingredient, locale))
     }
     return map
-  }, [ingredients])
+  }, [ingredients, locale])
 
   const tagsById = useMemo(() => {
     const map = new Map<string, string>()

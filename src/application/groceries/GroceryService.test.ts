@@ -213,6 +213,9 @@ class FakeIngredientRepository implements IngredientRepository {
   findByNameOrAlias: IngredientRepository['findByNameOrAlias'] = () => {
     throw new Error('not implemented')
   }
+  findCandidatesByName: IngredientRepository['findCandidatesByName'] = () => {
+    throw new Error('not implemented')
+  }
   update: IngredientRepository['update'] = () => {
     throw new Error('not implemented')
   }
