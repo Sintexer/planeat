@@ -22,11 +22,11 @@ Standalone grocery lists (open/closed). Generate from a week plan: scaled cookin
 
 ## Recipes
 
-Full recipe library (create/edit/detail, ingredient catalog, simple foods checklist, scale preview). Recipes and simple foods may share a catalog UI; they stay separate records.
+Full recipe library (create/edit/detail, ingredient catalog, simple foods checklist, scale preview). Recipes and simple foods may share a catalog UI; they stay separate records. Library filters can cap recorded total time and contain/exclude catalog ingredients (linked IDs only; missing time is not treated as zero; this is not an allergy-safety guarantee).
 
 On first launch, if the recipe table is empty, the app seeds a small editable starter set (cutlets, soup, carbonara, sides, and a few simple foods). Seeding never runs once any recipe exists and never overwrites user data.
 
-Structured import (JSON / JSON-LD / HTML with embedded JSON-LD) prefills a draft. Ambiguous cups/tablespoons/ounces stay visible for confirmation; unresolved measurements keep the original line (`sourceText`) and may be saved as-is. Sprint 17 adds ingredient match-and-confirm without inventing precision.
+Structured import (JSON / JSON-LD / HTML with embedded JSON-LD) prefills a draft. Ambiguous cups/tablespoons/ounces stay visible for confirmation; unresolved measurements keep the original line (`sourceText`) and may be saved as-is. Ingredient matching suggests catalog rows (names and aliases); unique identity matches pre-link without writing aliases; ambiguous names require a choice; unlinked lines save without creating catalog rows. Adding an imported phrase as a reusable alias is a separate confirmation.
 
 ## Settings
 

@@ -164,3 +164,50 @@ describe('IngredientService.updateIngredient', () => {
     expect(updated?.localizedAliases).toEqual([{ locale: 'en', text: 'guinea squash' }])
   })
 })
+
+describe('IngredientService.addLegacyAlias', () => {
+  it('appends a legacy alias without assigning a locale', async () => {
+    const repo = new FakeIngredientRepository()
+    const service = new IngredientService(repo)
+    const created = await repo.create({ name: 'Eggplant' })
+
+    const result = await service.addLegacyAlias(created.id, 'aubergine')
+    expect(result.ok).toBe(true)
+    const updated = await repo.getById(created.id)
+    expect(updated?.aliases).toEqual(['aubergine'])
+    expect(updated?.localizedAliases).toEqual([])
+  })
+
+  it('is a no-op when the phrase already identifies the ingredient', async () => {
+    const repo = new FakeIngredientRepository()
+    const service = new IngredientService(repo)
+    const created = await repo.create({ name: 'Eggplant', aliases: ['aubergine'] })
+
+    const result = await service.addLegacyAlias(created.id, 'Aubergine')
+    expect(result.ok).toBe(true)
+    const updated = await repo.getById(created.id)
+    expect(updated?.aliases).toEqual(['aubergine'])
+  })
+
+  it('returns name-collision when another ingredient already owns the phrase', async () => {
+    const repo = new FakeIngredientRepository()
+    const service = new IngredientService(repo)
+    const eggplant = await repo.create({ name: 'Eggplant' })
+    await repo.create({ name: 'Zucchini', aliases: ['aubergine'] })
+
+    const result = await service.addLegacyAlias(eggplant.id, 'aubergine')
+    expect(result).toEqual({ ok: false, error: 'name-collision' })
+    const updated = await repo.getById(eggplant.id)
+    expect(updated?.aliases).toEqual([])
+  })
+
+  it('returns empty-name for a blank phrase', async () => {
+    const repo = new FakeIngredientRepository()
+    const service = new IngredientService(repo)
+    const created = await repo.create({ name: 'Eggplant' })
+    expect(await service.addLegacyAlias(created.id, '   ')).toEqual({
+      ok: false,
+      error: 'empty-name',
+    })
+  })
+})

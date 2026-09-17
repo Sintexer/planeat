@@ -1,4 +1,4 @@
-import { Button, Chip, Drawer, Group, Stack, Text } from '@mantine/core'
+import { Button, Chip, Drawer, Group, MultiSelect, NumberInput, Stack, Text } from '@mantine/core'
 import { useState, type ReactNode } from 'react'
 import {
   EFFORT_LABELS,
@@ -12,6 +12,7 @@ import {
   itemMatchesFilters,
   type DishCatalogFilters,
   type DishCatalogItem,
+  type IngredientFilterOption,
   type TagFacet,
 } from './catalogModel'
 
@@ -36,6 +37,15 @@ function FilterGroup({ label, children }: { label: string; children: ReactNode }
   )
 }
 
+function filterIngredientOptions(
+  options: IngredientFilterOption[],
+  search: string,
+): IngredientFilterOption[] {
+  const query = search.trim().toLowerCase()
+  if (!query) return options
+  return options.filter((option) => option.searchText.toLowerCase().includes(query))
+}
+
 interface FilterDrawerProps {
   opened: boolean
   onClose: () => void
@@ -44,6 +54,7 @@ interface FilterDrawerProps {
   items: DishCatalogItem[]
   tagFacets: TagFacet[]
   showKindFilter?: boolean
+  ingredientOptions?: IngredientFilterOption[]
 }
 
 export function FilterDrawer({
@@ -54,12 +65,9 @@ export function FilterDrawer({
   items,
   tagFacets,
   showKindFilter = true,
+  ingredientOptions = [],
 }: FilterDrawerProps) {
   const [draft, setDraft] = useState<DishCatalogFilters>(appliedFilters)
-  // Track the open/closed transition during render (not in an effect) to reseed the
-  // draft from applied filters each time the drawer opens, without clobbering
-  // in-progress edits if appliedFilters changes while it's already open (e.g. an
-  // applied chip removed elsewhere while the drawer happens to be up).
   const [wasOpened, setWasOpened] = useState(opened)
   if (opened !== wasOpened) {
     setWasOpened(opened)
@@ -80,13 +88,21 @@ export function FilterDrawer({
       roles: [],
       effort: 'all',
       tagIds: [],
+      maxTotalTimeMinutes: '',
+      containsIngredientIds: [],
+      excludeIngredientIds: [],
     }))
   }
 
+  const ingredientSelectData = ingredientOptions.map((option) => ({
+    value: option.id,
+    label: option.label,
+  }))
+
   return (
-    <Drawer opened={opened} onClose={onClose} position="bottom" size="60%" title="Filters">
+    <Drawer opened={opened} onClose={onClose} position="bottom" size="80%" title="Filters">
       <Stack gap="md" justify="space-between" h="100%">
-        <Stack gap="sm">
+        <Stack gap="sm" style={{ overflowY: 'auto' }}>
           {showKindFilter && (
             <FilterGroup label="Type">
               <Chip
@@ -151,6 +167,53 @@ export function FilterDrawer({
               </Chip>
             ))}
           </FilterGroup>
+
+          <NumberInput
+            label="Maximum total time (minutes)"
+            description="Only recipes with a recorded total time. Missing time is not treated as zero."
+            min={1}
+            value={draft.maxTotalTimeMinutes}
+            onChange={(next) =>
+              setDraftPatch({ maxTotalTimeMinutes: typeof next === 'number' ? next : '' })
+            }
+          />
+
+          {ingredientOptions.length > 0 && (
+            <Stack gap="sm">
+              <MultiSelect
+                label="Contains ingredient"
+                placeholder="Pick from catalog"
+                searchable
+                data={ingredientSelectData}
+                value={draft.containsIngredientIds}
+                onChange={(value) => setDraftPatch({ containsIngredientIds: value })}
+                filter={({ options, search }) => {
+                  const allowed = new Set(
+                    filterIngredientOptions(ingredientOptions, search).map((option) => option.id),
+                  )
+                  return options.filter((option) => 'value' in option && allowed.has(option.value))
+                }}
+              />
+              <MultiSelect
+                label="Exclude ingredient"
+                placeholder="Pick from catalog"
+                searchable
+                data={ingredientSelectData}
+                value={draft.excludeIngredientIds}
+                onChange={(value) => setDraftPatch({ excludeIngredientIds: value })}
+                filter={({ options, search }) => {
+                  const allowed = new Set(
+                    filterIngredientOptions(ingredientOptions, search).map((option) => option.id),
+                  )
+                  return options.filter((option) => 'value' in option && allowed.has(option.value))
+                }}
+              />
+              <Text size="xs" c="dimmed">
+                These filters use recorded catalog ingredients only. Unlinked imported lines are
+                ignored. This is not an allergy-safety guarantee.
+              </Text>
+            </Stack>
+          )}
 
           {tagFacets.length > 0 && (
             <FilterGroup label="Household tags">

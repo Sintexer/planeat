@@ -6,7 +6,8 @@ import type { TagId } from '../tags/Tag'
 export type RecipeId = string
 
 export interface RecipeIngredientLine {
-  ingredientId: IngredientId
+  /** Absent when an imported line was saved without linking to the catalog. */
+  ingredientId?: IngredientId
   quantity: Quantity | null
   /** Free-form non-numeric amount (e.g. "to taste"). Mutually exclusive with `quantity` by UI convention. */
   quantityText?: string

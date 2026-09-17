@@ -175,6 +175,11 @@ export function normalizeImportedRecipe(node: SchemaOrgRecipeNode): NormalizedIm
   hints.push(
     'Defaults applied: role Complete, meal type Dinner, effort Regular, reuse Fresh only — adjust if needed.',
   )
+  if (lines.length > 0) {
+    hints.push(
+      'Imported ingredient names are suggested against your catalog. You can leave lines unlinked; aliases are added only if you confirm.',
+    )
+  }
 
   const form: ImportedRecipeDraft = {
     name: displayName,

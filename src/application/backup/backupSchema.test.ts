@@ -167,6 +167,26 @@ describe('backupFileSchema — ingredient line quantity shapes (Sprint 12)', () 
     }
   })
 
+  it('round-trips an unlinked imported line without ingredientId', () => {
+    const result = roundTrip({
+      ...baseRecipe(),
+      ingredientLines: [
+        {
+          quantity: { value: 2, unit: 'cup' },
+          displayText: 'flour',
+          sourceText: '2 cups flour',
+        },
+      ],
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      const line = result.data.data.recipes[0]?.ingredientLines[0]
+      expect(line?.ingredientId).toBeUndefined()
+      expect(line?.displayText).toBe('flour')
+      expect(line?.sourceText).toBe('2 cups flour')
+    }
+  })
+
   it('round-trips a bare legacy unit (e.g. "cup") unchanged, without inventing a convention', () => {
     const result = roundTrip({
       ...baseRecipe(),

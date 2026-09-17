@@ -12,16 +12,20 @@ import {
 } from '../../domain/shared/MealEnums'
 import { DishCatalog } from '../catalog/DishCatalog'
 import {
+  defaultDishCatalogFilters,
   recipeToCatalogItem,
   simpleFoodToCatalogItem,
   type DishCatalogFilters,
+  type IngredientFilterOption,
 } from '../catalog/catalogModel'
 import { PageTitle } from '../components/ScreenHeader'
+import { useIngredients } from '../hooks/useIngredients'
 import { useRecipes } from '../hooks/useRecipes'
 import { useSettings } from '../hooks/useSettings'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
 import { useTags } from '../hooks/useTags'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
+import { useIngredientLabel } from '../localization/useIngredientLabel'
 import { useLocalization } from '../localization/LocalizationContext'
 import { recipesBrowseState } from './recipesBrowseState'
 
@@ -29,12 +33,17 @@ export function RecipesScreen() {
   const recipes = useRecipes()
   const simpleFoods = useSimpleFoods()
   const tags = useTags()
+  const ingredients = useIngredients()
   const settings = useSettings()
   const { settingsRepository } = useServices()
   const navigate = useNavigate()
   const formatQty = useFormatQuantity()
   const { t } = useLocalization()
-  const [filters, setFilters] = useState<DishCatalogFilters>(() => recipesBrowseState.filters)
+  const ingredientLabel = useIngredientLabel()
+  const [filters, setFilters] = useState<DishCatalogFilters>(() => ({
+    ...defaultDishCatalogFilters('all'),
+    ...recipesBrowseState.filters,
+  }))
 
   const sort: CatalogSort = settings?.catalogSort ?? DEFAULT_CATALOG_SORT
   const group: CatalogGroup = settings?.catalogGroup ?? DEFAULT_CATALOG_GROUP
@@ -65,6 +74,20 @@ export function RecipesScreen() {
     )
     return [...recipeItems, ...foodItems]
   }, [recipes, simpleFoods, formatQty, tagNamesById])
+
+  const ingredientOptions = useMemo((): IngredientFilterOption[] => {
+    return (ingredients ?? []).map((ingredient) => ({
+      id: ingredient.id,
+      label: ingredientLabel(ingredient),
+      searchText: [
+        ingredient.name,
+        ingredientLabel(ingredient),
+        ...ingredient.aliases,
+        ...(ingredient.localizedAliases ?? []).map((alias) => alias.text),
+        ...(ingredient.preferredLabels ?? []).map((entry) => entry.label),
+      ].join(' '),
+    }))
+  }, [ingredients, ingredientLabel])
 
   useLayoutEffect(() => {
     if (items.length === 0) return
@@ -202,6 +225,7 @@ export function RecipesScreen() {
           onGroupChange={(next) => void settingsRepository.update({ catalogGroup: next })}
           showGroupControl
           layout="page"
+          ingredientOptions={ingredientOptions}
           onSelect={(item) => {
             captureScroll()
             if (item.kind === 'simple-food') {

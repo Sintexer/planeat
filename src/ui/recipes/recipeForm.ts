@@ -117,7 +117,9 @@ export function recipeToFormValues(
         ? [emptyIngredientLine()]
         : recipe.ingredientLines.map((line) => ({
             key: crypto.randomUUID(),
-            name: ingredientNamesById.get(line.ingredientId) ?? line.displayText,
+            name: line.ingredientId
+              ? (ingredientNamesById.get(line.ingredientId) ?? line.displayText)
+              : line.displayText,
             ingredientId: line.ingredientId,
             quantityMode: line.quantityText ? ('text' as const) : ('amount' as const),
             quantityValue: line.quantity?.value ?? '',
@@ -178,13 +180,10 @@ export function measurementStatusForUnit(unit: string): MeasurementStatus {
   return 'known'
 }
 
-export function formLineToIngredientLine(
-  line: RecipeFormIngredientLine,
-  ingredientId: string,
-): RecipeIngredientLine {
+export function formLineToIngredientLine(line: RecipeFormIngredientLine): RecipeIngredientLine {
   const isTextMode = line.quantityMode === 'text'
   return {
-    ingredientId,
+    ingredientId: line.ingredientId,
     quantity: isTextMode ? null : quantityFromForm(line.quantityValue, line.quantityUnit),
     quantityText: isTextMode ? line.quantityText.trim() || undefined : undefined,
     note: line.note.trim() || undefined,

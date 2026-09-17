@@ -634,4 +634,35 @@ describe('GroceryService.updateFromPlan manual-item preservation', () => {
     const flourItemAfter = itemsAfter.find((item) => item.ingredientId === 'flour')
     expect(flourItemAfter?.checked).toBe(true)
   })
+
+  it('emits a grocery row for an unlinked recipe line using displayText', async () => {
+    const graph = buildGraph({
+      cookingEvents: [
+        buildCookingEvent({
+          id: 'event-1',
+          planId: 'plan-1',
+          ingredientLines: [
+            {
+              quantity: { value: 2, unit: 'cup' },
+              displayText: 'flour',
+              sourceText: '2 cups flour',
+            },
+          ],
+          yieldQty: { value: 1, unit: 'serving' },
+          outputQuantity: { value: 1, unit: 'serving' },
+        }),
+      ],
+      components: [buildComponent('slot-1', 'event-1')],
+    })
+    const { service, groceries } = makeService(graph)
+
+    const result = await service.generateFromPlan('plan-1')
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const items = await groceries.getItemsForList(result.list.id)
+    expect(items).toHaveLength(1)
+    expect(items[0]?.ingredientId).toBeUndefined()
+    expect(items[0]?.label).toBe('flour')
+    expect(items[0]?.quantity).toEqual({ value: 2, unit: 'cup' })
+  })
 })

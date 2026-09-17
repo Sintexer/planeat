@@ -21,7 +21,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { notifications } from '@mantine/notifications'
 import { useServices } from '../../app/servicesContext'
-import { resolveIngredientLabel } from '../../domain/ingredients/Ingredient'
+import {
+  resolveIngredientLabel,
+  ingredientMatchesAnyIdentifier,
+} from '../../domain/ingredients/Ingredient'
 import { REUSE_POLICIES, REUSE_POLICY_LABELS } from '../../domain/shared/MealEnums'
 import type { Recipe } from '../../domain/recipes/Recipe'
 import { useIngredients } from '../hooks/useIngredients'
@@ -29,8 +32,13 @@ import { useTags } from '../hooks/useTags'
 import { useLocalization } from '../localization/LocalizationContext'
 import { QuantityFields } from '../components/QuantityFields'
 import { ImportLineMeasurement } from '../components/ImportLineMeasurement'
+import { ImportIngredientMatchStatus } from '../components/ImportIngredientMatchStatus'
 import { IngredientNameField } from '../components/IngredientNameField'
-import { linkOrCreateIngredient } from '../components/IngredientCandidateModal'
+import {
+  confirmLinkImportedIngredient,
+  linkOrCreateIngredient,
+  resolveIngredientCandidate,
+} from '../components/IngredientCandidateModal'
 import { RecipePhotoThumb } from '../components/RecipePhotoThumb'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { importedDraftToFormValues, readAndClearImportDraft } from '../recipes/importDraft'
@@ -73,6 +81,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
     return { hints: draft.hints, form: importedDraftToFormValues(draft.form) }
   })
   const importHints = importBootstrap.hints
+  const isImportSession = Boolean(importBootstrap.form)
 
   const ingredientNamesById = useMemo(() => {
     const map = new Map<string, string>()
@@ -113,6 +122,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
   }, [form.values.dishType])
 
   const hydratedRecipeId = useRef<string | undefined>(undefined)
+  const importMatchApplied = useRef(false)
   useEffect(() => {
     if (mode !== 'edit' || !recipe || !ingredients) return
     if (hydratedRecipeId.current === recipe.id) return
@@ -120,6 +130,47 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
     form.setValues(recipeToFormValues(recipe, ingredientNamesById))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, recipe?.id, ingredients])
+
+  useEffect(() => {
+    if (!importBootstrap.form || !ingredients || importMatchApplied.current) return
+    importMatchApplied.current = true
+    const nextLines = form.values.ingredientLines.map((line) => {
+      if (!line.sourceText || line.ingredientId || !line.name.trim()) return line
+      const candidates = ingredients.filter((ingredient) =>
+        ingredientMatchesAnyIdentifier(ingredient, line.name),
+      )
+      if (candidates.length !== 1) return line
+      return { ...line, ingredientId: candidates[0].id }
+    })
+    form.setFieldValue('ingredientLines', nextLines)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ingredients])
+
+  const importMatchHints = useMemo(() => {
+    if (!isImportSession) return [] as string[]
+    const catalog = ingredients ?? []
+    const imported = form.values.ingredientLines.filter(
+      (line) => line.sourceText && line.name.trim(),
+    )
+    const unlinked = imported.filter((line) => !line.ingredientId)
+    const ambiguous = unlinked.filter(
+      (line) =>
+        catalog.filter((ingredient) => ingredientMatchesAnyIdentifier(ingredient, line.name))
+          .length > 1,
+    )
+    const hints: string[] = []
+    if (unlinked.length > 0) {
+      hints.push(
+        `${unlinked.length} ingredient line${unlinked.length === 1 ? '' : 's'} ${unlinked.length === 1 ? 'is' : 'are'} unlinked — save is allowed.`,
+      )
+    }
+    if (ambiguous.length > 0) {
+      hints.push(
+        `${ambiguous.length} imported name${ambiguous.length === 1 ? '' : 's'} match more than one catalog ingredient.`,
+      )
+    }
+    return hints
+  }, [isImportSession, ingredients, form.values.ingredientLines])
 
   const handleTagNamesChange = async (names: string[]) => {
     const ids: string[] = []
@@ -148,10 +199,9 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
 
     const ingredientLines = []
     for (const line of built.lines) {
-      // Most lines are already resolved eagerly while editing (IngredientNameField);
-      // this is only a fallback for a line that was never confirmed via Enter/blur/select.
-      let ingredientId = line.ingredientId
-      if (!ingredientId) {
+      const imported = Boolean(line.sourceText)
+      let nextLine = line
+      if (!line.ingredientId && !imported) {
         const ingredient = await linkOrCreateIngredient(ingredientService, line.name, (candidate) =>
           resolveIngredientLabel(candidate, locale),
         )
@@ -159,9 +209,9 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
           notifications.show({ message: 'Could not resolve ingredient name', color: 'red' })
           return
         }
-        ingredientId = ingredient.id
+        nextLine = { ...line, ingredientId: ingredient.id }
       }
-      ingredientLines.push(formLineToIngredientLine(line, ingredientId))
+      ingredientLines.push(formLineToIngredientLine(nextLine))
     }
 
     const write = { ...built.base, ingredientLines }
@@ -213,10 +263,10 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
           fallbackTo={recipe ? `/recipes/${recipe.id}` : '/recipes'}
         />
 
-        {importHints.length > 0 && (
+        {(importHints.length > 0 || importMatchHints.length > 0) && (
           <Alert color="yellow" title="Imported — please confirm">
             <Stack gap={4}>
-              {importHints.map((hint) => (
+              {[...importHints, ...importMatchHints].map((hint) => (
                 <Text key={hint} size="sm">
                   {hint}
                 </Text>
@@ -350,6 +400,20 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
                 <IngredientNameField
                   value={line.name}
                   ingredientId={line.ingredientId}
+                  eagerResolve={!line.sourceText}
+                  confirmBeforeLink={
+                    line.sourceText
+                      ? async (ingredient, phrase) => {
+                          const linked = await confirmLinkImportedIngredient(
+                            ingredientService,
+                            ingredient,
+                            phrase,
+                            (candidate) => resolveIngredientLabel(candidate, locale),
+                          )
+                          return linked !== null
+                        }
+                      : undefined
+                  }
                   onResolved={({ name, ingredientId }) => {
                     form.setFieldValue(`ingredientLines.${index}.name`, name)
                     form.setFieldValue(`ingredientLines.${index}.ingredientId`, ingredientId)
@@ -374,6 +438,51 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
                   <IconTrash size={18} />
                 </ActionIcon>
               </Group>
+              {line.sourceText ? (
+                <ImportIngredientMatchStatus
+                  lineName={line.name}
+                  ingredientId={line.ingredientId}
+                  matchedLabel={
+                    line.ingredientId ? ingredientNamesById.get(line.ingredientId) : undefined
+                  }
+                  catalog={ingredients ?? []}
+                  onUnlink={() =>
+                    form.setFieldValue(`ingredientLines.${index}.ingredientId`, undefined)
+                  }
+                  onChooseMatch={async () => {
+                    const candidates = (ingredients ?? []).filter((ingredient) =>
+                      ingredientMatchesAnyIdentifier(ingredient, line.name),
+                    )
+                    if (candidates.length === 0) return
+                    const choice = await resolveIngredientCandidate(
+                      candidates,
+                      line.name,
+                      (candidate) => resolveIngredientLabel(candidate, locale),
+                    )
+                    if (choice.action === 'select') {
+                      const linked = await confirmLinkImportedIngredient(
+                        ingredientService,
+                        choice.ingredient,
+                        line.name,
+                        (candidate) => resolveIngredientLabel(candidate, locale),
+                      )
+                      if (linked) {
+                        form.setFieldValue(`ingredientLines.${index}.ingredientId`, linked.id)
+                      }
+                      return
+                    }
+                    if (choice.action === 'create') {
+                      const created = await ingredientService.createIngredientForName(line.name)
+                      if (created.ok) {
+                        form.setFieldValue(
+                          `ingredientLines.${index}.ingredientId`,
+                          created.ingredient.id,
+                        )
+                      }
+                    }
+                  }}
+                />
+              ) : null}
               <ImportLineMeasurement
                 line={line}
                 onChange={(patch) =>

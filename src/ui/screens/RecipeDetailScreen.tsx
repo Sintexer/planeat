@@ -253,7 +253,9 @@ export function RecipeDetailScreen() {
       ) : (
         <List spacing="xs">
           {recipe.ingredientLines.map((line, index) => {
-            const name = ingredientNames.get(line.ingredientId) ?? line.displayText
+            const name = line.ingredientId
+              ? (ingredientNames.get(line.ingredientId) ?? line.displayText)
+              : line.displayText
             const amountText = line.quantityText
               ? line.quantityText
               : (() => {
@@ -261,7 +263,7 @@ export function RecipeDetailScreen() {
                   return formatQty(scaled ?? null)
                 })()
             return (
-              <List.Item key={`${line.ingredientId}-${index}`}>
+              <List.Item key={`${line.ingredientId ?? line.displayText}-${index}`}>
                 {name}
                 {` — ${amountText}`}
                 {line.note ? ` (${line.note})` : ''}

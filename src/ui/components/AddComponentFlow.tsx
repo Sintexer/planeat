@@ -9,6 +9,7 @@ import {
   simpleFoodToCatalogItem,
   type DishCatalogFilters,
   type DishCatalogItem,
+  type IngredientFilterOption,
 } from '../catalog/catalogModel'
 import { useServices } from '../../app/servicesContext'
 import type { CookingEvent } from '../../domain/plans/CookingEvent'
@@ -22,6 +23,7 @@ import { DEFAULT_CATALOG_SORT } from '../../domain/shared/MealEnums'
 import type { Quantity } from '../../domain/shared/Quantity'
 import { addDays } from '../../domain/shared/LocalDate'
 import { hasUnallocatedRemainder, isReuseAllowed } from '../../domain/plans/CookingEventAllocation'
+import { useIngredients } from '../hooks/useIngredients'
 import { useMealFavorites } from '../hooks/useMealFavorites'
 import { usePairings } from '../hooks/usePairings'
 import { useRecipes } from '../hooks/useRecipes'
@@ -31,6 +33,7 @@ import { useTags } from '../hooks/useTags'
 import { usePlanByStartDate } from '../hooks/usePlanByStartDate'
 import { QuantityFields } from './QuantityFields'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
+import { useIngredientLabel } from '../localization/useIngredientLabel'
 
 type Step =
   | { kind: 'pick' }
@@ -102,11 +105,13 @@ export function AddComponentFlow({
   const recipes = useRecipes()
   const simpleFoods = useSimpleFoods()
   const tags = useTags()
+  const ingredients = useIngredients()
   const favorites = useMealFavorites()
   const pairings = usePairings()
   const settings = useSettings()
   const sort = settings?.catalogSort ?? DEFAULT_CATALOG_SORT
   const formatQty = useFormatQuantity()
+  const ingredientLabel = useIngredientLabel()
   const previousWeekStart = addDays(graph.plan.startDate, -7)
   const previousWeek = usePlanByStartDate(previousWeekStart)
 
@@ -136,6 +141,20 @@ export function AddComponentFlow({
     for (const tag of tags ?? []) map.set(tag.id, tag.name)
     return map
   }, [tags])
+
+  const ingredientOptions = useMemo((): IngredientFilterOption[] => {
+    return (ingredients ?? []).map((ingredient) => ({
+      id: ingredient.id,
+      label: ingredientLabel(ingredient),
+      searchText: [
+        ingredient.name,
+        ingredientLabel(ingredient),
+        ...ingredient.aliases,
+        ...(ingredient.localizedAliases ?? []).map((alias) => alias.text),
+        ...(ingredient.preferredLabels ?? []).map((entry) => entry.label),
+      ].join(' '),
+    }))
+  }, [ingredients, ingredientLabel])
 
   const ranked = useMemo(() => {
     if (!recipes || !simpleFoods || !favorites || !pairings || !settings) return []
@@ -406,6 +425,7 @@ export function AddComponentFlow({
             onSelect={pickCatalogItem}
             disabled={busy}
             showSuggestedFilter
+            ingredientOptions={ingredientOptions}
           />
         )}
 

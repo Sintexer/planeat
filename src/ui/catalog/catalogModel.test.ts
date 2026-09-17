@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { groupCatalogItems, sortCatalogItems, type DishCatalogItem } from './catalogModel'
+import {
+  groupCatalogItems,
+  itemMatchesFilters,
+  sortCatalogItems,
+  defaultDishCatalogFilters,
+  type DishCatalogItem,
+} from './catalogModel'
 
 function makeItem(overrides: Partial<DishCatalogItem> & { key: string }): DishCatalogItem {
   return {
@@ -11,6 +17,7 @@ function makeItem(overrides: Partial<DishCatalogItem> & { key: string }): DishCa
     tags: [],
     tagIds: [],
     subtitle: '',
+    ingredientIds: [],
     ...overrides,
   }
 }
@@ -106,5 +113,43 @@ describe('groupCatalogItems', () => {
     const groups = groupCatalogItems([soup, custom, plain], { searching: false, mode: 'dish-type' })
     expect(groups.map((group) => group.title)).toEqual(['grandmas-secret', 'Soup', 'Unclassified'])
     expect(groups.at(-1)).toEqual({ id: 'unclassified', title: 'Unclassified', items: [plain] })
+  })
+})
+
+describe('itemMatchesFilters', () => {
+  const base = defaultDishCatalogFilters()
+
+  it('keeps a 10-minute recipe under max 20 and drops missing time', () => {
+    const timed = makeItem({ key: 'fast', totalTimeMinutes: 10 })
+    const missing = makeItem({ key: 'unknown' })
+    expect(itemMatchesFilters(timed, { ...base, maxTotalTimeMinutes: 20 })).toBe(true)
+    expect(itemMatchesFilters(missing, { ...base, maxTotalTimeMinutes: 20 })).toBe(false)
+  })
+
+  it('contains matches linked ingredient IDs, not unlinked-only lines', () => {
+    const withFlour = makeItem({ key: 'bread', ingredientIds: ['flour'] })
+    const unlinked = makeItem({
+      key: 'import',
+      ingredientIds: [],
+      hasUnlinkedIngredients: true,
+    })
+    expect(itemMatchesFilters(withFlour, { ...base, containsIngredientIds: ['flour'] })).toBe(true)
+    expect(itemMatchesFilters(unlinked, { ...base, containsIngredientIds: ['flour'] })).toBe(false)
+  })
+
+  it('exclude drops a recipe listing that ID; unlinked-only still matches', () => {
+    const withOnion = makeItem({ key: 'soup', ingredientIds: ['onion'] })
+    const unlinked = makeItem({
+      key: 'import',
+      ingredientIds: [],
+      hasUnlinkedIngredients: true,
+    })
+    expect(itemMatchesFilters(withOnion, { ...base, excludeIngredientIds: ['onion'] })).toBe(false)
+    expect(itemMatchesFilters(unlinked, { ...base, excludeIngredientIds: ['onion'] })).toBe(true)
+  })
+
+  it('does not use query inside itemMatchesFilters', () => {
+    const item = makeItem({ key: 'pasta', name: 'Pasta' })
+    expect(itemMatchesFilters(item, { ...base, query: 'zzzz-no-match' })).toBe(true)
   })
 })

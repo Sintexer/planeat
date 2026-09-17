@@ -1,4 +1,5 @@
 import {
+  ingredientMatchesAnyIdentifier,
   ingredientMatchesName,
   type Ingredient,
   type IngredientId,
@@ -76,6 +77,38 @@ export class IngredientService {
     if (!name) return { ok: false, error: 'empty-name' }
     const ingredient = await this.ingredients.create({ name, aliases: [], isCommon: false })
     return { ok: true, ingredient }
+  }
+
+  /**
+   * Teach a legacy/unclassified alias. Never assigns a locale. No-op when the
+   * phrase already identifies this ingredient. Collisions with another
+   * ingredient's name/aliases/localizedAliases return an error, not an exception.
+   */
+  async addLegacyAlias(
+    id: IngredientId,
+    rawPhrase: string,
+  ): Promise<
+    | { ok: true; ingredient: Ingredient }
+    | { ok: false; error: 'empty-name' | 'not-found' | 'name-collision' }
+  > {
+    const phrase = rawPhrase.trim()
+    if (!phrase) return { ok: false, error: 'empty-name' }
+
+    const current = await this.ingredients.getById(id)
+    if (!current) return { ok: false, error: 'not-found' }
+    if (ingredientMatchesAnyIdentifier(current, phrase)) {
+      return { ok: true, ingredient: current }
+    }
+
+    const all = await this.ingredients.getAll()
+    const conflict = all.find(
+      (ingredient) => ingredient.id !== id && ingredientMatchesName(ingredient, phrase),
+    )
+    if (conflict) return { ok: false, error: 'name-collision' }
+
+    const aliases = [...current.aliases, phrase]
+    await this.ingredients.update(id, { aliases })
+    return { ok: true, ingredient: { ...current, aliases } }
   }
 
   async updateIngredient(

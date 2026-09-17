@@ -51,4 +51,14 @@ describe('normalizeImportedRecipe — measurement review', () => {
     expect(result.form.yieldUnit).toBe('serving')
     expect(result.form.yieldValue).toBe(4)
   })
+
+  it('hints that imported names can stay unlinked without teaching aliases', () => {
+    const result = normalizeImportedRecipe({
+      '@type': 'Recipe',
+      name: 'Pancakes',
+      recipeIngredient: ['2 cups flour'],
+    })
+    expect(result.hints.some((hint) => hint.includes('unlinked'))).toBe(true)
+    expect(result.hints.some((hint) => hint.includes('aliases'))).toBe(true)
+  })
 })

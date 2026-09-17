@@ -42,6 +42,16 @@ export type DishCatalogItem = {
   createdAt?: number
   updatedAt?: number
   dishType?: string
+  /** Linked catalog ingredient IDs (recipe lines with an id; simple food's ingredient). */
+  ingredientIds: string[]
+  /** True when a recipe has at least one line with no ingredientId (imported, unlinked). */
+  hasUnlinkedIngredients?: boolean
+}
+
+export type IngredientFilterOption = {
+  id: string
+  label: string
+  searchText: string
 }
 
 export type DishCatalogFilters = {
@@ -52,6 +62,9 @@ export type DishCatalogFilters = {
   effort: Effort | 'all'
   tagIds: TagId[]
   suggestedOnly: boolean
+  maxTotalTimeMinutes: number | ''
+  containsIngredientIds: string[]
+  excludeIngredientIds: string[]
 }
 
 export function defaultDishCatalogFilters(
@@ -66,6 +79,9 @@ export function defaultDishCatalogFilters(
     effort: 'all',
     tagIds: [],
     suggestedOnly,
+    maxTotalTimeMinutes: '',
+    containsIngredientIds: [],
+    excludeIngredientIds: [],
   }
 }
 
@@ -80,6 +96,9 @@ export function recipeToCatalogItem(
   tagNamesById: Map<TagId, string>,
   extra?: Partial<Pick<DishCatalogItem, 'score' | 'reason' | 'subtitle'>>,
 ): DishCatalogItem {
+  const ingredientIds = recipe.ingredientLines
+    .map((line) => line.ingredientId)
+    .filter((id): id is string => Boolean(id))
   return {
     key: `recipe:${recipe.id}`,
     kind: 'recipe',
@@ -99,6 +118,8 @@ export function recipeToCatalogItem(
     createdAt: recipe.createdAt,
     updatedAt: recipe.updatedAt,
     dishType: recipe.dishType,
+    ingredientIds,
+    hasUnlinkedIngredients: recipe.ingredientLines.some((line) => !line.ingredientId),
   }
 }
 
@@ -121,6 +142,7 @@ export function simpleFoodToCatalogItem(
     reason: extra?.reason,
     createdAt: food.createdAt,
     updatedAt: food.updatedAt,
+    ingredientIds: [food.ingredientId],
   }
 }
 
@@ -146,6 +168,7 @@ export function leftoverToCatalogItem(
     cookingEvent: event,
     subtitle: 'Remaining prep',
     ineligibleReason,
+    ingredientIds: [],
   }
 }
 
@@ -166,6 +189,22 @@ export function itemMatchesFilters(item: DishCatalogItem, filters: DishCatalogFi
     return false
   }
   if (filters.suggestedOnly && !(item.score && item.score > 0)) return false
+  if (filters.maxTotalTimeMinutes !== '') {
+    if (item.totalTimeMinutes === undefined) return false
+    if (item.totalTimeMinutes > filters.maxTotalTimeMinutes) return false
+  }
+  if (
+    filters.containsIngredientIds.length > 0 &&
+    !filters.containsIngredientIds.some((id) => item.ingredientIds.includes(id))
+  ) {
+    return false
+  }
+  if (
+    filters.excludeIngredientIds.length > 0 &&
+    filters.excludeIngredientIds.some((id) => item.ingredientIds.includes(id))
+  ) {
+    return false
+  }
   return true
 }
 

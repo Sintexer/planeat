@@ -34,6 +34,13 @@ interface IngredientNameFieldProps {
   ingredientService: IngredientService
   labelFor: (ingredient: Ingredient) => string
   label?: string
+  /**
+   * When false (import review), blur/Enter must not create catalog rows.
+   * Combobox picks still link; Create uses `createIngredientForName` only.
+   */
+  eagerResolve?: boolean
+  /** Called before linking a combobox pick. Return false to abort. */
+  confirmBeforeLink?: (ingredient: Ingredient, phrase: string) => Promise<boolean>
 }
 
 /**
@@ -54,6 +61,8 @@ export function IngredientNameField({
   ingredientService,
   labelFor,
   label = 'Ingredient',
+  eagerResolve = true,
+  confirmBeforeLink,
 }: IngredientNameFieldProps) {
   const combobox = useCombobox({ onDropdownClose: () => combobox.resetSelectedOption() })
   const [resolving, setResolving] = useState(false)
@@ -92,9 +101,31 @@ export function IngredientNameField({
     }
   }
 
-  const selectIngredient = (ingredient: Ingredient) => {
+  const selectIngredient = async (ingredient: Ingredient) => {
     combobox.closeDropdown()
+    if (confirmBeforeLink) {
+      const allowed = await confirmBeforeLink(ingredient, value.trim() || labelFor(ingredient))
+      if (!allowed) return
+    }
     onResolved({ name: labelFor(ingredient), ingredientId: ingredient.id })
+  }
+
+  const createFromQuery = async () => {
+    const trimmed = value.trim()
+    if (!trimmed || resolving) return
+    setResolving(true)
+    try {
+      if (eagerResolve) {
+        await resolve(trimmed)
+        return
+      }
+      const created = await ingredientService.createIngredientForName(trimmed)
+      if (created.ok) {
+        onResolved({ name: created.ingredient.name, ingredientId: created.ingredient.id })
+      }
+    } finally {
+      setResolving(false)
+    }
   }
 
   return (
@@ -103,11 +134,11 @@ export function IngredientNameField({
       onOptionSubmit={(optionValue) => {
         if (optionValue === '__create__') {
           combobox.closeDropdown()
-          void resolve(value)
+          void createFromQuery()
           return
         }
         const ingredient = ingredients.find((candidate) => candidate.id === optionValue)
-        if (ingredient) selectIngredient(ingredient)
+        if (ingredient) void selectIngredient(ingredient)
       }}
     >
       <Combobox.Target>
@@ -127,7 +158,7 @@ export function IngredientNameField({
           onClick={() => combobox.openDropdown()}
           onFocus={() => combobox.openDropdown()}
           onKeyDown={(event) => {
-            if (event.key === 'Enter' && !ingredientId) {
+            if (event.key === 'Enter' && !ingredientId && eagerResolve) {
               event.preventDefault()
               combobox.closeDropdown()
               void resolve(value)
@@ -135,7 +166,7 @@ export function IngredientNameField({
           }}
           onBlur={() => {
             combobox.closeDropdown()
-            if (!ingredientId && value.trim()) void resolve(value)
+            if (eagerResolve && !ingredientId && value.trim()) void resolve(value)
           }}
         />
       </Combobox.Target>

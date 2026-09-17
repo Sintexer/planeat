@@ -31,6 +31,7 @@ import {
   type CatalogSort,
   type DishCatalogFilters,
   type DishCatalogItem,
+  type IngredientFilterOption,
 } from './catalogModel'
 
 const KIND_BADGE_LABELS: Record<'recipe' | 'simple-food', string> = {
@@ -69,6 +70,7 @@ interface DishCatalogProps {
   emptyMessage?: string
   /** Page layout grows with the screen; modal keeps a capped scroller. */
   layout?: 'modal' | 'page'
+  ingredientOptions?: IngredientFilterOption[]
 }
 
 function activeFilterCount(filters: DishCatalogFilters, showSuggested: boolean): number {
@@ -79,6 +81,9 @@ function activeFilterCount(filters: DishCatalogFilters, showSuggested: boolean):
   count += filters.roles.length
   count += filters.tagIds.length
   if (filters.effort !== 'all') count += 1
+  if (filters.maxTotalTimeMinutes !== '') count += 1
+  count += filters.containsIngredientIds.length
+  count += filters.excludeIngredientIds.length
   return count
 }
 
@@ -194,6 +199,7 @@ export function DishCatalog({
   showSuggestedFilter = false,
   emptyMessage = 'No matching dishes.',
   layout = 'modal',
+  ingredientOptions = [],
 }: DishCatalogProps) {
   const [filterDrawerOpened, setFilterDrawerOpened] = useState(false)
   const tagFacets = useMemo(() => uniqueTagFacets(items, tagNamesById), [items, tagNamesById])
@@ -240,7 +246,16 @@ export function DishCatalog({
   }
 
   const clearFilters = () => {
-    setFilters({ kind: 'all', mealTypes: [], roles: [], effort: 'all', tagIds: [] })
+    setFilters({
+      kind: 'all',
+      mealTypes: [],
+      roles: [],
+      effort: 'all',
+      tagIds: [],
+      maxTotalTimeMinutes: '',
+      containsIngredientIds: [],
+      excludeIngredientIds: [],
+    })
   }
 
   const appliedChips: { key: string; label: string; onRemove: () => void }[] = []
@@ -277,6 +292,35 @@ export function DishCatalog({
       key: `tag:${tagId}`,
       label: tagNamesById.get(tagId) ?? tagId,
       onRemove: () => setFilters({ tagIds: filters.tagIds.filter((id) => id !== tagId) }),
+    })
+  }
+  if (filters.maxTotalTimeMinutes !== '') {
+    appliedChips.push({
+      key: 'max-time',
+      label: `≤ ${filters.maxTotalTimeMinutes} min`,
+      onRemove: () => setFilters({ maxTotalTimeMinutes: '' }),
+    })
+  }
+  const ingredientLabel = (id: string) =>
+    ingredientOptions.find((option) => option.id === id)?.label ?? id
+  for (const id of filters.containsIngredientIds) {
+    appliedChips.push({
+      key: `contains:${id}`,
+      label: `Has ${ingredientLabel(id)}`,
+      onRemove: () =>
+        setFilters({
+          containsIngredientIds: filters.containsIngredientIds.filter((value) => value !== id),
+        }),
+    })
+  }
+  for (const id of filters.excludeIngredientIds) {
+    appliedChips.push({
+      key: `exclude:${id}`,
+      label: `Without ${ingredientLabel(id)}`,
+      onRemove: () =>
+        setFilters({
+          excludeIngredientIds: filters.excludeIngredientIds.filter((value) => value !== id),
+        }),
     })
   }
 
@@ -408,6 +452,7 @@ export function DishCatalog({
         items={items}
         tagFacets={tagFacets}
         showKindFilter={showKindFilter}
+        ingredientOptions={ingredientOptions}
       />
 
       {layout === 'page' ? (

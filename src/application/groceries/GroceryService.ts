@@ -340,7 +340,9 @@ export class GroceryService {
       const factor = unitsMatch ? output.value / yieldQty.value : null
 
       for (const recipeLine of snapshot.ingredientLines) {
-        const ingredient = await this.ingredients.getById(recipeLine.ingredientId)
+        const ingredient = recipeLine.ingredientId
+          ? await this.ingredients.getById(recipeLine.ingredientId)
+          : undefined
         const label = ingredient?.name ?? recipeLine.displayText
         if (factor === null) {
           lines.push({
