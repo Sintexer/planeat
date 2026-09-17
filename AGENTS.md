@@ -72,3 +72,12 @@ No further libraries are currently earmarked for a scheduled sprint.
 Deliberately kept in reserve, not scheduled: `fflate` (only if backups need compression/photos), `DOMPurify` (only if we render imported HTML), `Papa Parse` (only for CSV import/export), `@dnd-kit/core` (only if drag-and-drop planning is added), `TanStack Virtual` (only if recipe lists get large enough to need it), `Immer` (only if immutable plan-editing genuinely gets unwieldy without it).
 
 Prefer native browser APIs over a wrapper package for: IDs (`crypto.randomUUID()`), JSON backup download (`Blob` + object URL), file reading (`File.text()`), number formatting (`Intl.NumberFormat`), clipboard (Clipboard API), sharing (Web Share API, with a copy/download fallback), and storage persistence (`navigator.storage.persist()` / `.estimate()`).
+
+
+## Further documentation
+
+- `docs/architecture.md` — stack rationale and cross-cutting decisions about the supportive libraries (what each one is/isn't allowed to be used for), plus known limitations such as `cup-metric`'s unit conversion (no library equivalent, self-only by design — see the `convert-units` row in `AGENTS.md`'s Libraries table).
+- `docs/data-model.md` — Dexie schema version history (what each `.version(n)` block added) and how the Dexie schema version and backup format version are separate, independently-bumped contracts.
+- `docs/functional-spec.md` — screen-by-screen product behavior (Plan, Lists, Recipes, Settings).
+- `docs/sprints/plan.md` — the sprint-by-sprint roadmap; its "Status" section at the bottom records what's shipped and what's next. Check this before starting new feature work.
+- `SPEC.md` — the full product specification.
