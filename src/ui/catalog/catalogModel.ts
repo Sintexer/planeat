@@ -273,6 +273,8 @@ export type GroupCatalogItemsOptions = {
   suggestedFirst?: boolean
   /** Library-screen context (RecipesScreen): how to bucket the non-suggested remainder. */
   mode?: CatalogGroup
+  /** Meal-picker context: group by suggestion reason for contextual sections. */
+  pickerSections?: boolean
 }
 
 function dishTypeGroupLabel(dishType: string): string {
@@ -325,7 +327,7 @@ export function groupCatalogItems(
   items: DishCatalogItem[],
   options: GroupCatalogItemsOptions,
 ): DishCatalogGroup[] {
-  const { searching, suggestedFirst = false, mode = 'none' } = options
+  const { searching, suggestedFirst = false, mode = 'none', pickerSections = false } = options
   if (searching || items.length === 0) {
     return items.length === 0 ? [] : [{ id: 'results', title: 'Results', items }]
   }
@@ -335,6 +337,36 @@ export function groupCatalogItems(
       items.filter((item) => item.kind !== 'leftover'),
       mode,
     )
+  }
+
+  if (pickerSections) {
+    const nonLeftovers = items.filter((item) => item.kind !== 'leftover')
+    const pairings = nonLeftovers.filter((item) => item.reason === 'pairing')
+    const fromFavorites = nonLeftovers.filter((item) => item.reason === 'favorite')
+    const suitable = nonLeftovers.filter(
+      (item) => item.reason === 'role' || item.reason === 'variety',
+    )
+    const allKeys = new Set([
+      ...pairings.map((item) => item.key),
+      ...fromFavorites.map((item) => item.key),
+      ...suitable.map((item) => item.key),
+    ])
+    const allItems = nonLeftovers.filter((item) => !allKeys.has(item.key))
+
+    const groups: DishCatalogGroup[] = []
+    if (pairings.length > 0) {
+      groups.push({ id: 'pairings', title: 'Pairs well', items: pairings })
+    }
+    if (fromFavorites.length > 0) {
+      groups.push({ id: 'from-favorites', title: 'From favorites', items: fromFavorites })
+    }
+    if (suitable.length > 0) {
+      groups.push({ id: 'suitable', title: 'Good fit', items: suitable })
+    }
+    if (allItems.length > 0) {
+      groups.push({ id: 'all', title: 'All items', items: allItems })
+    }
+    return groups
   }
 
   const suggested = items.filter((item) => item.kind !== 'leftover' && (item.score ?? 0) > 0)

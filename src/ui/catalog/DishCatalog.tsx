@@ -71,6 +71,8 @@ interface DishCatalogProps {
   /** Page layout grows with the screen; modal keeps a capped scroller. */
   layout?: 'modal' | 'page'
   ingredientOptions?: IngredientFilterOption[]
+  /** Meal-picker context: group by suggestion reason for contextual sections. */
+  pickerSections?: boolean
 }
 
 function activeFilterCount(filters: DishCatalogFilters, showSuggested: boolean): number {
@@ -200,6 +202,7 @@ export function DishCatalog({
   emptyMessage = 'No matching dishes.',
   layout = 'modal',
   ingredientOptions = [],
+  pickerSections = false,
 }: DishCatalogProps) {
   const [filterDrawerOpened, setFilterDrawerOpened] = useState(false)
   const tagFacets = useMemo(() => uniqueTagFacets(items, tagNamesById), [items, tagNamesById])
@@ -237,8 +240,9 @@ export function DishCatalog({
         searching,
         suggestedFirst: showSuggestedFilter,
         mode: showGroupControl ? (group ?? 'none') : 'none',
+        pickerSections,
       }),
-    [sortedItems, searching, showSuggestedFilter, showGroupControl, group],
+    [sortedItems, searching, showSuggestedFilter, showGroupControl, group, pickerSections],
   )
 
   const setFilters = (patch: Partial<DishCatalogFilters>) => {
