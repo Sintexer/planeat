@@ -14,4 +14,6 @@ export interface GroceryItem {
   checked: boolean
   origin: GroceryItemOrigin
   quantityManuallyEdited: boolean
+  /** Optional shopping-section key copied at generate time, or set on a manual line. */
+  shoppingSection?: string
 }

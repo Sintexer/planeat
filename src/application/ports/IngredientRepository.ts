@@ -4,13 +4,20 @@ export type CreateIngredientInput = {
   name: string
   aliases?: string[]
   category?: string
+  shoppingSection?: string
   isCommon?: boolean
 }
 
 export type UpdateIngredientInput = Partial<
   Pick<
     Ingredient,
-    'name' | 'aliases' | 'preferredLabels' | 'localizedAliases' | 'category' | 'isCommon'
+    | 'name'
+    | 'aliases'
+    | 'preferredLabels'
+    | 'localizedAliases'
+    | 'category'
+    | 'shoppingSection'
+    | 'isCommon'
   >
 >
 

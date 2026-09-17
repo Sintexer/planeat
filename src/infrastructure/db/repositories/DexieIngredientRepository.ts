@@ -27,6 +27,7 @@ export class DexieIngredientRepository implements IngredientRepository {
       preferredLabels: [],
       localizedAliases: [],
       category: input.category?.trim() || undefined,
+      shoppingSection: input.shoppingSection?.trim() || undefined,
       isCommon: input.isCommon ?? false,
       createdAt: now,
       updatedAt: now,
@@ -54,7 +55,15 @@ export class DexieIngredientRepository implements IngredientRepository {
   }
 
   async update(id: IngredientId, changes: UpdateIngredientInput): Promise<void> {
-    await this.db.ingredients.update(id, { ...changes, updatedAt: Date.now() })
+    const existing = await this.db.ingredients.get(id)
+    if (!existing) return
+    const next: Ingredient = { ...existing, ...changes, updatedAt: Date.now() }
+    if ('shoppingSection' in changes) {
+      const trimmed = changes.shoppingSection?.trim()
+      if (trimmed) next.shoppingSection = trimmed
+      else delete next.shoppingSection
+    }
+    await this.db.ingredients.put(next)
   }
 
   async remove(id: IngredientId): Promise<void> {

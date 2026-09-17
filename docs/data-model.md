@@ -76,7 +76,7 @@ Household tags (Sprint 8). Live recipes and simple foods store `tagIds`; cooking
 
 Backup format version **6** includes the tag catalog, live `tagIds`, and a separate snapshot schema that still uses stored labels.
 
-Later additive fields (no Dexie bump): `dishType`, `catalogSort`/`catalogGroup`, `UnitRegistry` keys on quantities as plain strings, `quantityText` / `sourceText` on lines, optional `ingredientId`, ingredient `preferredLabels`/`localizedAliases`.
+Later additive fields (no Dexie bump): `dishType`, `catalogSort`/`catalogGroup`, `UnitRegistry` keys on quantities as plain strings, `quantityText` / `sourceText` on lines, optional `ingredientId`, ingredient `preferredLabels`/`localizedAliases`, optional `shoppingSection` on ingredients and grocery items.
 
 ## Shipped model rules (keep)
 
@@ -88,7 +88,7 @@ Later additive fields (no Dexie bump): `dishType`, `catalogSort`/`catalogGroup`,
 
 ## Still planned (not shipped)
 
-See [`docs/sprints/plan.md`](sprints/plan.md). Next product work is grocery shopping sections (Sprint 20) as an optional section field on ingredients/grocery lines. Tag archive/merge/delete and saved library views are Phase 4. Optional later: `externalRefs` on ingredients, `defaultRecipeMeasurementConvention`.
+See [`docs/sprints/plan.md`](sprints/plan.md). Next product work is tag lifecycle (Sprint 21). Saved library views are Sprint 22. Optional later: `externalRefs` on ingredients, `defaultRecipeMeasurementConvention`.
 
 ## Starter library
 

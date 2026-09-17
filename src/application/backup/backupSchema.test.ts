@@ -278,3 +278,91 @@ describe('backupFileSchema — ingredient preferredLabels/localizedAliases (Spri
     expect(result.success).toBe(true)
   })
 })
+
+describe('backupFileSchema — shopping sections (Sprint 20)', () => {
+  it('round-trips shoppingSection on ingredients and grocery items, including unknown keys', () => {
+    const data = emptyData()
+    data.ingredients = [
+      {
+        id: 'ing-1',
+        name: 'Carrot',
+        aliases: [],
+        shoppingSection: 'produce',
+        isCommon: false,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ]
+    data.groceryLists = [
+      {
+        id: 'list-1',
+        title: 'Shop',
+        status: 'open',
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ]
+    data.groceryItems = [
+      {
+        id: 'item-1',
+        listId: 'list-1',
+        label: 'Carrot',
+        ingredientId: 'ing-1',
+        quantity: { value: 3, unit: 'piece' },
+        checked: false,
+        origin: 'generated',
+        quantityManuallyEdited: false,
+        shoppingSection: 'produce',
+      },
+      {
+        id: 'item-2',
+        listId: 'list-1',
+        label: 'Tape',
+        quantity: null,
+        checked: false,
+        origin: 'manual',
+        quantityManuallyEdited: false,
+        shoppingSection: 'aisle-9',
+      },
+    ]
+
+    const file = {
+      format: 'family-menu-planner',
+      schemaVersion: CURRENT_BACKUP_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    }
+    const result = backupFileSchema.safeParse(JSON.parse(JSON.stringify(file)))
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.data.data.ingredients[0]?.shoppingSection).toBe('produce')
+    expect(result.data.data.groceryItems[0]?.shoppingSection).toBe('produce')
+    expect(result.data.data.groceryItems[1]?.shoppingSection).toBe('aisle-9')
+  })
+
+  it('accepts grocery items and ingredients with no shoppingSection', () => {
+    const data = emptyData()
+    data.groceryLists = [
+      { id: 'list-1', title: 'Shop', status: 'open', createdAt: 0, updatedAt: 0 },
+    ]
+    data.groceryItems = [
+      {
+        id: 'item-1',
+        listId: 'list-1',
+        label: 'Salt',
+        quantity: null,
+        checked: true,
+        origin: 'generated',
+        quantityManuallyEdited: false,
+      },
+    ]
+
+    const result = backupFileSchema.safeParse({
+      format: 'family-menu-planner',
+      schemaVersion: CURRENT_BACKUP_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    })
+    expect(result.success).toBe(true)
+  })
+})

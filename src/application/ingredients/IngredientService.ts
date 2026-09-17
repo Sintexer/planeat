@@ -143,11 +143,16 @@ export class IngredientService {
     )
     if (conflict) return { ok: false, error: 'name-collision' }
 
-    await this.ingredients.update(id, {
+    const patch: UpdateIngredientInput = {
       ...changes,
       name: nextName,
       aliases: nextAliases,
-    })
+    }
+    if ('shoppingSection' in changes) {
+      const trimmed = changes.shoppingSection?.trim()
+      patch.shoppingSection = trimmed || undefined
+    }
+    await this.ingredients.update(id, patch)
     return { ok: true }
   }
 

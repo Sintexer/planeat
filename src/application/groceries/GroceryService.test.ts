@@ -89,6 +89,7 @@ class FakeGroceryRepository implements GroceryRepository {
       checked: input.checked ?? false,
       origin: input.origin,
       quantityManuallyEdited: input.quantityManuallyEdited ?? false,
+      shoppingSection: input.shoppingSection,
     }
     this.items.set(item.id, item)
     return item
@@ -664,5 +665,89 @@ describe('GroceryService.updateFromPlan manual-item preservation', () => {
     expect(items[0]?.ingredientId).toBeUndefined()
     expect(items[0]?.label).toBe('flour')
     expect(items[0]?.quantity).toEqual({ value: 2, unit: 'cup' })
+  })
+})
+
+describe('GroceryService shopping sections', () => {
+  it('copies catalog shoppingSection onto generated lines', async () => {
+    const ingredients = new Map<IngredientId, Ingredient>([
+      [
+        'apple',
+        {
+          id: 'apple',
+          name: 'Apple',
+          aliases: [],
+          shoppingSection: 'produce',
+          isCommon: false,
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      ],
+      [
+        'flour',
+        {
+          id: 'flour',
+          name: 'Flour',
+          aliases: [],
+          shoppingSection: 'pantry',
+          isCommon: false,
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      ],
+      [
+        'salt',
+        {
+          id: 'salt',
+          name: 'Salt',
+          aliases: [],
+          isCommon: true,
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      ],
+    ])
+    const graph = buildGraph({
+      cookingEvents: [
+        buildCookingEvent({
+          id: 'event-1',
+          planId: 'plan-1',
+          ingredientLines: [
+            baseIngredientLine('apple', { value: 2, unit: 'piece' }),
+            baseIngredientLine('flour', { value: 200, unit: 'g' }),
+            baseIngredientLine('salt', { value: 1, unit: 'g' }),
+          ],
+          yieldQty: { value: 1, unit: 'serving' },
+          outputQuantity: { value: 1, unit: 'serving' },
+        }),
+      ],
+      components: [buildComponent('slot-1', 'event-1')],
+    })
+    const { service, groceries } = makeService(graph, ingredients)
+
+    const result = await service.generateFromPlan('plan-1')
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const items = await groceries.getItemsForList(result.list.id)
+    expect(items.find((item) => item.ingredientId === 'apple')?.shoppingSection).toBe('produce')
+    expect(items.find((item) => item.ingredientId === 'flour')?.shoppingSection).toBe('pantry')
+    expect(items.find((item) => item.ingredientId === 'salt')?.shoppingSection).toBeUndefined()
+  })
+
+  it('stores a section on a manual line', async () => {
+    const graph = buildGraph({
+      cookingEvents: [],
+      components: [],
+    })
+    const { service } = makeService(graph)
+    const created = await service.createEmptyList('Shop')
+    expect(created.ok).toBe(true)
+    if (!created.ok) return
+
+    const result = await service.addManualItem(created.list.id, 'Paper towels', null, 'pantry')
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.item.shoppingSection).toBe('pantry')
+    expect(result.item.origin).toBe('manual')
   })
 })

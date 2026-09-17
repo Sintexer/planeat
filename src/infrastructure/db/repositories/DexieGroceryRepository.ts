@@ -77,6 +77,7 @@ export class DexieGroceryRepository implements GroceryRepository {
       checked: input.checked ?? false,
       origin: input.origin,
       quantityManuallyEdited: input.quantityManuallyEdited ?? false,
+      shoppingSection: input.shoppingSection,
     }
     await this.db.groceryItems.add(item)
     await this.db.groceryLists.update(input.listId, { updatedAt: Date.now() })
@@ -94,6 +95,7 @@ export class DexieGroceryRepository implements GroceryRepository {
       checked: input.checked ?? false,
       origin: input.origin,
       quantityManuallyEdited: input.quantityManuallyEdited ?? false,
+      shoppingSection: input.shoppingSection,
     }))
     const listId = inputs[0]!.listId
     await this.db.transaction('rw', this.db.groceryItems, this.db.groceryLists, async () => {
@@ -114,8 +116,14 @@ export class DexieGroceryRepository implements GroceryRepository {
   async updateItem(id: GroceryItemId, changes: UpdateGroceryItemInput): Promise<void> {
     const existing = await this.db.groceryItems.get(id)
     if (!existing) return
+    const next: GroceryItem = { ...existing, ...changes }
+    if ('shoppingSection' in changes) {
+      const trimmed = changes.shoppingSection?.trim()
+      if (trimmed) next.shoppingSection = trimmed
+      else delete next.shoppingSection
+    }
     await this.db.transaction('rw', this.db.groceryItems, this.db.groceryLists, async () => {
-      await this.db.groceryItems.update(id, changes)
+      await this.db.groceryItems.put(next)
       await this.db.groceryLists.update(existing.listId, { updatedAt: Date.now() })
     })
   }

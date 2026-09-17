@@ -77,6 +77,8 @@ const ingredientSchema = z.object({
   preferredLabels: z.array(ingredientLabelSchema).optional(),
   localizedAliases: z.array(localizedAliasSchema).optional(),
   category: z.string().optional(),
+  // Lenient string (not z.enum) so an unrecognized shopping-section key round-trips.
+  shoppingSection: z.string().optional(),
   isCommon: z.boolean(),
   createdAt: z.number(),
   updatedAt: z.number(),
@@ -238,6 +240,7 @@ const groceryItemSchema = z.object({
   checked: z.boolean(),
   origin: z.enum(['generated', 'manual']),
   quantityManuallyEdited: z.boolean(),
+  shoppingSection: z.string().optional(),
 })
 
 export const backupFileSchema = z

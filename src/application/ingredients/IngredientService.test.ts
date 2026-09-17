@@ -25,6 +25,7 @@ class FakeIngredientRepository implements IngredientRepository {
       preferredLabels: [],
       localizedAliases: [],
       category: input.category,
+      shoppingSection: input.shoppingSection,
       isCommon: input.isCommon ?? false,
       createdAt: 0,
       updatedAt: 0,
@@ -54,7 +55,13 @@ class FakeIngredientRepository implements IngredientRepository {
   async update(id: IngredientId, changes: UpdateIngredientInput): Promise<void> {
     const current = this.rows.get(id)
     if (!current) return
-    this.rows.set(id, { ...current, ...changes, updatedAt: 1 })
+    const next: Ingredient = { ...current, ...changes, updatedAt: 1 }
+    if ('shoppingSection' in changes) {
+      const trimmed = changes.shoppingSection?.trim()
+      if (trimmed) next.shoppingSection = trimmed
+      else delete next.shoppingSection
+    }
+    this.rows.set(id, next)
   }
 
   async remove(id: IngredientId): Promise<void> {
@@ -209,5 +216,26 @@ describe('IngredientService.addLegacyAlias', () => {
       ok: false,
       error: 'empty-name',
     })
+  })
+})
+
+describe('IngredientService shopping section', () => {
+  it('sets and clears shoppingSection without throwing', async () => {
+    const repo = new FakeIngredientRepository()
+    const service = new IngredientService(repo)
+    const created = await service.createIngredient({
+      name: 'Carrot',
+      shoppingSection: 'produce',
+    })
+    expect(created.ok).toBe(true)
+    if (!created.ok) return
+    expect(created.ingredient.shoppingSection).toBe('produce')
+
+    const cleared = await service.updateIngredient(created.ingredient.id, {
+      shoppingSection: undefined,
+    })
+    expect(cleared).toEqual({ ok: true })
+    const after = await repo.getById(created.ingredient.id)
+    expect(after?.shoppingSection).toBeUndefined()
   })
 })

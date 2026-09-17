@@ -29,6 +29,8 @@ export interface Ingredient {
   /** Locale-scoped aliases, additive alongside the untouched legacy `aliases` bucket. */
   localizedAliases?: LocalizedAlias[]
   category?: string
+  /** Optional shopping-section key (produce, pantry, …). Unset lines group under Other. */
+  shoppingSection?: string
   isCommon: boolean
   createdAt: number
   updatedAt: number
