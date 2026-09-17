@@ -17,10 +17,11 @@ export type CreateGroceryItemInput = {
   checked?: boolean
   origin: 'generated' | 'manual'
   quantityManuallyEdited?: boolean
+  shoppingSection?: string
 }
 
 export type UpdateGroceryItemInput = Partial<
-  Pick<GroceryItem, 'label' | 'quantity' | 'checked' | 'quantityManuallyEdited'>
+  Pick<GroceryItem, 'label' | 'quantity' | 'checked' | 'quantityManuallyEdited' | 'shoppingSection'>
 >
 
 export interface GroceryListWithItems {

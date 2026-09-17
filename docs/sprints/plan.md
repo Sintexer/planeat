@@ -2,7 +2,7 @@
 
 No dates. Keep the app releasable after every sprint. Each sprint delivers **one visible improvement**, including its UI, domain changes, persistence, backup support, and tests.
 
-**Current position:** Sprints 1–19 and checkpoints A/B are shipped. **Next is Sprint 20** (grocery shopping sections). Sprints 21–22 remain sequenced backlog. The Status section at the bottom is the log of what landed.
+**Current position:** Sprints 1–20 and checkpoints A/B/C are shipped. **Next is Sprint 21** (tag lifecycle management). Sprint 22 remains sequenced backlog. The Status section at the bottom is the log of what landed.
 
 Sprints 1–6 had no automated test runner. Vitest arrived in Sprint 8 (tags/backup). Measurement/grocery scenario tests landed in Sprint 13. Localization settings (`uiLocale`, `measurementPreference`) shipped before Phase 1; Sprint 14 applied them consistently to displayed quantities.
 
@@ -513,6 +513,8 @@ Safer mixed-source recipes and measurements. Test with real household imports be
 
 Core improvement program complete: better discovery, safer measurements, clearer meal selection, and a more usable shopping list.
 
+**Shipped** with Sprint 20.
+
 ---
 
 # Phase 4 — Optional follow-up slices
@@ -606,4 +608,6 @@ Sprint 18 is done: library `FilterDrawer` gained maximum recorded total time plu
 
 Sprint 19 is done: the Add-dish picker keeps leftover vs cook-new as distinct rows, groups pairings / favorites / suitable recipes / All items, and keeps All items unfiltered by slot occasion. Picker search, filters, and sort are local to the modal (reset on close) and do not read or write Recipes-library `catalogSort` / browse state. Catalog rows show short why-this copy from existing signals: leftover batch weekday, pairing partner, favorite name, already planned this week. No new recommendation engine, schema bump, or backup bump. Tests: `pickerWhyThis.test.ts`, `catalogModel.test.ts`.
 
-**Next:** Sprint 20 (grocery shopping sections). Sprints 21–22 remain sequenced backlog.
+Sprint 20 is done: optional `shoppingSection` on catalog ingredients and grocery lines (starter keys produce / bakery / chilled / pantry / frozen / other; unsectioned and explicit other both group under Other; unknown keys round-trip). Generated lines inherit the catalog section at persist time; manual add/edit can pick a section. Grocery list UI has grouped and flat views, a hide-checked toggle, and check order that does not move rows by checked state. Additive backup fields only — no Dexie or backup-format bump. Tests: `shoppingSections.test.ts`, `GroceryService.test.ts`, `IngredientService.test.ts`, `backupSchema.test.ts`.
+
+**Next:** Sprint 21 (tag lifecycle management). Sprint 22 remains sequenced backlog.

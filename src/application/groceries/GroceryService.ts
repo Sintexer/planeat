@@ -9,6 +9,7 @@ import type { SimpleFoodRepository } from '../ports/SimpleFoodRepository'
 import type { QuantityService } from '../quantities/QuantityService'
 import type { GroceryItem, GroceryItemId } from '../../domain/groceries/GroceryItem'
 import type { GroceryList, GroceryListId } from '../../domain/groceries/GroceryList'
+import { normalizeShoppingSection } from '../../domain/groceries/shoppingSections'
 import type { PlanId } from '../../domain/plans/Plan'
 import type { PlanGraph } from '../../domain/plans/PlanGraph'
 import type { Quantity } from '../../domain/shared/Quantity'
@@ -205,6 +206,7 @@ export class GroceryService {
     listId: GroceryListId,
     label: string,
     quantity: Quantity | null = null,
+    shoppingSection?: string,
   ): Promise<{ ok: true; item: GroceryItem } | { ok: false; error: GroceryError }> {
     const list = await this.groceries.getList(listId)
     if (!list) return { ok: false, error: 'not-found' }
@@ -219,13 +221,19 @@ export class GroceryService {
       checked: false,
       origin: 'manual',
       quantityManuallyEdited: quantity !== null,
+      shoppingSection: normalizeShoppingSection(shoppingSection),
     })
     return { ok: true, item }
   }
 
   async updateItem(
     itemId: GroceryItemId,
-    changes: { label?: string; quantity?: Quantity | null; checked?: boolean },
+    changes: {
+      label?: string
+      quantity?: Quantity | null
+      checked?: boolean
+      shoppingSection?: string | null
+    },
   ): Promise<{ ok: true } | { ok: false; error: GroceryError }> {
     const items = await this.findItem(itemId)
     if (!items) return { ok: false, error: 'item-not-found' }
@@ -237,6 +245,7 @@ export class GroceryService {
       quantity?: Quantity | null
       checked?: boolean
       quantityManuallyEdited?: boolean
+      shoppingSection?: string
     } = {}
 
     if (changes.label !== undefined) {
@@ -250,6 +259,9 @@ export class GroceryService {
     }
     if (changes.checked !== undefined) {
       patch.checked = changes.checked
+    }
+    if (changes.shoppingSection !== undefined) {
+      patch.shoppingSection = normalizeShoppingSection(changes.shoppingSection)
     }
 
     await this.groceries.updateItem(item.id, patch)
@@ -431,11 +443,13 @@ export class GroceryService {
     const inputs: CreateGroceryItemInput[] = []
     for (const line of lines) {
       let checked = false
+      let shoppingSection: string | undefined
       if (line.ingredientId) {
+        const ingredient = await this.ingredients.getById(line.ingredientId)
+        shoppingSection = ingredient?.shoppingSection
         if (priorChecked.has(line.ingredientId)) {
           checked = priorChecked.get(line.ingredientId)!
         } else {
-          const ingredient = await this.ingredients.getById(line.ingredientId)
           checked = ingredient?.isCommon ?? false
         }
       }
@@ -447,6 +461,7 @@ export class GroceryService {
         checked,
         origin: 'generated',
         quantityManuallyEdited: false,
+        shoppingSection,
       })
     }
     await this.groceries.createItems(inputs)

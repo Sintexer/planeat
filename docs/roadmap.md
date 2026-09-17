@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped through **Sprint 19**. Next implementation card: **Sprint 20**. Full cards and Status log: [`docs/sprints/plan.md`](sprints/plan.md).
+Shipped through **Sprint 20** (checkpoint C). Next implementation card: **Sprint 21**. Full cards and Status log: [`docs/sprints/plan.md`](sprints/plan.md).
 
 ## Done — project initialization
 
@@ -75,9 +75,10 @@ Shipped through **Sprint 19**. Next implementation card: **Sprint 20**. Full car
 - Picker sections for leftovers, pairings, favorites, suitable recipes, and All items.
 - Add-dish browse state is separate from the Recipes library; short why-this copy when leftover/pairing/favorite/planned-this-week signals exist.
 
-## Next — Phase 3 remainder
+## Done — Sprint 20 / checkpoint C (grocery shopping sections)
 
-1. **Sprint 20** — Grocery shopping sections. Then checkpoint C.
+- Optional shopping section on ingredients and grocery lines; grouped and flat list views; hide-checked; stable check rows; manual line section pick.
+- Unsectioned items stay visible under Other. No aisle maps, pantry tracking, or auto-categorization.
 
 ## Later (optional Phase 4)
 

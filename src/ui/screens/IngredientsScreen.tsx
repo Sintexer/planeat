@@ -19,6 +19,7 @@ import { useServices } from '../../app/servicesContext'
 import type { Ingredient } from '../../domain/ingredients/Ingredient'
 import { UI_LOCALES } from '../../domain/shared/Locale'
 import { ScreenHeader } from '../components/ScreenHeader'
+import { ShoppingSectionSelect } from '../components/ShoppingSectionSelect'
 import { useIngredients } from '../hooks/useIngredients'
 import { useIngredientLabel } from '../localization/useIngredientLabel'
 import { useLocalization } from '../localization/LocalizationContext'
@@ -27,6 +28,7 @@ interface NewIngredientForm {
   name: string
   aliases: string[]
   category: string
+  shoppingSection: string
   isCommon: boolean
 }
 
@@ -87,7 +89,7 @@ export function IngredientsScreen() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const form = useForm<NewIngredientForm>({
-    initialValues: { name: '', aliases: [], category: '', isCommon: false },
+    initialValues: { name: '', aliases: [], category: '', shoppingSection: '', isCommon: false },
     validate: {
       name: (value) => (value.trim().length === 0 ? 'Name is required' : null),
     },
@@ -98,6 +100,7 @@ export function IngredientsScreen() {
       name: values.name,
       aliases: values.aliases,
       category: values.category.trim() || undefined,
+      shoppingSection: values.shoppingSection || undefined,
       isCommon: values.isCommon,
     })
     if (!result.ok) {
@@ -149,6 +152,10 @@ export function IngredientsScreen() {
           <TextInput label="Name" required {...form.getInputProps('name')} />
           <TagsInput label="Aliases" {...form.getInputProps('aliases')} />
           <TextInput label="Category" {...form.getInputProps('category')} />
+          <ShoppingSectionSelect
+            value={form.values.shoppingSection || undefined}
+            onChange={(section) => form.setFieldValue('shoppingSection', section ?? '')}
+          />
           <Switch
             label={t('ingredient.usuallyAtHome')}
             {...form.getInputProps('isCommon', { type: 'checkbox' })}
@@ -178,6 +185,15 @@ export function IngredientsScreen() {
                       {ingredient.category}
                     </Text>
                   )}
+                  <ShoppingSectionSelect
+                    size="xs"
+                    value={ingredient.shoppingSection}
+                    onChange={(section) => {
+                      void ingredientService.updateIngredient(ingredient.id, {
+                        shoppingSection: section,
+                      })
+                    }}
+                  />
                   <Switch
                     mt="xs"
                     size="sm"
