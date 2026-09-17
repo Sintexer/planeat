@@ -30,6 +30,6 @@ Agent/contributor conventions: [`AGENTS.md`](AGENTS.md).
 
 ## Next work
 
-**Sprint 19 — contextual meal-picker organization** is next. Later sequenced work is Sprints 20–22.
+**Sprint 20 — grocery shopping sections** is next. Later sequenced work is Sprints 21–22.
 
 Start from the Status section in [`docs/sprints/plan.md`](docs/sprints/plan.md#status). Do not invent work from older “Next” headings in this README or from Cursor plan files.

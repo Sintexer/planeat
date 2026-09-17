@@ -1,6 +1,6 @@
 # Functional spec
 
-Present-tense product behavior as of Sprint 18. Remaining sequenced work lives in [`docs/sprints/plan.md`](sprints/plan.md).
+Present-tense product behavior as of Sprint 19. Remaining sequenced work lives in [`docs/sprints/plan.md`](sprints/plan.md).
 
 ## Plan
 
@@ -18,7 +18,7 @@ When adding a recipe, choose **Cook new** or **Use existing prep** (eligible eve
 
 Grocery generation still counts each cooking event once, so a shared batch appears once on the list.
 
-The meal picker still uses a shared catalog plus a Suggested chip; Sprint 19 is the remaining reorganization into named picker sections with separate picker filter state.
+The meal picker groups leftovers, pairings, favorites, suitable recipes, and All items. Search and filters reuse the library catalog controls, but picker browse state (query, filters, sort) is local to Add dish and resets when the modal closes — it does not read or write the Recipes library settings. Slot meal type may rank suggestions; All items is not silently occasion-filtered. Rows show a short explanation when a leftover batch date, pairing partner, favorite, or already-planned-this-week signal is present.
 
 ## Lists
 

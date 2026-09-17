@@ -2,8 +2,7 @@ import type { PlanGraph } from './PlanGraph'
 import { cookingEventsOnDate, effortUnitsForDate } from './prepDaySummary'
 import { providesVegetable } from './componentSuggestions'
 import type { Settings } from '../shared/Settings'
-import type { LocalDate, WeekStartDay } from '../shared/LocalDate'
-import { addDays } from '../shared/LocalDate'
+import { addDays, weekdayOf, type LocalDate } from '../shared/LocalDate'
 import { formatEffortUnits } from './prepEffort'
 import type { MealType } from '../shared/MealEnums'
 
@@ -12,11 +11,6 @@ export interface SoftPrompt {
   date?: LocalDate
   message: string
   severity: 'info' | 'warning'
-}
-
-function weekdayOf(date: LocalDate): WeekStartDay {
-  const [y, m, d] = date.split('-').map(Number)
-  return new Date(y, m - 1, d).getDay() as WeekStartDay
 }
 
 function componentSignature(graph: PlanGraph, slotId: string): string {

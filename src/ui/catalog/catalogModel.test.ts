@@ -106,13 +106,29 @@ describe('groupCatalogItems', () => {
     expect(groups.map((group) => group.title)).toEqual(['Recipes', 'Simple foods'])
   })
 
-  it('groups by primary dish type, with an unclassified bucket last', () => {
-    const soup = makeItem({ key: 'soup', dishType: 'soup' })
-    const custom = makeItem({ key: 'custom', dishType: 'grandmas-secret' })
-    const plain = makeItem({ key: 'plain' })
-    const groups = groupCatalogItems([soup, custom, plain], { searching: false, mode: 'dish-type' })
-    expect(groups.map((group) => group.title)).toEqual(['grandmas-secret', 'Soup', 'Unclassified'])
-    expect(groups.at(-1)).toEqual({ id: 'unclassified', title: 'Unclassified', items: [plain] })
+  it('groups picker sections without dropping unmatched items from All items', () => {
+    const pairing = makeItem({ key: 'rice', reason: 'pairing' })
+    const favorite = makeItem({ key: 'yogurt', reason: 'favorite' })
+    const suitable = makeItem({ key: 'salad', reason: 'role' })
+    const otherOccasion = makeItem({
+      key: 'oats',
+      reason: 'other',
+      mealTypes: ['breakfast'],
+    })
+    const groups = groupCatalogItems([pairing, favorite, suitable, otherOccasion], {
+      searching: false,
+      suggestedFirst: true,
+      pickerSections: true,
+    })
+    expect(groups.map((group) => group.id)).toEqual([
+      'pairings',
+      'from-favorites',
+      'suitable',
+      'all',
+    ])
+    expect(groups.find((group) => group.id === 'all')?.items.map((item) => item.key)).toEqual([
+      'oats',
+    ])
   })
 })
 

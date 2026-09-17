@@ -88,7 +88,7 @@ Later additive fields (no Dexie bump): `dishType`, `catalogSort`/`catalogGroup`,
 
 ## Still planned (not shipped)
 
-See [`docs/sprints/plan.md`](sprints/plan.md). Next product work is picker UX (Sprint 19), then grocery shopping sections (Sprint 20) as an optional section field on ingredients/grocery lines. Tag archive/merge/delete and saved library views are Phase 4. Optional later: `externalRefs` on ingredients, `defaultRecipeMeasurementConvention`.
+See [`docs/sprints/plan.md`](sprints/plan.md). Next product work is grocery shopping sections (Sprint 20) as an optional section field on ingredients/grocery lines. Tag archive/merge/delete and saved library views are Phase 4. Optional later: `externalRefs` on ingredients, `defaultRecipeMeasurementConvention`.
 
 ## Starter library
 

@@ -2,7 +2,7 @@
 
 No dates. Keep the app releasable after every sprint. Each sprint delivers **one visible improvement**, including its UI, domain changes, persistence, backup support, and tests.
 
-**Current position:** Sprints 1–18 and checkpoints A/B are shipped. **Next is Sprint 19** (contextual meal-picker organization). Sprints 20–22 remain sequenced backlog. The Status section at the bottom is the log of what landed.
+**Current position:** Sprints 1–19 and checkpoints A/B are shipped. **Next is Sprint 20** (grocery shopping sections). Sprints 21–22 remain sequenced backlog. The Status section at the bottom is the log of what landed.
 
 Sprints 1–6 had no automated test runner. Vitest arrived in Sprint 8 (tags/backup). Measurement/grocery scenario tests landed in Sprint 13. Localization settings (`uiLocale`, `measurementPreference`) shipped before Phase 1; Sprint 14 applied them consistently to displayed quantities.
 
@@ -604,4 +604,6 @@ Sprint 17 is done: imported ingredient names no longer auto-create catalog rows 
 
 Sprint 18 is done: library `FilterDrawer` gained maximum recorded total time plus contains/exclude ingredient MultiSelects (catalog IDs, searchable by name/aliases); `itemMatchesFilters` treats missing time as unknown (not zero), matches contains/exclude only against linked `ingredientIds`, and leaves leftovers unfiltered; applied chips and a recorded-ingredients disclaimer make the limits visible. Tests: `catalogModel.test.ts`.
 
-**Next:** Sprint 19 (contextual meal-picker organization). Sprints 20–22 remain sequenced backlog.
+Sprint 19 is done: the Add-dish picker keeps leftover vs cook-new as distinct rows, groups pairings / favorites / suitable recipes / All items, and keeps All items unfiltered by slot occasion. Picker search, filters, and sort are local to the modal (reset on close) and do not read or write Recipes-library `catalogSort` / browse state. Catalog rows show short why-this copy from existing signals: leftover batch weekday, pairing partner, favorite name, already planned this week. No new recommendation engine, schema bump, or backup bump. Tests: `pickerWhyThis.test.ts`, `catalogModel.test.ts`.
+
+**Next:** Sprint 20 (grocery shopping sections). Sprints 21–22 remain sequenced backlog.
