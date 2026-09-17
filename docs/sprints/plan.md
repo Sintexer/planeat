@@ -2,7 +2,7 @@
 
 No dates. Keep the app releasable after every sprint. Each sprint delivers **one visible improvement**, including its UI, domain changes, persistence, backup support, and tests.
 
-**Current position:** Sprints 1–20 and checkpoints A/B/C are shipped. **Next is Sprint 21** (tag lifecycle management). Sprint 22 remains sequenced backlog. The Status section at the bottom is the log of what landed.
+**Current position:** Sprints 1–21 and checkpoints A/B/C are shipped. **Next is Sprint 22** (saved library views). The Status section at the bottom is the log of what landed.
 
 Sprints 1–6 had no automated test runner. Vitest arrived in Sprint 8 (tags/backup). Measurement/grocery scenario tests landed in Sprint 13. Localization settings (`uiLocale`, `measurementPreference`) shipped before Phase 1; Sprint 14 applied them consistently to displayed quantities.
 
@@ -610,4 +610,6 @@ Sprint 19 is done: the Add-dish picker keeps leftover vs cook-new as distinct ro
 
 Sprint 20 is done: optional `shoppingSection` on catalog ingredients and grocery lines (starter keys produce / bakery / chilled / pantry / frozen / other; unsectioned and explicit other both group under Other; unknown keys round-trip). Generated lines inherit the catalog section at persist time; manual add/edit can pick a section. Grocery list UI has grouped and flat views, a hide-checked toggle, and check order that does not move rows by checked state. Additive backup fields only — no Dexie or backup-format bump. Tests: `shoppingSections.test.ts`, `GroceryService.test.ts`, `IngredientService.test.ts`, `backupSchema.test.ts`.
 
-**Next:** Sprint 21 (tag lifecycle management). Sprint 22 remains sequenced backlog.
+Sprint 21 is done: tag lifecycle on `TagService`/`TagRepository` — archive (assignments kept), merge A→B (live `tagIds` rewritten and de-duplicated, source row deleted), delete (unassign from recipes/simple foods then drop the tag). Operations are transactional in Dexie and never delete food items or rewrite cooking-event snapshot label strings. `/recipes/tags` gained usage counts plus archive/restore, merge picker, and a delete confirmation that states affected recipe and simple-food counts. Autocomplete and default filter facets omit archived tags; assigned chips and applied filters still resolve archived or missing ids. Additive optional `Tag.archived` in backups — no Dexie or backup-format bump. Tests: `Tag.test.ts`, `TagService.test.ts`, `catalogModel.test.ts`, `backupSchema.test.ts`.
+
+**Next:** Sprint 22 (saved library views).

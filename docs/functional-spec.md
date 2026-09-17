@@ -1,6 +1,6 @@
 # Functional spec
 
-Present-tense product behavior as of Sprint 20. Remaining sequenced work lives in [`docs/sprints/plan.md`](sprints/plan.md).
+Present-tense product behavior as of Sprint 21. Remaining sequenced work lives in [`docs/sprints/plan.md`](sprints/plan.md).
 
 ## Plan
 
@@ -31,6 +31,8 @@ Displayed quantities follow the household measurement presentation preference wi
 Full recipe library (create/edit/detail, ingredient catalog, simple foods, scale preview, household tags, optional dish type / cuisine). Recipes and simple foods share catalog UI; they stay separate records. Compact cards show kind and recorded time when present.
 
 Library search is Fuse on name/tags/subtitle. Filters live in a drawer: kind, meal occasion, meal role, effort, household tags, maximum recorded total time, contains/exclude catalog ingredients (IDs; aliases only help pick the row). Missing total time is not treated as zero. Unlinked imported ingredient lines do not satisfy contains/exclude; the drawer states this is not an allergy-safety guarantee. Sort and grouping persist in settings.
+
+Household tags can be renamed, archived, merged, or deleted from `/recipes/tags`. Merge collapses duplicate live assignments; delete removes the tag only (recipes and simple foods stay) after confirming affected-item counts. Archived tags stay on assigned items and remain recoverable from tag management, but they are omitted from create autocomplete and default filter facets. Applied filters and chips still work if a tag is archived or missing. Cooking-event snapshots keep frozen historical label strings.
 
 On first launch, if the recipe table is empty, the app seeds a small editable starter set. Seeding never runs once any recipe exists and never overwrites user data.
 

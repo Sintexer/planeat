@@ -24,6 +24,7 @@ import { useRecipes } from '../hooks/useRecipes'
 import { useSettings } from '../hooks/useSettings'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
 import { useTags } from '../hooks/useTags'
+import { archivedTagIdSet } from '../../domain/tags/Tag'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
 import { useIngredientLabel } from '../localization/useIngredientLabel'
 import { useLocalization } from '../localization/LocalizationContext'
@@ -58,6 +59,7 @@ export function RecipesScreen() {
     for (const tag of tags ?? []) map.set(tag.id, tag.name)
     return map
   }, [tags])
+  const archivedTagIds = useMemo(() => archivedTagIdSet(tags ?? []), [tags])
 
   const items = useMemo(() => {
     const recipeItems = (recipes ?? []).map((recipe) =>
@@ -219,6 +221,7 @@ export function RecipesScreen() {
           filters={filters}
           onFiltersChange={setFiltersAndPersist}
           tagNamesById={tagNamesById}
+          archivedTagIds={archivedTagIds}
           sort={sort}
           onSortChange={(next) => void settingsRepository.update({ catalogSort: next })}
           group={group}

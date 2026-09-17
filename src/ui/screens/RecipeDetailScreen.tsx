@@ -198,8 +198,7 @@ export function RecipeDetailScreen() {
         {recipe.tagIds.length > 0 && (
           <Group gap={4}>
             {recipe.tagIds.map((tagId) => {
-              const name = tagsById.get(tagId)
-              if (!name) return null
+              const name = tagsById.get(tagId) ?? 'Unavailable tag'
               return (
                 <Badge key={tagId} variant="dot">
                   {name}

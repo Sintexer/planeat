@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped through **Sprint 20** (checkpoint C). Next implementation card: **Sprint 21**. Full cards and Status log: [`docs/sprints/plan.md`](sprints/plan.md).
+Shipped through **Sprint 21**. Next implementation card: **Sprint 22**. Full cards and Status log: [`docs/sprints/plan.md`](sprints/plan.md).
 
 ## Done — project initialization
 
@@ -80,9 +80,12 @@ Shipped through **Sprint 20** (checkpoint C). Next implementation card: **Sprint
 - Optional shopping section on ingredients and grocery lines; grouped and flat list views; hide-checked; stable check rows; manual line section pick.
 - Unsectioned items stay visible under Other. No aisle maps, pantry tracking, or auto-categorization.
 
+## Done — Sprint 21 (tag lifecycle)
+
+- Archive, merge (live `tagIds` de-duplicated), and delete with affected-item confirmation. Snapshots keep historical label strings. Additive optional `archived` on tags in backups.
+
 ## Later (optional Phase 4)
 
-- **Sprint 21** — Tag archive / merge / delete.
 - **Sprint 22** — Saved library views.
 
 Still out of scope unless separately backlogged: automatic weekly generation, backends, nutrition/barcode databases, food ontologies, pantry accounting, full second-language UI, local photo uploads.

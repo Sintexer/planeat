@@ -245,18 +245,29 @@ export function sortCatalogItems(items: DishCatalogItem[], sort: CatalogSort): D
 
 export type TagFacet = { id: TagId; name: string }
 
+export type UniqueTagFacetsOptions = {
+  limit?: number
+  /** Archived (or otherwise hidden) tags stay out of the default facet list. */
+  excludeIds?: ReadonlySet<TagId>
+  /** Applied filter ids stay visible even if archived or missing from the catalog. */
+  retainIds?: readonly TagId[]
+}
+
 export function uniqueTagFacets(
   items: DishCatalogItem[],
   tagNamesById: Map<TagId, string>,
-  limit = 8,
+  options: UniqueTagFacetsOptions = {},
 ): TagFacet[] {
+  const limit = options.limit ?? 8
+  const excludeIds = options.excludeIds
   const counts = new Map<TagId, number>()
   for (const item of items) {
     for (const id of item.tagIds) {
+      if (excludeIds?.has(id)) continue
       counts.set(id, (counts.get(id) ?? 0) + 1)
     }
   }
-  return [...counts.entries()]
+  const ranked = [...counts.entries()]
     .map(([id, count]) => ({ id, name: tagNamesById.get(id), count }))
     .filter(
       (entry): entry is { id: TagId; name: string; count: number } => entry.name !== undefined,
@@ -264,6 +275,15 @@ export function uniqueTagFacets(
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
     .slice(0, limit)
     .map(({ id, name }) => ({ id, name }))
+
+  const have = new Set(ranked.map((facet) => facet.id))
+  const extra: TagFacet[] = []
+  for (const id of options.retainIds ?? []) {
+    if (have.has(id)) continue
+    have.add(id)
+    extra.push({ id, name: tagNamesById.get(id) ?? 'Unavailable tag' })
+  }
+  return [...ranked, ...extra]
 }
 
 export type DishCatalogGroup = { id: string; title: string; items: DishCatalogItem[] }

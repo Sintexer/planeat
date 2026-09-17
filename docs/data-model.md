@@ -68,15 +68,15 @@ Backup format version **5** adds `prepSessions`, `mealFavorites`, `recipePairing
 
 Household tags (Sprint 8). Live recipes and simple foods store `tagIds`; cooking-event snapshots keep frozen historical label strings.
 
-| Table         | Primary key | Indexes   | Notes                                      |
-| ------------- | ----------- | --------- | ------------------------------------------ |
-| `tags`        | `id`        | `name`    | Catalog; rename does not rewrite snapshots |
-| `recipes`     | `id`        | unchanged | `tags: string[]` migrated to `tagIds`      |
-| `simpleFoods` | `id`        | unchanged | same `tagIds` migration                    |
+| Table         | Primary key | Indexes   | Notes                                                         |
+| ------------- | ----------- | --------- | ------------------------------------------------------------- |
+| `tags`        | `id`        | `name`    | Catalog; rename/archive/merge/delete do not rewrite snapshots |
+| `recipes`     | `id`        | unchanged | `tags: string[]` migrated to `tagIds`                         |
+| `simpleFoods` | `id`        | unchanged | same `tagIds` migration                                       |
 
 Backup format version **6** includes the tag catalog, live `tagIds`, and a separate snapshot schema that still uses stored labels.
 
-Later additive fields (no Dexie bump): `dishType`, `catalogSort`/`catalogGroup`, `UnitRegistry` keys on quantities as plain strings, `quantityText` / `sourceText` on lines, optional `ingredientId`, ingredient `preferredLabels`/`localizedAliases`, optional `shoppingSection` on ingredients and grocery items.
+Later additive fields (no Dexie bump): `dishType`, `catalogSort`/`catalogGroup`, `UnitRegistry` keys on quantities as plain strings, `quantityText` / `sourceText` on lines, optional `ingredientId`, ingredient `preferredLabels`/`localizedAliases`, optional `shoppingSection` on ingredients and grocery items, optional `archived` on tags.
 
 ## Shipped model rules (keep)
 
@@ -88,7 +88,7 @@ Later additive fields (no Dexie bump): `dishType`, `catalogSort`/`catalogGroup`,
 
 ## Still planned (not shipped)
 
-See [`docs/sprints/plan.md`](sprints/plan.md). Next product work is tag lifecycle (Sprint 21). Saved library views are Sprint 22. Optional later: `externalRefs` on ingredients, `defaultRecipeMeasurementConvention`.
+See [`docs/sprints/plan.md`](sprints/plan.md). Next product work is saved library views (Sprint 22). Optional later: `externalRefs` on ingredients, `defaultRecipeMeasurementConvention`.
 
 ## Starter library
 

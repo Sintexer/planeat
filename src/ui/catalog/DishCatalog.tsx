@@ -73,6 +73,8 @@ interface DishCatalogProps {
   ingredientOptions?: IngredientFilterOption[]
   /** Meal-picker context: group by suggestion reason for contextual sections. */
   pickerSections?: boolean
+  /** Archived tags stay out of the filter drawer unless already applied. */
+  archivedTagIds?: ReadonlySet<TagId>
 }
 
 function activeFilterCount(filters: DishCatalogFilters, showSuggested: boolean): number {
@@ -203,9 +205,17 @@ export function DishCatalog({
   layout = 'modal',
   ingredientOptions = [],
   pickerSections = false,
+  archivedTagIds,
 }: DishCatalogProps) {
   const [filterDrawerOpened, setFilterDrawerOpened] = useState(false)
-  const tagFacets = useMemo(() => uniqueTagFacets(items, tagNamesById), [items, tagNamesById])
+  const tagFacets = useMemo(
+    () =>
+      uniqueTagFacets(items, tagNamesById, {
+        excludeIds: archivedTagIds,
+        retainIds: filters.tagIds,
+      }),
+    [items, tagNamesById, archivedTagIds, filters.tagIds],
+  )
   const extraFilters = activeFilterCount(filters, showSuggestedFilter)
 
   const visibleLeftovers = useMemo(() => {
@@ -294,7 +304,7 @@ export function DishCatalog({
   for (const tagId of filters.tagIds) {
     appliedChips.push({
       key: `tag:${tagId}`,
-      label: tagNamesById.get(tagId) ?? tagId,
+      label: tagNamesById.get(tagId) ?? 'Unavailable tag',
       onRemove: () => setFilters({ tagIds: filters.tagIds.filter((id) => id !== tagId) }),
     })
   }

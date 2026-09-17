@@ -100,6 +100,7 @@ const simpleFoodSchema = z.object({
 const tagSchema = z.object({
   id: z.string(),
   name: z.string(),
+  archived: z.boolean().optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 })
