@@ -2,7 +2,9 @@
 
 No dates. Keep the app releasable after every sprint. Each sprint delivers **one visible improvement**, including its UI, domain changes, persistence, backup support, and tests.
 
-Sprints 1–6 had no automated test runner (MVP). Localization settings (`uiLocale`, `measurementPreference`) already shipped. Automated tests become in scope with the first new domain/persistence slice that needs them (Sprint 8 tags); measurement/grocery correctness remains the hard scenario gate in Sprint 13.
+**Current position:** Sprints 1–18 and checkpoints A/B are shipped. **Next is Sprint 19** (contextual meal-picker organization). Sprints 20–22 remain sequenced backlog. The Status section at the bottom is the log of what landed.
+
+Sprints 1–6 had no automated test runner. Vitest arrived in Sprint 8 (tags/backup). Measurement/grocery scenario tests landed in Sprint 13. Localization settings (`uiLocale`, `measurementPreference`) shipped before Phase 1; Sprint 14 applied them consistently to displayed quantities.
 
 ## Delivery approach
 
@@ -216,7 +218,7 @@ Former Sprint 7 numbering delivered household settings and presentation plumbing
 - `isCommon` copy: “Usually have at home” (not pantry tracking).
 - URL photos optional; reliable offline placeholder; backups do not include remote image bytes.
 
-Sprint 14 is the remaining presentation pass (consistent application to details, scaling, groceries). Sprint 12 is the unit-registry schema. Do not guess legacy cup/tablespoon conventions in the meantime.
+Sprint 12 added the unit-registry schema; Sprint 14 applied measurement presentation consistently to details, scaling, and groceries. Do not guess legacy cup/tablespoon conventions.
 
 ---
 

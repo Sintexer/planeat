@@ -1,3 +1,5 @@
+Implementation status (what is shipped, what to build next) is in [`docs/sprints/plan.md`](docs/sprints/plan.md) (Status section) and [`docs/roadmap.md`](docs/roadmap.md). This file is the original product-rules document, not a live sprint board.
+
 We have enough decisions to draft the MVP.
 
 **The main scope change: this first version is an offline, manual meal planner—not an automatic weekly planner.** It will establish recipes, component meals, batch preparation, and grocery lists. Automatic generation will come later, using the same model.
@@ -30,7 +32,7 @@ We have enough decisions to draft the MVP.
 - Batch reuse across separate plans.
 - Nutrition calculations and dietary optimization.
 - Universal paste-a-URL extraction.
-- Automated tests or a test-infrastructure sprint.
+- Automated tests or a test-infrastructure sprint. _(Original MVP exclusion; Vitest is in use from Sprint 8.)_
 
 **Excluded product features will be retained in the roadmap, not discarded.**
 

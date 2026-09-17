@@ -35,7 +35,7 @@ Schema changes must be added as new `.version(n)` blocks in `src/infrastructure/
 
 **Dexie schema version and backup format version are separate contracts.** A model change needs a Dexie bump only when indexes, tables, or stored-row transforms require it. Backup format versions are bumped when the export/restore payload shape changes. Use the same upgrade logic for legacy backup restores where practical; validate the full upgraded backup before replacing local data.
 
-Backup file format is independent: `CURRENT_BACKUP_FORMAT_VERSION` is **5** (see v5 below). Historical notes: version **3** first included plans/slots/components/cooking events; version **4** added grocery tables.
+Backup file format is independent: `CURRENT_BACKUP_FORMAT_VERSION` is **6**. Historical notes: version **3** first included plans/slots/components/cooking events; version **4** added grocery tables; version **5** added prep sessions, favorites, and pairings.
 
 ## Version 4
 
@@ -62,22 +62,33 @@ Sprint 5 remainder: auto prep sessions, favorites, pairings, planning preference
 
 `uiLocale` and `measurementPreference` are merged onto the same settings row via `mergeSettingsDefaults`; not a Dexie version.
 
-Backup format version **5** adds `prepSessions`, `mealFavorites`, `recipePairings` and requires string `sessionId` on cooking events. Export a representative v5 backup before the first measurement migration (Sprint 12).
+Backup format version **5** adds `prepSessions`, `mealFavorites`, `recipePairings` and requires string `sessionId` on cooking events.
 
-## Planned — upcoming sprints (not shipped)
+## Version 6
 
-Do not invent locale on existing aliases. Additive fields first; leave ambiguous units unresolved. See [`docs/sprints/plan.md`](sprints/plan.md).
+Household tags (Sprint 8). Live recipes and simple foods store `tagIds`; cooking-event snapshots keep frozen historical label strings.
 
-| Concept                   | Direction                                                                                                                       |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Tags (Sprint 8)           | Catalog with stable IDs; live recipe/simple-food assignments by ID; snapshots keep historical label strings                     |
-| Classification (Sprint 9) | Optional primary dish type key; keep existing `mealTypes` / `roles`; unknown legacy values recoverable                          |
-| Settings                  | `uiLocale`, `measurementPreference` (`as-entered` default) already shipped; optional `defaultRecipeMeasurementConvention` later |
-| Ingredients               | Keep IDs; names/aliases become locale-scoped metadata (Sprint 15); optional `externalRefs` later                                |
-| Recipe lines              | Keep `displayText` / original text; optional `unitId`, `enteredUnit`, `enteredName`, `preparation`; `ingredientId` may be unset |
-| Units (12–13)             | Bundled registry (`cup_us_customary` vs `cup_metric`, `tbsp_australian` = 20 mL, …) — not a Dexie table of household units      |
-| Grocery items             | Keep origin/override/checked; optionally compact cooking-event contribution refs; shopping section later (Sprint 20)            |
-| Snapshots                 | Self-contained; never reinterpret units from current settings; never regenerate from the live library recipe                    |
+| Table         | Primary key | Indexes   | Notes                                      |
+| ------------- | ----------- | --------- | ------------------------------------------ |
+| `tags`        | `id`        | `name`    | Catalog; rename does not rewrite snapshots |
+| `recipes`     | `id`        | unchanged | `tags: string[]` migrated to `tagIds`      |
+| `simpleFoods` | `id`        | unchanged | same `tagIds` migration                    |
+
+Backup format version **6** includes the tag catalog, live `tagIds`, and a separate snapshot schema that still uses stored labels.
+
+Later additive fields (no Dexie bump): `dishType`, `catalogSort`/`catalogGroup`, `UnitRegistry` keys on quantities as plain strings, `quantityText` / `sourceText` on lines, optional `ingredientId`, ingredient `preferredLabels`/`localizedAliases`.
+
+## Shipped model rules (keep)
+
+- Ingredient identity is the ID. Do not invent a locale on existing `aliases`.
+- `ingredientId` on a recipe line may be unset (unlinked import).
+- Units live in `UnitRegistry` (`cup-us`, `cup-metric`, `oz-mass`, `oz-fl`; legacy `cup`/`tbsp` stay self-only). Not a Dexie table of household units.
+- Snapshots stay self-contained: never reinterpret units from current settings; never regenerate from the live library recipe.
+- Settings presentation fields (`uiLocale`, `measurementPreference`, catalog sort/group) merge via `mergeSettingsDefaults`.
+
+## Still planned (not shipped)
+
+See [`docs/sprints/plan.md`](sprints/plan.md). Next product work is picker UX (Sprint 19), then grocery shopping sections (Sprint 20) as an optional section field on ingredients/grocery lines. Tag archive/merge/delete and saved library views are Phase 4. Optional later: `externalRefs` on ingredients, `defaultRecipeMeasurementConvention`.
 
 ## Starter library
 

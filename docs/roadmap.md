@@ -1,5 +1,7 @@
 # Roadmap
 
+Shipped through **Sprint 18**. Next implementation card: **Sprint 19**. Full cards and Status log: [`docs/sprints/plan.md`](sprints/plan.md).
+
 ## Done — project initialization
 
 - Vite + React + TypeScript scaffold (bun tooling).
@@ -48,22 +50,34 @@
 - Shared recipe/simple-food catalog, photo thumbs with offline placeholder, unified Plan screen, old-route redirects.
 - Localization settings foundation: `uiLocale`, `measurementPreference` (default as-entered), `Intl` formatting, “usually at home” copy.
 
-## Next — Phase 1 recipe library (Sprints 7–11)
+## Done — Phase 1 recipe library (Sprints 7–11, checkpoint A)
 
-Committed in detail first:
+- Browse restore, simple-food detail, kind/time on cards.
+- Household tags with stable IDs (Dexie v6, backup format 6), Vitest.
+- Optional dish type and Organization UI.
+- Filter drawer (kind, occasion, role, tags, effort) with staged apply.
+- Sort/group controls persisted on settings.
 
-1. **Sprint 7** — Consistent library browsing (compact cards, kind labels, search/kind/scroll restore).
-2. **Sprint 8** — Household tags with stable IDs, autocomplete, rename.
-3. **Sprint 9** — Optional organization: occasion, role, primary dish type, tags, existing cuisine field.
+## Done — Phase 2 measurements and localization (Sprints 12–17, checkpoint B)
 
-Then backlog: basic filter drawer (10), sort/group (11). Release checkpoint A before expanding classifications.
+- Unit registry and non-numeric amounts in the manual editor.
+- Safe grocery aggregation (legacy cups stay unspecified).
+- Display preference applied through `presentForDisplay` / `useFormatQuantity`.
+- Locale-scoped ingredient labels and safer alias lookup.
+- Import measurement review and catalog matching without auto-creating ingredients.
 
-## Later sequence
+## Done — Sprint 18 (advanced library filters)
 
-- **Phase 2 (12–17):** explicit units, safe grocery aggregation, formatting consistency, localized aliases, import unit review, import ingredient matching. Checkpoint B.
-- **Phase 3 (18–20):** advanced filters, meal-picker sections, grocery shopping sections. Checkpoint C.
-- **Phase 4 (21–22, optional):** tag archive/merge/delete, saved library views.
+- Maximum recorded total time; contains/exclude catalog ingredients by ID; missing time is not zero; unlinked lines ignored with visible disclaimer.
 
-Sequence and implementation cards: [`docs/sprints/plan.md`](sprints/plan.md).
+## Next — Phase 3 remainder
+
+1. **Sprint 19** — Contextual meal-picker organization (leftovers / suitable / pairings / all / favorites; picker state separate from the library).
+2. **Sprint 20** — Grocery shopping sections. Then checkpoint C.
+
+## Later (optional Phase 4)
+
+- **Sprint 21** — Tag archive / merge / delete.
+- **Sprint 22** — Saved library views.
 
 Still out of scope unless separately backlogged: automatic weekly generation, backends, nutrition/barcode databases, food ontologies, pantry accounting, full second-language UI, local photo uploads.

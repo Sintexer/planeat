@@ -1,32 +1,35 @@
-# React + TypeScript + Vite
+# PlanEat
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Local-first family menu planner: seven-day meals, reusable prep, grocery lists, and a recipe library. React + Mantine + Dexie (IndexedDB) + Vite PWA. No backend; core flows work offline after first load.
 
-Currently, two official plugins are available:
+## Run
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Use `bun`, not npm:
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+bun install
+bun run dev          # Vite
+bun run test         # Vitest (domain/application, no Dexie/DOM)
+bun run lint
+bun run typecheck
+bun run build
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Agent/contributor conventions: [`AGENTS.md`](AGENTS.md).
+
+## Docs
+
+| Doc                                                  | What it is                                                     |
+| ---------------------------------------------------- | -------------------------------------------------------------- |
+| [`docs/sprints/plan.md`](docs/sprints/plan.md)       | Sprint cards and **what to build next** (Status at the bottom) |
+| [`docs/roadmap.md`](docs/roadmap.md)                 | Phase-level shipped vs remaining                               |
+| [`docs/functional-spec.md`](docs/functional-spec.md) | Screen-by-screen current product behavior                      |
+| [`docs/data-model.md`](docs/data-model.md)           | Dexie schema and backup format versions                        |
+| [`docs/architecture.md`](docs/architecture.md)       | Stack, layers, library constraints                             |
+| [`SPEC.md`](SPEC.md)                                 | Original product rules (MVP definition and domain rules)       |
+
+## Next work
+
+**Sprint 19 — contextual meal-picker organization** is next. Later sequenced work is Sprints 20–22.
+
+Start from the Status section in [`docs/sprints/plan.md`](docs/sprints/plan.md#status). Do not invent work from older “Next” headings in this README or from Cursor plan files.

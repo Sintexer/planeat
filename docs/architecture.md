@@ -4,23 +4,23 @@ Local-first PWA. No backend service.
 
 ## Stack
 
-| Concern            | Decision                                                                   |
-| ------------------ | -------------------------------------------------------------------------- |
-| Language           | TypeScript, strict mode                                                    |
-| Runtime/tooling    | Node 22 LTS, bun                                                           |
-| UI framework       | React                                                                      |
-| Build tool         | Vite                                                                       |
-| UI and forms       | Mantine                                                                    |
-| Icons              | Tabler Icons                                                               |
-| Routing            | React Router, `HashRouter`                                                 |
-| Local persistence  | IndexedDB via Dexie                                                        |
-| Reactive queries   | `dexie-react-hooks`, behind `ui/hooks/*`                                   |
-| Runtime validation | Zod                                                                        |
-| Dates              | Day.js; meal dates stored as local `YYYY-MM-DD` strings                    |
-| Offline/PWA        | `vite-plugin-pwa` (Workbox `generateSW`)                                   |
-| Styling            | Mantine theme tokens + CSS Modules                                         |
-| Static checks      | TypeScript + ESLint (incl. `eslint-plugin-boundaries`) + Prettier          |
-| Tests              | None until Sprint 8 (tag identity); measurement/grocery gates in Sprint 13 |
+| Concern            | Decision                                                                                |
+| ------------------ | --------------------------------------------------------------------------------------- |
+| Language           | TypeScript, strict mode                                                                 |
+| Runtime/tooling    | Node 22 LTS, bun                                                                        |
+| UI framework       | React                                                                                   |
+| Build tool         | Vite                                                                                    |
+| UI and forms       | Mantine                                                                                 |
+| Icons              | Tabler Icons                                                                            |
+| Routing            | React Router, `HashRouter`                                                              |
+| Local persistence  | IndexedDB via Dexie                                                                     |
+| Reactive queries   | `dexie-react-hooks`, behind `ui/hooks/*`                                                |
+| Runtime validation | Zod                                                                                     |
+| Dates              | Day.js; meal dates stored as local `YYYY-MM-DD` strings                                 |
+| Offline/PWA        | `vite-plugin-pwa` (Workbox `generateSW`)                                                |
+| Styling            | Mantine theme tokens + CSS Modules                                                      |
+| Static checks      | TypeScript + ESLint (incl. `eslint-plugin-boundaries`) + Prettier                       |
+| Tests              | Vitest (`bun run test`): domain/application unit tests, in-memory doubles, no Dexie/DOM |
 
 ## Layers
 
@@ -46,7 +46,7 @@ Service worker caches the app shell (HTML/JS/CSS/icons) only — user data alway
 
 ## Supportive libraries
 
-Beyond the core stack, the goal is maximum functionality reused without inflating the dependency count — see `AGENTS.md`'s "Libraries" section for the concrete list of what's installed now versus earmarked for a later sprint, and check that list before adding a new package or writing a generic helper.
+Beyond the core stack, the goal is maximum functionality reused without inflating the dependency count — see `AGENTS.md`'s "Libraries" section for what's installed versus kept in reserve, and check that list before adding a new package or writing a generic helper. No further libraries are earmarked for Sprints 19–22.
 
 Decisions of note:
 

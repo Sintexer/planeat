@@ -37,7 +37,7 @@ src/app            → wires everything together (composition root)
 
 ## Conventions
 
-- **Check what's already a dependency before adding a helper or a new library.** See "Libraries" below for what's already installed and what's earmarked for a later sprint — don't reach for a new package if one of those already covers the need, and don't add a library outside this list without explaining why in the moment.
+- **Check what's already a dependency before adding a helper or a new library.** See "Libraries" below for what's installed and what's kept in reserve — don't reach for a new package if one of those already covers the need, and don't add a library outside this list without explaining why in the moment.
 - Prefer existing Mantine components (`@mantine/core`, `@mantine/form`, `@mantine/dates`, `@mantine/notifications`, `@mantine/modals`) over building custom controls. Only add a domain component (e.g. `MealCard`) when it composes Mantine components for a specific app behavior.
 - Centralize confirmation dialogs (delete, replace-data, dependent-meal edits, list overwrites) through `@mantine/modals`' `modals.openConfirmModal` rather than each screen rolling its own modal-open state — see `SettingsScreen.tsx`'s restore-backup confirmation for the pattern.
 - No network dependency for core workflows — everything must work offline after first load.
@@ -47,7 +47,7 @@ src/app            → wires everything together (composition root)
 - Preserve local data through schema changes: only add new `.version(n)` blocks in `src/infrastructure/db/migrations`, never edit a shipped version. Dexie schema version and backup format version are separate contracts.
 - Unsaved recipe/plan edits live in a `@mantine/form` draft until Save — do not write every keystroke to IndexedDB.
 - Shared catalog UI may list recipes and simple foods together; do not collapse them into one persistence model.
-- No test runner until Sprint 8 household-tag identity/backup tests (introduce Vitest then, and record it in this Libraries table). Until then, format/lint/typecheck/build remain the gate. Measurement/grocery scenario tests landed in Sprint 13 (`QuantityService.test.ts`, `GroceryService.test.ts`).
+- `bun run test` is Vitest: domain/application unit tests with in-memory repository doubles — no Dexie/IndexedDB polyfill, no DOM/testing-library. Format/lint/typecheck/build remain the completeness gate alongside tests. Measurement/grocery scenario tests live in `QuantityService.test.ts` and `GroceryService.test.ts`.
 - Format with `bun run format` (Prettier); style is not a lint concern here.
 
 ## Libraries
@@ -65,7 +65,7 @@ Already installed, beyond the core stack (React/Mantine/Dexie/Zod/Day.js/vite-pl
 | `fuse.js`                                                  | Fuzzy recipe/component picker search and ranking (never ingredient identity merge)                                                                                                                                                                                                    |
 | `@mantine/dropzone`                                        | Recipe import file drop target (always paired with a visible Choose file button)                                                                                                                                                                                                      |
 | `schema-dts`                                               | Compile-time Schema.org `Recipe` typing for JSON-LD import (Zod remains runtime validation)                                                                                                                                                                                           |
-| `vitest`                                                   | First test runner (Sprint 8): domain/application unit tests via in-memory repository test doubles — no Dexie/IndexedDB polyfill, no DOM/testing-library needed yet                                                                                                                    |
+| `vitest`                                                   | Unit tests (Sprint 8+): domain/application via in-memory repository doubles — no Dexie/IndexedDB polyfill, no DOM/testing-library                                                                                                                                                     |
 
 No further libraries are currently earmarked for a scheduled sprint.
 
@@ -78,5 +78,5 @@ Prefer native browser APIs over a wrapper package for: IDs (`crypto.randomUUID()
 - `docs/architecture.md` — stack rationale and cross-cutting decisions about the supportive libraries (what each one is/isn't allowed to be used for), plus known limitations such as `cup-metric`'s unit conversion (no library equivalent, self-only by design — see the `convert-units` row in `AGENTS.md`'s Libraries table).
 - `docs/data-model.md` — Dexie schema version history (what each `.version(n)` block added) and how the Dexie schema version and backup format version are separate, independently-bumped contracts.
 - `docs/functional-spec.md` — screen-by-screen product behavior (Plan, Lists, Recipes, Settings).
-- `docs/sprints/plan.md` — the sprint-by-sprint roadmap; its "Status" section at the bottom records what's shipped and what's next. Check this before starting new feature work.
+- `docs/sprints/plan.md` — sprint cards; **Status at the bottom is the source of truth for shipped work and the next sprint**. Check it before starting feature work. [`docs/roadmap.md`](docs/roadmap.md) is the phase-level view. [`README.md`](README.md) links the same Status section.
 - `SPEC.md` — the full product specification.
