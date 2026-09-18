@@ -2,7 +2,7 @@
 
 No dates. Keep the app releasable after every sprint. Each sprint delivers **one visible improvement**, including its UI, domain changes, persistence, backup support, and tests.
 
-**Current position:** Sprints 1–29, 26C–27C, and checkpoints A/B/C/D are shipped. Lane A and Lane C are complete. Lane B remains optional. Next sequenced work is Sprint 30 — cards in [`generation.md`](generation.md).
+**Current position:** Sprints 1–30, 26C–27C, and checkpoints A/B/C/D are shipped. Lane A and Lane C are complete. Lane B remains optional. Next sequenced work is Sprint 31 — cards in [`generation.md`](generation.md).
 
 Sprints 1–6 had no automated test runner. Vitest arrived in Sprint 8 (tags/backup). Measurement/grocery scenario tests landed in Sprint 13. Localization settings (`uiLocale`, `measurementPreference`) shipped before Phase 1; Sprint 14 applied them consistently to displayed quantities.
 
@@ -699,7 +699,7 @@ Test one question early, though: is “family” a household using one shared de
 
 # Phase 7 — Automatic meal planning
 
-Offline generator on the existing cooking-event model. **Next: Sprint 30.**
+Offline generator on the existing cooking-event model. **Next: Sprint 31.**
 
 Generation always produces a proposal. Apply goes through existing `PlanService` writes. Grocery lists never update as a side effect. Full implementation cards, module boundaries, acceptance tests, and demo scripts: [`generation.md`](generation.md).
 
@@ -811,4 +811,6 @@ Sprint 28 is done: generate one empty non-excluded slot with a newly cooked `com
 
 Sprint 29 is done: select empty slots for the open week; independent per-slot `complete` picks on a Web Worker; partial proposals with `no-eligible-candidates` unfilled reasons; atomic `addCookingEventComponents` apply; cancel/superseded request ids ignored; existing meals unchanged. No Dexie or backup-format bump.
 
-**Next:** Sprint 30 — strict eligibility configuration (hard restrictions and unknown-data policies). Phase 7 cards: [`generation.md`](generation.md). Lane B remains optional.
+Sprint 30 is done: household hard-generation policy (excluded recipes, required/excluded tags, include/exclude ingredient ids, optional max recorded total time, unknown-time and unknown-ingredient enums); `constraints.ts` candidate filter; Settings UI; proposal diagnostics for facet drop counts and conflicting filled meals; dangling policy ids reported and kept on restore. No Dexie or backup-format bump.
+
+**Next:** Sprint 31 — household preferences and scoring. Phase 7 cards: [`generation.md`](generation.md). Lane B remains optional.

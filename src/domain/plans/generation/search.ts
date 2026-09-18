@@ -1,6 +1,7 @@
 import type { MealSlot } from '../MealSlot'
 import type { Quantity } from '../../shared/Quantity'
 import { eligibleStandaloneRecipes, selectFirstCandidate } from './candidates'
+import { buildGenerationDiagnostics, DEFAULT_GENERATION_HARD_POLICY } from './constraints'
 import {
   fingerprintFromInput,
   GENERATION_ALGORITHM_VERSION,
@@ -19,6 +20,12 @@ export function runGenerationSearch(
   requestId: string,
   scale: ScaleQuantity,
 ): WeekGenerationProposal {
+  const policy = input.policy ?? DEFAULT_GENERATION_HARD_POLICY
+  const catalogs = input.catalogs ?? {
+    recipeIds: input.recipes.map((recipe) => recipe.id),
+    tagIds: [],
+    ingredientIds: [],
+  }
   const assignments: SlotAssignment[] = []
   const unfilled: UnfilledSlot[] = []
 
@@ -29,7 +36,7 @@ export function runGenerationSearch(
       continue
     }
 
-    const eligible = eligibleStandaloneRecipes(input.recipes, requested.slot.mealType)
+    const eligible = eligibleStandaloneRecipes(input.recipes, requested.slot.mealType, policy)
     const selected = selectFirstCandidate(eligible)
     if (!selected) {
       unfilled.push(unfilledSlot(requested.slot))
@@ -53,6 +60,7 @@ export function runGenerationSearch(
     })
   }
 
+  const mealTypes = input.requestedSlots.map((row) => row.slot.mealType)
   return {
     requestId,
     algorithmVersion: GENERATION_ALGORITHM_VERSION,
@@ -63,6 +71,13 @@ export function runGenerationSearch(
     quantityOverrides: input.quantityOverrides,
     assignments,
     unfilled,
+    diagnostics: buildGenerationDiagnostics(
+      input.recipes,
+      mealTypes,
+      policy,
+      input.fixedMeals ?? [],
+      catalogs,
+    ),
   }
 }
 

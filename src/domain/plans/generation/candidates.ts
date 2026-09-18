@@ -1,8 +1,17 @@
 import type { Recipe } from '../../recipes/Recipe'
 import type { MealType } from '../../shared/MealEnums'
+import {
+  DEFAULT_GENERATION_HARD_POLICY,
+  recipeSatisfiesHardPolicy,
+  type GenerationHardPolicy,
+} from './constraints'
 
-export function isStandaloneEligible(recipe: Recipe, mealType: MealType): boolean {
-  return recipe.roles.includes('complete') && recipe.mealTypes.includes(mealType)
+export function isStandaloneEligible(
+  recipe: Recipe,
+  mealType: MealType,
+  policy: GenerationHardPolicy = DEFAULT_GENERATION_HARD_POLICY,
+): boolean {
+  return recipeSatisfiesHardPolicy(recipe, mealType, policy)
 }
 
 export function compareCandidateRecipes(a: Recipe, b: Recipe): number {
@@ -16,9 +25,10 @@ export function compareCandidateRecipes(a: Recipe, b: Recipe): number {
 export function eligibleStandaloneRecipes(
   recipes: readonly Recipe[],
   mealType: MealType,
+  policy: GenerationHardPolicy = DEFAULT_GENERATION_HARD_POLICY,
 ): Recipe[] {
   return recipes
-    .filter((recipe) => isStandaloneEligible(recipe, mealType))
+    .filter((recipe) => isStandaloneEligible(recipe, mealType, policy))
     .sort(compareCandidateRecipes)
 }
 

@@ -15,6 +15,11 @@ import {
   type CatalogGroup,
   type CatalogSort,
 } from './MealEnums'
+import {
+  DEFAULT_GENERATION_HARD_POLICY,
+  mergeGenerationHardPolicy,
+  type GenerationHardPolicy,
+} from '../plans/generation/constraints'
 
 export interface Settings {
   id: 'app-settings'
@@ -33,6 +38,7 @@ export interface Settings {
   measurementPreference: MeasurementPreference
   catalogSort: CatalogSort
   catalogGroup: CatalogGroup
+  generationHardPolicy: GenerationHardPolicy
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -48,6 +54,7 @@ export const DEFAULT_SETTINGS: Settings = {
   measurementPreference: DEFAULT_MEASUREMENT_PREFERENCE,
   catalogSort: DEFAULT_CATALOG_SORT,
   catalogGroup: DEFAULT_CATALOG_GROUP,
+  generationHardPolicy: DEFAULT_GENERATION_HARD_POLICY,
 }
 
 /** Merge missing planning-preference fields onto a stored settings row. */
@@ -77,5 +84,6 @@ export function mergeSettingsDefaults(row: Partial<Settings> & { id: 'app-settin
     measurementPreference: parseMeasurementPreference(row.measurementPreference),
     catalogSort: parseCatalogSort(row.catalogSort),
     catalogGroup: parseCatalogGroup(row.catalogGroup),
+    generationHardPolicy: mergeGenerationHardPolicy(row.generationHardPolicy),
   }
 }

@@ -5,8 +5,7 @@ import type {
 import { runGenerationSearch } from '../../domain/plans/generation/search'
 import type { QuantityService } from '../quantities/QuantityService'
 
-export type GenerationSearchResult =
-  { ok: true; value: WeekGenerationProposal } | { ok: false; error: 'no-eligible-candidates' }
+export type GenerationSearchResult = { ok: true; value: WeekGenerationProposal }
 
 export type GenerationWorkerRequest = {
   type: 'run'
@@ -30,9 +29,6 @@ export function createSyncGenerationRunner(quantities: QuantityService): Generat
       const proposal = runGenerationSearch(input, requestId, (quantity, factor) =>
         quantities.scale(quantity, factor),
       )
-      if (proposal.assignments.length === 0) {
-        return Promise.resolve({ ok: false, error: 'no-eligible-candidates' })
-      }
       return Promise.resolve({ ok: true, value: proposal })
     },
   }

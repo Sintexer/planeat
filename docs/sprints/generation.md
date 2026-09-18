@@ -212,6 +212,8 @@ If a sprint cannot finish both the algorithm and a visible Plan-screen control, 
 
 Facet semantics: **OR within a selected-value facet, AND between facets.** Hard constraints stay in `constraints.ts`; scoring must not live here yet.
 
+**Shipped.** Household `generationHardPolicy` on Settings; `src/domain/plans/generation/constraints.ts`; Settings generation section; proposal diagnostics (facet counts + fixed conflicts). No Dexie or backup-format bump.
+
 ---
 
 ## Sprint 31 — Household preferences and scoring

@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped through **Sprint 29**. Next sequenced work is **Sprint 30** (hard generation restrictions). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
+Shipped through **Sprint 30**. Next sequenced work is **Sprint 31** (soft preferences and scoring). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
 
 ## Done — project initialization
 
@@ -130,7 +130,13 @@ Shipped through **Sprint 29**. Next sequenced work is **Sprint 30** (hard genera
 - Select empty meals for the open week; search runs in a Web Worker; preview can be partial; Apply writes filled slots in one transaction.
 - Existing meals and exclusions stay put. Grocery lists still do not update as a side effect.
 
-## Next — Phase 7 automatic meal planning (Sprints 30–38)
+## Done — Sprint 30 (strict eligibility)
+
+- Household hard-generation policy: excluded recipes, required/excluded tags, include/exclude ingredients by id, optional max recorded total time, unknown-time and unknown-ingredient enums.
+- Candidate filter never relaxes a restriction; missing time is not zero; unlinked lines follow the unknown-ingredient policy. Diagnostics list facet drop counts and conflicting filled meals without rewriting them.
+- Settings UI plus additive backup field on the settings row. Missing catalog ids are reported and kept. No Dexie or backup-format bump.
+
+## Next — Phase 7 automatic meal planning (Sprints 31–38)
 
 Local, explainable generation. Proposals only; apply through existing cooking events; grocery lists stay manual. No backend or LLM.
 

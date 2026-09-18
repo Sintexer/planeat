@@ -2,11 +2,12 @@ import { Button, Group, Stack, Text } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import type { GenerationService } from '../../application/plans/GenerationService'
+import type { ConstraintReason } from '../../domain/plans/generation/constraints'
 import type { WeekGenerationProposal } from '../../domain/plans/generation/proposal'
 import type { MealSlotId } from '../../domain/plans/MealSlot'
 import type { Quantity } from '../../domain/shared/Quantity'
 import { generationErrorMessage } from '../localization/errors'
-import { mealTypeLabel } from '../localization/labels'
+import { constraintReasonLabel, mealTypeLabel } from '../localization/labels'
 import type { Translate } from '../localization/t'
 
 export async function openGenerateMealPreview(args: {
@@ -33,6 +34,13 @@ export function openProposalPreview(args: {
   formatQty: (quantity: Quantity) => string
 }): void {
   const { proposal, generationService, t, formatQty } = args
+  const unfilledMealTypes = new Set(proposal.unfilled.map((row) => row.mealType))
+  const dropCounts = proposal.diagnostics.dropCounts.filter((row) =>
+    unfilledMealTypes.has(row.mealType),
+  )
+  const showDiagnostics =
+    proposal.unfilled.length > 0 || proposal.diagnostics.fixedConflicts.length > 0
+
   modals.open({
     title: t('generation.previewTitle'),
     children: (
@@ -51,15 +59,51 @@ export function openProposalPreview(args: {
             {t('generation.unfilledRow', { meal: mealTypeLabel(t, row.mealType) })}
           </Text>
         ))}
+        {showDiagnostics && (
+          <Stack gap={4}>
+            {dropCounts.length > 0 && (
+              <Text size="sm" fw={600}>
+                {t('generation.diagnosticsTitle')}
+              </Text>
+            )}
+            {dropCounts.map((row) => (
+              <Text size="sm" c="dimmed" key={`${row.mealType}-${row.reason}`}>
+                {t('generation.dropCount', {
+                  count: row.count,
+                  meal: mealTypeLabel(t, row.mealType),
+                  reason: constraintReasonLabel(t, row.reason),
+                })}
+              </Text>
+            ))}
+            {proposal.diagnostics.fixedConflicts.length > 0 && (
+              <>
+                <Text size="sm" fw={600}>
+                  {t('generation.fixedConflictHelp')}
+                </Text>
+                {proposal.diagnostics.fixedConflicts.map((row) => (
+                  <Text size="sm" c="dimmed" key={row.slotId}>
+                    {t('generation.fixedConflict', {
+                      date: row.date,
+                      meal: mealTypeLabel(t, row.mealType),
+                      reasons: formatReasons(t, row.reasons),
+                    })}
+                  </Text>
+                ))}
+              </>
+            )}
+          </Stack>
+        )}
         <Group>
-          <Button
-            onClick={() => {
-              modals.closeAll()
-              void applyProposal(generationService, proposal, t)
-            }}
-          >
-            {t('action.apply')}
-          </Button>
+          {proposal.assignments.length > 0 && (
+            <Button
+              onClick={() => {
+                modals.closeAll()
+                void applyProposal(generationService, proposal, t)
+              }}
+            >
+              {t('action.apply')}
+            </Button>
+          )}
           <Button
             variant="default"
             onClick={() => {
@@ -73,6 +117,10 @@ export function openProposalPreview(args: {
       </Stack>
     ),
   })
+}
+
+function formatReasons(t: Translate, reasons: readonly ConstraintReason[]): string {
+  return reasons.map((reason) => constraintReasonLabel(t, reason)).join(', ')
 }
 
 async function applyProposal(

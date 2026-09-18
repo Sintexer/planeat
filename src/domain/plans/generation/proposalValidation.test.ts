@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Recipe } from '../../recipes/Recipe'
 import type { MealSlot } from '../MealSlot'
+import { DEFAULT_GENERATION_HARD_POLICY } from './constraints'
 import { fingerprintFromInput, type GenerationInput, type WeekGenerationProposal } from './proposal'
 import { validateProposalAgainstLive, validateSlotForGeneration } from './proposalValidation'
 
@@ -43,6 +44,9 @@ function live(overrides: Partial<GenerationInput> = {}): GenerationInput {
     recipes: [recipe()],
     requestedSlots: [{ slot: slot(), componentCount: 0 }],
     seed: 'seed-1',
+    policy: DEFAULT_GENERATION_HARD_POLICY,
+    fixedMeals: [],
+    catalogs: { recipeIds: ['soup'], tagIds: [], ingredientIds: [] },
     ...overrides,
   }
 }
@@ -55,8 +59,8 @@ function proposal(
   const target = snapshot.requestedSlots[0]
   return {
     requestId: 'req-1',
-    algorithmVersion: '29',
-    policyVersion: '29-empty',
+    algorithmVersion: '30',
+    policyVersion: '30',
     seed: snapshot.seed,
     fingerprint: fingerprintFromInput(snapshot),
     planId: snapshot.planId,
@@ -71,6 +75,11 @@ function proposal(
       },
     ],
     unfilled: [],
+    diagnostics: {
+      dropCounts: [],
+      fixedConflicts: [],
+      missingPolicyRefs: { recipeIds: [], tagIds: [], ingredientIds: [] },
+    },
     ...overrides,
   }
 }
@@ -114,5 +123,13 @@ describe('validateProposalAgainstLive', () => {
       unfilled: [{ slotId: 'slot-lunch', reason: 'no-eligible-candidates', mealType: 'lunch' }],
     })
     expect(validateProposalAgainstLive(generated, snapshot)).toBeUndefined()
+  })
+
+  it('rejects a recipe that no longer satisfies hard policy', () => {
+    const original = live()
+    const next = live({
+      policy: { ...DEFAULT_GENERATION_HARD_POLICY, excludedRecipeIds: ['soup'] },
+    })
+    expect(validateProposalAgainstLive(proposal(original), next)).toBe('stale-proposal')
   })
 })

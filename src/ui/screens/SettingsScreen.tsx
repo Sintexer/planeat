@@ -35,7 +35,16 @@ import { formatWeekday } from '../localization/formatDate'
 import { restoreErrorCopy } from '../localization/errors'
 import { PageTitle } from '../components/ScreenHeader'
 import { useSettings } from '../hooks/useSettings'
+import { useRecipes } from '../hooks/useRecipes'
+import { useTags } from '../hooks/useTags'
+import { useIngredients } from '../hooks/useIngredients'
 import { useLocalization } from '../localization/LocalizationContext'
+import {
+  DEFAULT_GENERATION_HARD_POLICY,
+  mergeGenerationHardPolicy,
+  missingGenerationPolicyRefs,
+  type UnknownDataPolicy,
+} from '../../domain/plans/generation/constraints'
 
 interface SettingsForm {
   householdSize: number
@@ -47,6 +56,14 @@ interface SettingsForm {
   favorVegetablesDaily: boolean
   uiLocale: string
   measurementPreference: string
+  excludedRecipeIds: string[]
+  requiredTagIds: string[]
+  excludedTagIds: string[]
+  includeIngredientIds: string[]
+  excludeIngredientIds: string[]
+  maxTotalTimeMinutes: number | ''
+  unknownTimePolicy: UnknownDataPolicy
+  unknownIngredientPolicy: UnknownDataPolicy
 }
 
 async function downloadCurrentBackup(
@@ -76,6 +93,15 @@ function BackupCounts({ summary }: { summary: BackupRestoreSummary }) {
       {summary.exportedAtDisplay ? (
         <Text size="sm">{t('settings.backupExportedAt', { when: summary.exportedAtDisplay })}</Text>
       ) : null}
+      {summary.missingGenerationRefs ? (
+        <Text size="sm">
+          {t('settings.backupMissingGenerationRefs', {
+            recipes: summary.missingGenerationRefs.recipeCount,
+            tags: summary.missingGenerationRefs.tagCount,
+            ingredients: summary.missingGenerationRefs.ingredientCount,
+          })}
+        </Text>
+      ) : null}
     </Stack>
   )
 }
@@ -96,9 +122,24 @@ function SectionLabel({ children }: { children: string }) {
   )
 }
 
+function selectDataWithExtras(
+  options: { value: string; label: string }[],
+  selected: readonly string[],
+  missingLabel: string,
+): { value: string; label: string }[] {
+  const known = new Set(options.map((option) => option.value))
+  const extras = selected
+    .filter((id) => !known.has(id))
+    .map((id) => ({ value: id, label: missingLabel }))
+  return [...options, ...extras]
+}
+
 export function SettingsScreen() {
   const { settingsRepository, backupService } = useServices()
   const settings = useSettings()
+  const recipes = useRecipes()
+  const tags = useTags()
+  const ingredients = useIngredients()
   const { t, bcp47 } = useLocalization()
 
   const weekStartOptions = ([0, 1, 2, 3, 4, 5, 6] as const).map((day) => ({
@@ -117,11 +158,21 @@ export function SettingsScreen() {
       favorVegetablesDaily: false,
       uiLocale: DEFAULT_UI_LOCALE,
       measurementPreference: DEFAULT_MEASUREMENT_PREFERENCE,
+      excludedRecipeIds: [],
+      requiredTagIds: [],
+      excludedTagIds: [],
+      includeIngredientIds: [],
+      excludeIngredientIds: [],
+      maxTotalTimeMinutes: '',
+      unknownTimePolicy: DEFAULT_GENERATION_HARD_POLICY.unknownTimePolicy,
+      unknownIngredientPolicy: DEFAULT_GENERATION_HARD_POLICY.unknownIngredientPolicy,
     },
   })
 
   const preferredPrepDaysKey = settings?.preferredBatchPrepDays.join(',') ?? ''
   const quickMealsDaysKey = settings?.quickMealsOnlyDays.join(',') ?? ''
+  const policy = settings?.generationHardPolicy
+  const policyKey = policy ? JSON.stringify(mergeGenerationHardPolicy(policy)) : ''
 
   useEffect(() => {
     if (!settings) return
@@ -135,6 +186,14 @@ export function SettingsScreen() {
       favorVegetablesDaily: settings.favorVegetablesDaily,
       uiLocale: settings.uiLocale,
       measurementPreference: settings.measurementPreference,
+      excludedRecipeIds: [...settings.generationHardPolicy.excludedRecipeIds],
+      requiredTagIds: [...settings.generationHardPolicy.requiredTagIds],
+      excludedTagIds: [...settings.generationHardPolicy.excludedTagIds],
+      includeIngredientIds: [...settings.generationHardPolicy.includeIngredientIds],
+      excludeIngredientIds: [...settings.generationHardPolicy.excludeIngredientIds],
+      maxTotalTimeMinutes: settings.generationHardPolicy.maxTotalTimeMinutes ?? '',
+      unknownTimePolicy: settings.generationHardPolicy.unknownTimePolicy,
+      unknownIngredientPolicy: settings.generationHardPolicy.unknownIngredientPolicy,
     })
     // Hydrate from stored fields, not the liveQuery object identity (a new
     // mergeSettingsDefaults result every emit would retrigger setValues forever).
@@ -149,6 +208,7 @@ export function SettingsScreen() {
     settings?.favorVegetablesDaily,
     settings?.uiLocale,
     settings?.measurementPreference,
+    policyKey,
   ])
 
   const handleSubmit = form.onSubmit(async (values) => {
@@ -163,6 +223,17 @@ export function SettingsScreen() {
       favorVegetablesDaily: values.favorVegetablesDaily,
       uiLocale: parseUiLocale(values.uiLocale),
       measurementPreference: parseMeasurementPreference(values.measurementPreference),
+      generationHardPolicy: mergeGenerationHardPolicy({
+        excludedRecipeIds: values.excludedRecipeIds,
+        requiredTagIds: values.requiredTagIds,
+        excludedTagIds: values.excludedTagIds,
+        includeIngredientIds: values.includeIngredientIds,
+        excludeIngredientIds: values.excludeIngredientIds,
+        maxTotalTimeMinutes:
+          values.maxTotalTimeMinutes === '' ? undefined : values.maxTotalTimeMinutes,
+        unknownTimePolicy: values.unknownTimePolicy,
+        unknownIngredientPolicy: values.unknownIngredientPolicy,
+      }),
     })
     notifications.show({ message: t('settings.saved'), color: 'success' })
   })
@@ -197,6 +268,37 @@ export function SettingsScreen() {
     modals.closeAll()
     showRestoreSuccess(result.summary)
   }
+
+  const recipeOptions = (recipes ?? []).map((recipe) => ({ value: recipe.id, label: recipe.name }))
+  const tagOptions = (tags ?? []).map((tag) => ({ value: tag.id, label: tag.name }))
+  const ingredientOptions = (ingredients ?? []).map((ingredient) => ({
+    value: ingredient.id,
+    label: ingredient.name,
+  }))
+  const unknownPolicyOptions = [
+    { value: 'exclude', label: t('settings.unknownExclude') },
+    { value: 'allow', label: t('settings.unknownAllow') },
+  ]
+  const liveMissing = missingGenerationPolicyRefs(
+    mergeGenerationHardPolicy({
+      excludedRecipeIds: form.values.excludedRecipeIds,
+      requiredTagIds: form.values.requiredTagIds,
+      excludedTagIds: form.values.excludedTagIds,
+      includeIngredientIds: form.values.includeIngredientIds,
+      excludeIngredientIds: form.values.excludeIngredientIds,
+      maxTotalTimeMinutes:
+        form.values.maxTotalTimeMinutes === '' ? undefined : form.values.maxTotalTimeMinutes,
+      unknownTimePolicy: form.values.unknownTimePolicy,
+      unknownIngredientPolicy: form.values.unknownIngredientPolicy,
+    }),
+    {
+      recipeIds: (recipes ?? []).map((recipe) => recipe.id),
+      tagIds: (tags ?? []).map((tag) => tag.id),
+      ingredientIds: (ingredients ?? []).map((ingredient) => ingredient.id),
+    },
+  )
+  const missingRefCount =
+    liveMissing.recipeIds.length + liveMissing.tagIds.length + liveMissing.ingredientIds.length
 
   const handleFilePicked = async (file: File | null) => {
     if (!file) return
@@ -333,6 +435,102 @@ export function SettingsScreen() {
                   disabled={!settings}
                   {...form.getInputProps('favorVegetablesDaily', { type: 'checkbox' })}
                 />
+              </Stack>
+            </Paper>
+          </div>
+
+          <div>
+            <SectionLabel>{t('settings.sectionGeneration')}</SectionLabel>
+            <Paper withBorder p={12} radius="md">
+              <Stack gap="sm">
+                <Text size="sm" c="dimmed">
+                  {t('settings.generationHelp')}
+                </Text>
+                <MultiSelect
+                  label={t('settings.excludedRecipes')}
+                  searchable
+                  disabled={!settings}
+                  data={selectDataWithExtras(
+                    recipeOptions,
+                    form.values.excludedRecipeIds,
+                    t('common.unknownItem'),
+                  )}
+                  {...form.getInputProps('excludedRecipeIds')}
+                />
+                <MultiSelect
+                  label={t('settings.requiredTags')}
+                  searchable
+                  disabled={!settings}
+                  data={selectDataWithExtras(
+                    tagOptions,
+                    form.values.requiredTagIds,
+                    t('common.unavailableTag'),
+                  )}
+                  {...form.getInputProps('requiredTagIds')}
+                />
+                <MultiSelect
+                  label={t('settings.excludedTags')}
+                  searchable
+                  disabled={!settings}
+                  data={selectDataWithExtras(
+                    tagOptions,
+                    form.values.excludedTagIds,
+                    t('common.unavailableTag'),
+                  )}
+                  {...form.getInputProps('excludedTagIds')}
+                />
+                <MultiSelect
+                  label={t('settings.includeIngredients')}
+                  searchable
+                  disabled={!settings}
+                  data={selectDataWithExtras(
+                    ingredientOptions,
+                    form.values.includeIngredientIds,
+                    t('common.unavailableIngredient'),
+                  )}
+                  {...form.getInputProps('includeIngredientIds')}
+                />
+                <MultiSelect
+                  label={t('settings.excludeIngredients')}
+                  searchable
+                  disabled={!settings}
+                  data={selectDataWithExtras(
+                    ingredientOptions,
+                    form.values.excludeIngredientIds,
+                    t('common.unavailableIngredient'),
+                  )}
+                  {...form.getInputProps('excludeIngredientIds')}
+                />
+                <NumberInput
+                  label={t('settings.maxTotalTime')}
+                  description={t('settings.maxTotalTimeHelp')}
+                  min={1}
+                  disabled={!settings}
+                  {...form.getInputProps('maxTotalTimeMinutes')}
+                />
+                <Select
+                  label={t('settings.unknownTime')}
+                  data={unknownPolicyOptions}
+                  disabled={!settings}
+                  allowDeselect={false}
+                  {...form.getInputProps('unknownTimePolicy')}
+                />
+                <Select
+                  label={t('settings.unknownIngredients')}
+                  data={unknownPolicyOptions}
+                  disabled={!settings}
+                  allowDeselect={false}
+                  {...form.getInputProps('unknownIngredientPolicy')}
+                />
+                {missingRefCount > 0 && (
+                  <Text size="sm" c="dimmed">
+                    {t('settings.missingGenerationRefs', {
+                      recipes: liveMissing.recipeIds.length,
+                      tags: liveMissing.tagIds.length,
+                      ingredients: liveMissing.ingredientIds.length,
+                    })}
+                  </Text>
+                )}
               </Stack>
             </Paper>
           </div>

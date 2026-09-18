@@ -4,6 +4,7 @@ import { CURRENT_BACKUP_FORMAT_VERSION } from '../../domain/shared/BackupFormatV
 import type { BackupFile } from '../../domain/shared/Backup'
 import type { Recipe } from '../../domain/recipes/Recipe'
 import type { RecipeSnapshot } from '../../domain/plans/CookingEvent'
+import { DEFAULT_SETTINGS } from '../../domain/shared/Settings'
 
 function emptyData(): BackupFile['data'] {
   return {
@@ -551,7 +552,11 @@ describe('backupFileSchema — saved library views (Sprint 22)', () => {
     const data = emptyData()
     data.settings = [
       {
-        id: 'app-settings',
+        ...DEFAULT_SETTINGS,
+        uiLocale: 'ru',
+        measurementPreference: 'as-entered',
+        catalogSort: 'name',
+        catalogGroup: 'none',
         householdSize: 2,
         weekStartDay: 1,
         maxBatchPrepUnits: 4,
@@ -559,10 +564,6 @@ describe('backupFileSchema — saved library views (Sprint 22)', () => {
         quickMealsOnlyDays: [],
         avoidMultipleDemandingPreps: true,
         favorVegetablesDaily: true,
-        uiLocale: 'ru',
-        measurementPreference: 'as-entered',
-        catalogSort: 'name',
-        catalogGroup: 'none',
       },
     ]
     const result = backupFileSchema.safeParse({
@@ -572,5 +573,35 @@ describe('backupFileSchema — saved library views (Sprint 22)', () => {
       data,
     })
     expect(result.success).toBe(true)
+  })
+
+  it('accepts generationHardPolicy with catalog ids that are not in the file', () => {
+    const data = emptyData()
+    data.settings = [
+      {
+        ...DEFAULT_SETTINGS,
+        generationHardPolicy: {
+          unknownTimePolicy: 'allow',
+          unknownIngredientPolicy: 'exclude',
+          excludedRecipeIds: ['gone-recipe'],
+          requiredTagIds: ['gone-tag'],
+          excludedTagIds: [],
+          includeIngredientIds: [],
+          excludeIngredientIds: ['gone-ing'],
+          maxTotalTimeMinutes: 45,
+        },
+      },
+    ]
+    const result = backupFileSchema.safeParse({
+      format: 'family-menu-planner',
+      schemaVersion: CURRENT_BACKUP_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    })
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.data.data.settings[0].generationHardPolicy?.excludedRecipeIds).toEqual([
+      'gone-recipe',
+    ])
   })
 })

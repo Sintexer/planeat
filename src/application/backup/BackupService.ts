@@ -2,10 +2,20 @@ import { CURRENT_BACKUP_FORMAT_VERSION } from '../../domain/shared/BackupFormatV
 import type { BackupFile } from '../../domain/shared/Backup'
 import { mergeIngredientDefaults } from '../../domain/ingredients/Ingredient'
 import { mergeSettingsDefaults } from '../../domain/shared/Settings'
+import {
+  mergeGenerationHardPolicy,
+  missingGenerationPolicyRefs,
+} from '../../domain/plans/generation/constraints'
 import type { BackupRepository } from '../ports/BackupRepository'
 import { backupFileSchema } from './backupSchema'
 
 export type BackupRestoreError = 'invalid' | 'unsupported-version' | 'write-failed'
+
+export type MissingGenerationRefCounts = {
+  recipeCount: number
+  tagCount: number
+  ingredientCount: number
+}
 
 export interface BackupRestoreSummary {
   formatSupported: true
@@ -14,6 +24,7 @@ export interface BackupRestoreSummary {
   planCount: number
   groceryListCount: number
   exportedAtDisplay: string | null
+  missingGenerationRefs?: MissingGenerationRefCounts
 }
 
 export type BackupRestoreResult =
@@ -35,14 +46,42 @@ function reliableExportedAtDisplay(exportedAt: string, locale = 'en'): string | 
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(date)
 }
 
+function missingGenerationRefsFromBackup(data: {
+  settings: { generationHardPolicy?: unknown }[]
+  recipes: { id: string }[]
+  tags: { id: string }[]
+  ingredients: { id: string }[]
+}): MissingGenerationRefCounts | undefined {
+  const recipeIds = data.recipes.map((row) => row.id)
+  const tagIds = data.tags.map((row) => row.id)
+  const ingredientIds = data.ingredients.map((row) => row.id)
+  let recipeCount = 0
+  let tagCount = 0
+  let ingredientCount = 0
+  for (const row of data.settings) {
+    const policy = mergeGenerationHardPolicy(
+      row.generationHardPolicy as Parameters<typeof mergeGenerationHardPolicy>[0],
+    )
+    const missing = missingGenerationPolicyRefs(policy, { recipeIds, tagIds, ingredientIds })
+    recipeCount += missing.recipeIds.length
+    tagCount += missing.tagIds.length
+    ingredientCount += missing.ingredientIds.length
+  }
+  if (recipeCount === 0 && tagCount === 0 && ingredientCount === 0) return undefined
+  return { recipeCount, tagCount, ingredientCount }
+}
+
 function summaryFromBackup(
   backup: {
     exportedAt: string
     data: {
-      recipes: { length: number }
+      recipes: { id: string }[]
       simpleFoods: { length: number }
       plans: { length: number }
       groceryLists: { length: number }
+      settings: { generationHardPolicy?: unknown }[]
+      tags: { id: string }[]
+      ingredients: { id: string }[]
     }
   },
   locale = 'en',
@@ -54,6 +93,7 @@ function summaryFromBackup(
     planCount: backup.data.plans.length,
     groceryListCount: backup.data.groceryLists.length,
     exportedAtDisplay: reliableExportedAtDisplay(backup.exportedAt, locale),
+    missingGenerationRefs: missingGenerationRefsFromBackup(backup.data),
   }
 }
 

@@ -4,13 +4,26 @@ import type { Quantity } from '../../shared/Quantity'
 import type { MealSlot, MealSlotId } from '../MealSlot'
 import type { PlanId } from '../Plan'
 import { eligibleStandaloneRecipes } from './candidates'
+import {
+  canonicalizeGenerationHardPolicy,
+  DEFAULT_GENERATION_HARD_POLICY,
+  type FixedMeal,
+  type GenerationDiagnostics,
+  type GenerationHardPolicy,
+} from './constraints'
 
-export const GENERATION_ALGORITHM_VERSION = '29'
-export const GENERATION_POLICY_VERSION = '29-empty'
+export const GENERATION_ALGORITHM_VERSION = '30'
+export const GENERATION_POLICY_VERSION = '30'
 
 export type RequestedGenerationSlot = {
   slot: MealSlot
   componentCount: number
+}
+
+export type GenerationCatalogIds = {
+  recipeIds: readonly string[]
+  tagIds: readonly string[]
+  ingredientIds: readonly string[]
 }
 
 export type GenerationInput = {
@@ -21,6 +34,9 @@ export type GenerationInput = {
   requestedSlots: readonly RequestedGenerationSlot[]
   quantityOverrides?: Readonly<Record<string, Quantity>>
   seed: string
+  policy: GenerationHardPolicy
+  fixedMeals: readonly FixedMeal[]
+  catalogs: GenerationCatalogIds
 }
 
 export type SlotAssignment = {
@@ -48,6 +64,7 @@ export type WeekGenerationProposal = {
   quantityOverrides?: Readonly<Record<string, Quantity>>
   assignments: SlotAssignment[]
   unfilled: UnfilledSlot[]
+  diagnostics: GenerationDiagnostics
 }
 
 /** Sprint 28 name: a week proposal, often with a single assignment. */
@@ -63,6 +80,7 @@ export type GenerationFingerprintParts = {
   requested: readonly { slotId: string; mealType: string }[]
   eligible: readonly { id: string; updatedAt: number }[]
   overrides: readonly { slotId: string; value: number; unit: string }[]
+  policy: GenerationHardPolicy
 }
 
 export function generationInputFingerprint(parts: GenerationFingerprintParts): string {
@@ -85,14 +103,16 @@ export function generationInputFingerprint(parts: GenerationFingerprintParts): s
     requested,
     eligible,
     overrides,
+    policy: canonicalizeGenerationHardPolicy(parts.policy),
   })
 }
 
 export function fingerprintFromInput(input: GenerationInput): string {
+  const policy = input.policy ?? DEFAULT_GENERATION_HARD_POLICY
   const mealTypes = [...new Set(input.requestedSlots.map((row) => row.slot.mealType))]
   const eligibleIds = new Map<string, number>()
   for (const mealType of mealTypes) {
-    for (const recipe of eligibleStandaloneRecipes(input.recipes, mealType)) {
+    for (const recipe of eligibleStandaloneRecipes(input.recipes, mealType, policy)) {
       eligibleIds.set(recipe.id, recipe.updatedAt)
     }
   }
@@ -114,5 +134,6 @@ export function fingerprintFromInput(input: GenerationInput): string {
     })),
     eligible: [...eligibleIds.entries()].map(([id, updatedAt]) => ({ id, updatedAt })),
     overrides,
+    policy,
   })
 }

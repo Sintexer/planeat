@@ -89,6 +89,10 @@ export function bootstrap(): AppServices {
           type: 'module',
         }),
       ),
+      settingsRepository,
+      simpleFoodRepository,
+      tagRepository,
+      ingredientRepository,
     ),
     groceryService: new GroceryService(
       groceryRepository,

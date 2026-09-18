@@ -3,6 +3,7 @@ import { BackupService } from './BackupService'
 import { CURRENT_BACKUP_FORMAT_VERSION } from '../../domain/shared/BackupFormatVersion'
 import type { BackupFile } from '../../domain/shared/Backup'
 import type { BackupRepository } from '../ports/BackupRepository'
+import { DEFAULT_SETTINGS } from '../../domain/shared/Settings'
 
 function emptyData(): BackupFile['data'] {
   return {
@@ -163,6 +164,33 @@ describe('BackupService.inspectBackup', () => {
       ok: false,
       error: 'unsupported-version',
       foundVersion: CURRENT_BACKUP_FORMAT_VERSION - 1,
+    })
+  })
+
+  it('reports dangling generation policy ids without failing inspect', () => {
+    const service = new BackupService(new FakeBackupRepository())
+    const data = emptyData()
+    data.settings = [
+      {
+        ...DEFAULT_SETTINGS,
+        generationHardPolicy: {
+          unknownTimePolicy: 'exclude',
+          unknownIngredientPolicy: 'exclude',
+          excludedRecipeIds: ['missing-recipe'],
+          requiredTagIds: ['missing-tag'],
+          excludedTagIds: [],
+          includeIngredientIds: [],
+          excludeIngredientIds: ['missing-ing'],
+        },
+      },
+    ]
+    const result = service.inspectBackup(backupFile(data))
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.summary.missingGenerationRefs).toEqual({
+      recipeCount: 1,
+      tagCount: 1,
+      ingredientCount: 1,
     })
   })
 

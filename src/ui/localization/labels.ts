@@ -14,6 +14,7 @@ import {
 } from '../../domain/shared/MealEnums'
 import type { LibraryCleanupKind } from '../../domain/libraryViews/LibraryView'
 import { SHOPPING_SECTIONS, type ShoppingSection } from '../../domain/groceries/shoppingSections'
+import type { ConstraintReason } from '../../domain/plans/generation/constraints'
 import { UNIT_REGISTRY } from '../../domain/shared/UnitRegistry'
 import type { MessageId } from './messages'
 import type { Translate } from './t'
@@ -21,6 +22,10 @@ import type { Translate } from './t'
 export function mealTypeLabel(t: Translate, mealType: string): string {
   const id = `mealType.${mealType}` as MessageId
   return mealType in { breakfast: 1, lunch: 1, dinner: 1 } ? t(id) : mealType
+}
+
+export function constraintReasonLabel(t: Translate, reason: ConstraintReason): string {
+  return t(`generation.reason.${reason}` as MessageId)
 }
 
 export function roleLabel(t: Translate, role: RecipeRole): string {

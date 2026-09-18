@@ -131,6 +131,18 @@ const settingsSchema = z.object({
     .enum(['relevance', 'name', 'recent-added', 'recent-edited', 'shortest-time'])
     .optional(),
   catalogGroup: z.enum(['none', 'kind', 'dish-type']).optional(),
+  generationHardPolicy: z
+    .object({
+      unknownTimePolicy: z.enum(['exclude', 'allow']),
+      unknownIngredientPolicy: z.enum(['exclude', 'allow']),
+      excludedRecipeIds: z.array(z.string()),
+      requiredTagIds: z.array(z.string()),
+      excludedTagIds: z.array(z.string()),
+      includeIngredientIds: z.array(z.string()),
+      excludeIngredientIds: z.array(z.string()),
+      maxTotalTimeMinutes: z.number().optional(),
+    })
+    .optional(),
 })
 
 const planSchema = z.object({

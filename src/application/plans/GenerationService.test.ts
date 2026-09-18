@@ -8,6 +8,7 @@ import type { RecipeRepository } from '../ports/RecipeRepository'
 import type { SettingsRepository } from '../ports/SettingsRepository'
 import type { SimpleFoodRepository } from '../ports/SimpleFoodRepository'
 import type { TagRepository } from '../ports/TagRepository'
+import type { IngredientRepository } from '../ports/IngredientRepository'
 import type { CookingEvent } from '../../domain/plans/CookingEvent'
 import type { MealComponent } from '../../domain/plans/MealComponent'
 import type { MealSlot } from '../../domain/plans/MealSlot'
@@ -15,6 +16,7 @@ import type { Plan, PlanId } from '../../domain/plans/Plan'
 import type { PlanGraph } from '../../domain/plans/PlanGraph'
 import type { Recipe } from '../../domain/recipes/Recipe'
 import type { Tag } from '../../domain/tags/Tag'
+import { DEFAULT_SETTINGS, type Settings } from '../../domain/shared/Settings'
 import type { WeekGenerationProposal } from '../../domain/plans/generation/proposal'
 
 function baseRecipe(overrides: Partial<Recipe> = {}): Recipe {
@@ -205,14 +207,15 @@ class FakeTagRepository implements TagRepository {
     this.tags = tags
   }
 
+  async getAll() {
+    return [...this.tags]
+  }
+
   async getByIds(ids: string[]) {
     return this.tags.filter((tag) => ids.includes(tag.id))
   }
 
   create: TagRepository['create'] = () => {
-    throw new Error('not implemented')
-  }
-  getAll: TagRepository['getAll'] = () => {
     throw new Error('not implemented')
   }
   getById: TagRepository['getById'] = () => {
@@ -243,9 +246,7 @@ function unusedSimpleFoods(): SimpleFoodRepository {
     create: () => {
       throw new Error('not implemented')
     },
-    getAll: () => {
-      throw new Error('not implemented')
-    },
+    getAll: async () => [],
     getById: () => {
       throw new Error('not implemented')
     },
@@ -258,19 +259,44 @@ function unusedSimpleFoods(): SimpleFoodRepository {
   }
 }
 
-function unusedSettings(): SettingsRepository {
+function unusedSettings(settings: Settings = DEFAULT_SETTINGS): SettingsRepository {
   return {
-    get: () => {
+    get: async () => settings,
+    update: async () => undefined,
+  }
+}
+
+function unusedIngredients(): IngredientRepository {
+  return {
+    create: () => {
+      throw new Error('not implemented')
+    },
+    getAll: async () => [],
+    getById: () => {
+      throw new Error('not implemented')
+    },
+    findByNameOrAlias: () => {
+      throw new Error('not implemented')
+    },
+    findCandidatesByName: () => {
       throw new Error('not implemented')
     },
     update: () => {
+      throw new Error('not implemented')
+    },
+    remove: () => {
       throw new Error('not implemented')
     },
   }
 }
 
 function makeGraph(
-  overrides: { slots?: MealSlot[]; plan?: Plan; components?: MealComponent[] } = {},
+  overrides: {
+    slots?: MealSlot[]
+    plan?: Plan
+    components?: MealComponent[]
+    cookingEvents?: CookingEvent[]
+  } = {},
 ): PlanGraph {
   const plan = overrides.plan ?? emptyPlan()
   const slots = overrides.slots ?? [emptySlot({ planId: plan.id })]
@@ -278,22 +304,28 @@ function makeGraph(
     plan,
     slots,
     components: overrides.components ?? [],
-    cookingEvents: [],
+    cookingEvents: overrides.cookingEvents ?? [],
     prepSessions: [],
   }
 }
 
-function makeServices(graph: PlanGraph, recipes: Recipe[], runner?: GenerationSearchRunner) {
+function makeServices(
+  graph: PlanGraph,
+  recipes: Recipe[],
+  runner?: GenerationSearchRunner,
+  settings: Settings = DEFAULT_SETTINGS,
+) {
   const plans = new FakePlanRepository(graph)
   const recipeRepo = new FakeRecipeRepository(recipes)
   const quantities = new QuantityService()
+  const tags = new FakeTagRepository()
   const planService = new PlanService(
     plans,
     recipeRepo,
     unusedSimpleFoods(),
     unusedSettings(),
     quantities,
-    new FakeTagRepository(),
+    tags,
   )
   const generation = new GenerationService(
     plans,
@@ -301,6 +333,10 @@ function makeServices(graph: PlanGraph, recipes: Recipe[], runner?: GenerationSe
     quantities,
     planService,
     runner ?? createSyncGenerationRunner(quantities),
+    unusedSettings(settings),
+    unusedSimpleFoods(),
+    tags,
+    unusedIngredients(),
   )
   return { plans, recipeRepo, generation, quantities }
 }
@@ -464,13 +500,84 @@ describe('GenerationService', () => {
     })
   })
 
-  it('returns no-eligible-candidates when nothing matches', async () => {
+  it('returns an empty proposal with diagnostics when nothing matches', async () => {
     const { generation } = makeServices(makeGraph(), [
       baseRecipe({ roles: ['main'] }),
       baseRecipe({ id: 'lunch-only', mealTypes: ['lunch'] }),
     ])
     const started = await generation.startGeneration(['slot-dinner'], { seed: 'seed-1' })
-    expect(started).toEqual({ ok: false, error: 'no-eligible-candidates' })
+    expect(started.ok).toBe(true)
+    if (!started.ok) return
+    expect(started.value.assignments).toEqual([])
+    expect(started.value.unfilled).toEqual([
+      { slotId: 'slot-dinner', reason: 'no-eligible-candidates', mealType: 'dinner' },
+    ])
+    expect(started.value.diagnostics.dropCounts.some((row) => row.reason === 'not-complete')).toBe(
+      true,
+    )
+  })
+
+  it('loads household hard policy and lists a fixed conflicting meal', async () => {
+    const peanut = baseRecipe({
+      id: 'peanut-stew',
+      name: 'Peanut stew',
+      ingredientLines: [{ displayText: 'peanut', ingredientId: 'peanut', quantity: null }],
+    })
+    const rice = baseRecipe({
+      id: 'rice',
+      name: 'Rice',
+      ingredientLines: [{ displayText: 'rice', ingredientId: 'rice', quantity: null }],
+    })
+    const planned = emptySlot({ id: 'slot-planned', date: '2026-01-05' })
+    const dinner = emptySlot()
+    const event: CookingEvent = {
+      id: 'e-planned',
+      planId: 'plan-1',
+      sessionId: 'session-1',
+      recipeId: peanut.id,
+      recipeSnapshot: { ...peanut, tags: ['Comfort'] },
+      outputQuantity: { value: 3, unit: 'serving' },
+      scheduledDate: '2026-01-05',
+    }
+    const { generation } = makeServices(
+      makeGraph({
+        slots: [planned, dinner],
+        components: [
+          {
+            id: 'c-planned',
+            slotId: 'slot-planned',
+            source: { type: 'cooking-event', cookingEventId: 'e-planned' },
+            allocatedQuantity: { value: 1, unit: 'serving' },
+          },
+        ],
+        cookingEvents: [event],
+      }),
+      [peanut, rice],
+      undefined,
+      {
+        ...DEFAULT_SETTINGS,
+        generationHardPolicy: {
+          ...DEFAULT_SETTINGS.generationHardPolicy,
+          excludeIngredientIds: ['peanut'],
+        },
+      },
+    )
+    const prepared = await generation.prepareGeneration(['slot-dinner'], { seed: 'seed-1' })
+    expect(prepared.ok).toBe(true)
+    if (!prepared.ok) return
+    expect([...prepared.value.policy.excludeIngredientIds]).toEqual(['peanut'])
+    const started = await generation.startGeneration(['slot-dinner'], { seed: 'seed-1' })
+    expect(started.ok).toBe(true)
+    if (!started.ok) return
+    expect(started.value.assignments[0].recipeId).toBe('rice')
+    expect(started.value.diagnostics.fixedConflicts).toEqual([
+      {
+        slotId: 'slot-planned',
+        date: '2026-01-05',
+        mealType: 'dinner',
+        reasons: ['exclude-ingredients'],
+      },
+    ])
   })
 
   it('rejects a stale fingerprint and leaves the plan unchanged', async () => {

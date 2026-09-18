@@ -15,10 +15,7 @@ self.onmessage = (event: MessageEvent<GenerationWorkerRequest>) => {
   const proposal = runGenerationSearch(message.input, message.requestId, (quantity, factor) =>
     quantities.scale(quantity, factor),
   )
-  const result: GenerationSearchResult =
-    proposal.assignments.length === 0
-      ? { ok: false, error: 'no-eligible-candidates' }
-      : { ok: true, value: proposal }
+  const result: GenerationSearchResult = { ok: true, value: proposal }
   const response: GenerationWorkerResponse = {
     type: 'result',
     requestId: message.requestId,

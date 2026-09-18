@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Recipe } from '../../recipes/Recipe'
 import { scaleQuantity } from '../../shared/scaleQuantity'
 import type { MealSlot } from '../MealSlot'
+import { DEFAULT_GENERATION_HARD_POLICY } from './constraints'
 import { fingerprintFromInput, type GenerationInput } from './proposal'
 import { runGenerationSearch } from './search'
 
@@ -45,6 +46,9 @@ function input(overrides: Partial<GenerationInput> = {}): GenerationInput {
     recipes: [recipe()],
     requestedSlots: [{ slot: dinner, componentCount: 0 }],
     seed: 'seed-1',
+    policy: DEFAULT_GENERATION_HARD_POLICY,
+    fixedMeals: [],
+    catalogs: { recipeIds: ['soup'], tagIds: [], ingredientIds: [] },
     ...overrides,
   }
 }
@@ -114,7 +118,7 @@ describe('runGenerationSearch', () => {
     const b = runGenerationSearch(snapshot, 'req-b', scaleQuantity)
     expect(a.fingerprint).toBe(b.fingerprint)
     expect(a.assignments).toEqual(b.assignments)
-    expect(a.algorithmVersion).toBe('29')
+    expect(a.algorithmVersion).toBe('30')
   })
 
   it('uses a per-slot quantity override', () => {
@@ -126,6 +130,48 @@ describe('runGenerationSearch', () => {
       scaleQuantity,
     )
     expect(proposal.assignments[0].outputQuantity).toEqual({ value: 9, unit: 'serving' })
+  })
+
+  it('does not pick an excluded ingredient and reports a fixed conflict', () => {
+    const peanut = recipe({
+      id: 'peanut-stew',
+      ingredientLines: [{ displayText: 'peanut', ingredientId: 'peanut', quantity: null }],
+    })
+    const rice = recipe({
+      id: 'rice',
+      name: 'Rice',
+      ingredientLines: [{ displayText: 'rice', ingredientId: 'rice', quantity: null }],
+    })
+    const proposal = runGenerationSearch(
+      input({
+        recipes: [peanut, rice],
+        policy: {
+          ...DEFAULT_GENERATION_HARD_POLICY,
+          excludeIngredientIds: ['peanut'],
+        },
+        catalogs: {
+          recipeIds: ['peanut-stew', 'rice'],
+          tagIds: [],
+          ingredientIds: ['peanut', 'rice'],
+        },
+        fixedMeals: [
+          {
+            slotId: 'slot-mon',
+            date: '2026-01-05',
+            mealType: 'dinner',
+            recipeId: 'peanut-stew',
+            recipe: peanut,
+          },
+        ],
+      }),
+      'req-1',
+      scaleQuantity,
+    )
+    expect(proposal.assignments[0].recipeId).toBe('rice')
+    expect(proposal.diagnostics.fixedConflicts[0]).toMatchObject({
+      slotId: 'slot-mon',
+      reasons: ['exclude-ingredients'],
+    })
   })
 })
 

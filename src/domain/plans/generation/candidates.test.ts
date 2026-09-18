@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Recipe } from '../../recipes/Recipe'
 import type { MealSlot } from '../MealSlot'
 import { eligibleStandaloneRecipes, isStandaloneEligible, selectFirstCandidate } from './candidates'
+import { DEFAULT_GENERATION_HARD_POLICY } from './constraints'
 import { fingerprintFromInput, type GenerationInput } from './proposal'
 
 function recipe(overrides: Partial<Recipe>): Recipe {
@@ -43,6 +44,9 @@ function input(overrides: Partial<GenerationInput> = {}): GenerationInput {
     recipes: [],
     requestedSlots: [{ slot: slot(), componentCount: 0 }],
     seed: 'seed-1',
+    policy: DEFAULT_GENERATION_HARD_POLICY,
+    fixedMeals: [],
+    catalogs: { recipeIds: [], tagIds: [], ingredientIds: [] },
     ...overrides,
   }
 }
@@ -96,5 +100,16 @@ describe('fingerprintFromInput', () => {
     const withSide = fingerprintFromInput(input({ recipes: [soup, side] }))
     const without = fingerprintFromInput(input({ recipes: [soup] }))
     expect(withSide).toBe(without)
+  })
+
+  it('changes when hard policy changes', () => {
+    const base = fingerprintFromInput(input({ recipes: [soup] }))
+    const restricted = fingerprintFromInput(
+      input({
+        recipes: [soup],
+        policy: { ...DEFAULT_GENERATION_HARD_POLICY, excludedRecipeIds: ['soup'] },
+      }),
+    )
+    expect(restricted).not.toBe(base)
   })
 })

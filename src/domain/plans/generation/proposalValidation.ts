@@ -1,6 +1,7 @@
 import type { Quantity } from '../../shared/Quantity'
 import type { MealSlot } from '../MealSlot'
 import { isStandaloneEligible } from './candidates'
+import { DEFAULT_GENERATION_HARD_POLICY } from './constraints'
 import { fingerprintFromInput, type GenerationInput, type WeekGenerationProposal } from './proposal'
 
 export type GenerationSlotError = 'slot-excluded' | 'slot-not-empty'
@@ -42,7 +43,15 @@ export function validateProposalAgainstLive(
     if (slotIssue) return slotIssue
     const recipe = live.recipes.find((row) => row.id === assignment.recipeId)
     if (!recipe) return 'recipe-not-found'
-    if (!isStandaloneEligible(recipe, requested.slot.mealType)) return 'stale-proposal'
+    if (
+      !isStandaloneEligible(
+        recipe,
+        requested.slot.mealType,
+        live.policy ?? DEFAULT_GENERATION_HARD_POLICY,
+      )
+    ) {
+      return 'stale-proposal'
+    }
     if (
       !isValidPositiveQuantity(assignment.outputQuantity) ||
       !isValidPositiveQuantity(assignment.allocatedQuantity)

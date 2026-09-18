@@ -4,10 +4,18 @@ import type { MealComponent } from '../../domain/plans/MealComponent'
 import type { PlanRepository } from '../ports/PlanRepository'
 import type { RecipeRepository } from '../ports/RecipeRepository'
 import type { QuantityService } from '../quantities/QuantityService'
+import type { SettingsRepository } from '../ports/SettingsRepository'
+import type { SimpleFoodRepository } from '../ports/SimpleFoodRepository'
+import type { TagRepository } from '../ports/TagRepository'
+import type { IngredientRepository } from '../ports/IngredientRepository'
 import {
   type GenerationInput,
   type WeekGenerationProposal,
 } from '../../domain/plans/generation/proposal'
+import {
+  fixedMealsFromPlan,
+  mergeGenerationHardPolicy,
+} from '../../domain/plans/generation/constraints'
 import { runGenerationSearch } from '../../domain/plans/generation/search'
 import {
   validateProposalAgainstLive,
@@ -37,6 +45,10 @@ export class GenerationService {
   private readonly quantities: QuantityService
   private readonly planService: PlanService
   private readonly runner: GenerationSearchRunner
+  private readonly settings: SettingsRepository
+  private readonly simpleFoods: SimpleFoodRepository
+  private readonly tags: TagRepository
+  private readonly ingredients: IngredientRepository
   private activeRequestId: string | undefined
 
   constructor(
@@ -45,12 +57,20 @@ export class GenerationService {
     quantities: QuantityService,
     planService: PlanService,
     runner: GenerationSearchRunner,
+    settings: SettingsRepository,
+    simpleFoods: SimpleFoodRepository,
+    tags: TagRepository,
+    ingredients: IngredientRepository,
   ) {
     this.plans = plans
     this.recipes = recipes
     this.quantities = quantities
     this.planService = planService
     this.runner = runner
+    this.settings = settings
+    this.simpleFoods = simpleFoods
+    this.tags = tags
+    this.ingredients = ingredients
   }
 
   async prepareGeneration(
@@ -73,21 +93,12 @@ export class GenerationService {
     }
 
     if (!planId) return { ok: false, error: 'not-found' }
-    const plan = await this.plans.getById(planId)
-    if (!plan) return { ok: false, error: 'not-found' }
-    const recipes = await this.recipes.getAll()
-    return {
-      ok: true,
-      value: {
-        planId: plan.id,
-        planRevision: plan.revision,
-        peopleCount: plan.peopleCount,
-        recipes,
-        requestedSlots,
-        quantityOverrides: options.quantityOverrides,
-        seed: options.seed ?? crypto.randomUUID(),
-      },
-    }
+    return this.loadSnapshot(
+      planId,
+      requestedSlots,
+      options.seed ?? crypto.randomUUID(),
+      options.quantityOverrides,
+    )
   }
 
   runGeneration(
@@ -97,9 +108,6 @@ export class GenerationService {
     const proposal = runGenerationSearch(input, requestId, (quantity, factor) =>
       this.quantities.scale(quantity, factor),
     )
-    if (proposal.assignments.length === 0) {
-      return { ok: false, error: 'no-eligible-candidates' }
-    }
     return { ok: true, value: proposal }
   }
 
@@ -162,18 +170,49 @@ export class GenerationService {
       requestedSlots.push({ slot, componentCount: components.length })
     }
     if (!planId) return { ok: false, error: 'not-found' }
+    return this.loadSnapshot(planId, requestedSlots, seed, quantityOverrides)
+  }
+
+  private async loadSnapshot(
+    planId: string,
+    requestedSlots: GenerationInput['requestedSlots'],
+    seed: string,
+    quantityOverrides?: Readonly<Record<string, Quantity>>,
+  ): Promise<GenerationResult<GenerationInput>> {
     const plan = await this.plans.getById(planId)
     if (!plan) return { ok: false, error: 'not-found' }
+    const graph = await this.plans.getGraph(planId)
+    if (!graph) return { ok: false, error: 'not-found' }
+    const [recipes, settings, simpleFoods, tags, ingredients] = await Promise.all([
+      this.recipes.getAll(),
+      this.settings.get(),
+      this.simpleFoods.getAll(),
+      this.tags.getAll(),
+      this.ingredients.getAll(),
+    ])
     return {
       ok: true,
       value: {
         planId: plan.id,
         planRevision: plan.revision,
         peopleCount: plan.peopleCount,
-        recipes: await this.recipes.getAll(),
+        recipes,
         requestedSlots,
         quantityOverrides,
         seed,
+        policy: mergeGenerationHardPolicy(settings.generationHardPolicy),
+        fixedMeals: fixedMealsFromPlan({
+          slots: graph.slots,
+          components: graph.components,
+          cookingEvents: graph.cookingEvents,
+          recipes,
+          simpleFoods,
+        }),
+        catalogs: {
+          recipeIds: recipes.map((recipe) => recipe.id),
+          tagIds: tags.map((tag) => tag.id),
+          ingredientIds: ingredients.map((ingredient) => ingredient.id),
+        },
       },
     }
   }
