@@ -1,6 +1,5 @@
 import { Button, Group, Modal, Select, Text, TextInput } from '@mantine/core'
 import { modals } from '@mantine/modals'
-import { notifications } from '@mantine/notifications'
 import { useState } from 'react'
 import type { LibraryView, LibraryViewId } from '../../domain/libraryViews/LibraryView'
 
@@ -19,7 +18,7 @@ export function LibraryViewsBar({
   dirty: boolean
   onSelectView: (id: LibraryViewId | null) => void
   onSaveAsNew: (name: string) => Promise<boolean>
-  onUpdate: () => Promise<void>
+  onUpdate: () => Promise<boolean>
   onRename: (name: string) => Promise<boolean>
   onDelete: () => Promise<void>
 }) {
@@ -93,9 +92,7 @@ export function LibraryViewsBar({
           variant="default"
           disabled={!loaded || !dirty}
           onClick={() => {
-            void onUpdate().then(() => {
-              notifications.show({ message: 'View updated', color: 'green' })
-            })
+            void onUpdate()
           }}
         >
           Update view

@@ -297,11 +297,14 @@ export function RecipesScreen() {
             return true
           }}
           onUpdate={async () => {
-            if (!loadedViewId) return
+            if (!loadedViewId) return false
             const result = await libraryViewService.updateCriteria(loadedViewId, currentCriteria)
             if (!result.ok) {
               notifications.show({ message: viewErrorMessage(result.error), color: 'red' })
+              return false
             }
+            notifications.show({ message: 'View updated', color: 'green' })
+            return true
           }}
           onRename={async (name) => {
             if (!loadedViewId) return false
