@@ -143,6 +143,7 @@ const settingsSchema = z.object({
       maxTotalTimeMinutes: z.number().optional(),
     })
     .optional(),
+  generationPreferredTagIds: z.array(z.string()).optional(),
 })
 
 const planSchema = z.object({

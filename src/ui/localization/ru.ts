@@ -65,6 +65,15 @@ export const ruMessages = {
   'generation.reason.max-total-time': 'дольше лимита времени',
   'generation.reason.unknown-time': 'нет записанного времени',
   'generation.reason.unknown-ingredients': 'есть непривязанные строки ингредиентов',
+  'generation.score.quick-day': 'Предпочтительно в день быстрых блюд.',
+  'generation.score.effort': 'Меньше усилий среди допустимых вариантов.',
+  'generation.score.repetition': 'Не повторяет блюдо, уже стоящее на этой неделе.',
+  'generation.score.planned-history':
+    'Не повторяет блюдо из плана прошлой недели (это план, а не подтверждённая готовка).',
+  'generation.score.workload': 'Держит заготовку в пределах лимита семьи.',
+  'generation.score.vegetable': 'Подходит под предпочтение овощей.',
+  'generation.score.preferred-tags': 'Есть предпочтительная метка для подбора.',
+  'generation.score.preferred-prep-day': 'Попадает на предпочтительный день заготовки.',
   'slot.noSlot': 'Нет слота',
   'slot.actions': 'Действия со слотом',
   'slot.includeAgain': 'Вернуть в план',
@@ -132,6 +141,9 @@ export const ruMessages = {
   'settings.quickMealsDays': 'Дни только быстрых блюд',
   'settings.avoidDemanding': 'Не ставить несколько сложных заготовок на один день',
   'settings.favorVegetables': 'Стараться есть овощи каждый день',
+  'settings.generationPreferredTags': 'Предпочтительные метки для подбора',
+  'settings.generationPreferredTagsHelp':
+    'Только мягкое предпочтение. Рецепты с хотя бы одной меткой ранжируются выше; это не обязательное условие.',
   'settings.generationHelp':
     'Жёсткие ограничения для «Подобрать меню». Без записанного времени или с непривязанными ингредиентами блюдо не подходит, пока вы не разрешите неизвестные данные. Удалённые идентификаторы остаются в списке и продолжают ограничивать.',
   'settings.excludedRecipes': 'Не предлагать эти рецепты',

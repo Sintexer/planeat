@@ -7,7 +7,8 @@ import type { WeekGenerationProposal } from '../../domain/plans/generation/propo
 import type { MealSlotId } from '../../domain/plans/MealSlot'
 import type { Quantity } from '../../domain/shared/Quantity'
 import { generationErrorMessage } from '../localization/errors'
-import { constraintReasonLabel, mealTypeLabel } from '../localization/labels'
+import type { ScoreReason } from '../../domain/plans/generation/scoring'
+import { constraintReasonLabel, mealTypeLabel, scoreReasonLabel } from '../localization/labels'
 import type { Translate } from '../localization/t'
 
 export async function openGenerateMealPreview(args: {
@@ -46,13 +47,20 @@ export function openProposalPreview(args: {
     children: (
       <Stack gap="sm">
         {proposal.assignments.map((row) => (
-          <Text size="sm" key={row.slotId}>
-            {t('generation.previewBody', {
-              name: row.recipeName,
-              meal: mealTypeLabel(t, row.mealType),
-              quantity: formatQty(row.allocatedQuantity),
-            })}
-          </Text>
+          <Stack gap={2} key={row.slotId}>
+            <Text size="sm">
+              {t('generation.previewBody', {
+                name: row.recipeName,
+                meal: mealTypeLabel(t, row.mealType),
+                quantity: formatQty(row.allocatedQuantity),
+              })}
+            </Text>
+            {row.scoreReasons.map((reason, index) => (
+              <Text size="xs" c="dimmed" key={`${row.slotId}-${reason.code}-${index}`}>
+                {scoreReasonLine(t, reason)}
+              </Text>
+            ))}
+          </Stack>
         ))}
         {proposal.unfilled.map((row) => (
           <Text size="sm" c="dimmed" key={row.slotId}>
@@ -117,6 +125,13 @@ export function openProposalPreview(args: {
       </Stack>
     ),
   })
+}
+
+function scoreReasonLine(t: Translate, reason: ScoreReason): string {
+  if (reason.source === 'planned-history' || reason.code === 'planned-history') {
+    return t('generation.score.planned-history')
+  }
+  return scoreReasonLabel(t, reason.code)
 }
 
 function formatReasons(t: Translate, reasons: readonly ConstraintReason[]): string {

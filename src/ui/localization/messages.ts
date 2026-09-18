@@ -62,6 +62,15 @@ export const enMessages = {
   'generation.reason.max-total-time': 'over the time limit',
   'generation.reason.unknown-time': 'missing recorded time',
   'generation.reason.unknown-ingredients': 'has unlinked ingredient lines',
+  'generation.score.quick-day': 'Preferred for a quick-meal day.',
+  'generation.score.effort': 'Lower effort among valid options.',
+  'generation.score.repetition': 'Avoids repeating a meal already on this week.',
+  'generation.score.planned-history':
+    'Avoids repeating a dish from last week’s plan (planned history, not confirmed cooking).',
+  'generation.score.workload': 'Keeps prep workload within the household limit.',
+  'generation.score.vegetable': 'Fits the daily vegetable preference.',
+  'generation.score.preferred-tags': 'Matches a preferred generation tag.',
+  'generation.score.preferred-prep-day': 'Falls on a preferred batch-prep day.',
   'slot.noSlot': 'No slot',
   'slot.actions': 'Slot actions',
   'slot.includeAgain': 'Include again',
@@ -129,6 +138,9 @@ export const enMessages = {
   'settings.quickMealsDays': 'Quick-meals-only days',
   'settings.avoidDemanding': 'Avoid multiple demanding preparations on one day',
   'settings.favorVegetables': 'Favor vegetables daily',
+  'settings.generationPreferredTags': 'Preferred tags for generated meals',
+  'settings.generationPreferredTagsHelp':
+    'Soft preference only. Recipes with at least one of these tags rank higher; they are not required.',
   'settings.generationHelp':
     'Hard limits for Generate meals. Missing time or unlinked ingredients never qualify unless you allow unknown data. Deleted catalog ids stay on the list and still restrict.',
   'settings.excludedRecipes': 'Never suggest these recipes',

@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped through **Sprint 30**. Next sequenced work is **Sprint 31** (soft preferences and scoring). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
+Shipped through **Sprint 31**. Next sequenced work is **Sprint 32** (bounded weekly search). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
 
 ## Done — project initialization
 
@@ -136,7 +136,12 @@ Shipped through **Sprint 30**. Next sequenced work is **Sprint 31** (soft prefer
 - Candidate filter never relaxes a restriction; missing time is not zero; unlinked lines follow the unknown-ingredient policy. Diagnostics list facet drop counts and conflicting filled meals without rewriting them.
 - Settings UI plus additive backup field on the settings row. Missing catalog ids are reported and kept. No Dexie or backup-format bump.
 
-## Next — Phase 7 automatic meal planning (Sprints 31–38)
+## Done — Sprint 31 (preferences and scoring)
+
+- Among hard-eligible recipes, pick by a versioned lexicographic score: quick-meal days, effort, repetition (including `maxPreferredRepeats`), prep-unit workload, vegetables, preferred generation tags, preferred prep days.
+- Missing recorded time is not treated as fastest. Previous-week planned dishes count as planned history. Preview lists score reasons. Additive `generationPreferredTagIds`. No beam search. No Dexie or backup-format bump.
+
+## Next — Phase 7 automatic meal planning (Sprints 32–38)
 
 Local, explainable generation. Proposals only; apply through existing cooking events; grocery lists stay manual. No backend or LLM.
 

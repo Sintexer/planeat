@@ -47,7 +47,7 @@ function reliableExportedAtDisplay(exportedAt: string, locale = 'en'): string | 
 }
 
 function missingGenerationRefsFromBackup(data: {
-  settings: { generationHardPolicy?: unknown }[]
+  settings: { generationHardPolicy?: unknown; generationPreferredTagIds?: unknown }[]
   recipes: { id: string }[]
   tags: { id: string }[]
   ingredients: { id: string }[]
@@ -62,7 +62,14 @@ function missingGenerationRefsFromBackup(data: {
     const policy = mergeGenerationHardPolicy(
       row.generationHardPolicy as Parameters<typeof mergeGenerationHardPolicy>[0],
     )
-    const missing = missingGenerationPolicyRefs(policy, { recipeIds, tagIds, ingredientIds })
+    const preferred = Array.isArray(row.generationPreferredTagIds)
+      ? row.generationPreferredTagIds.filter((id): id is string => typeof id === 'string')
+      : []
+    const missing = missingGenerationPolicyRefs(
+      policy,
+      { recipeIds, tagIds, ingredientIds },
+      preferred,
+    )
     recipeCount += missing.recipeIds.length
     tagCount += missing.tagIds.length
     ingredientCount += missing.ingredientIds.length

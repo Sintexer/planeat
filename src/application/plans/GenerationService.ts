@@ -23,6 +23,11 @@ import {
 } from '../../domain/plans/generation/proposalValidation'
 import { PlanService, type PlanError } from './PlanService'
 import type { GenerationSearchRunner } from './generationRunner'
+import { addDays } from '../../domain/shared/LocalDate'
+import {
+  mergeGenerationSoftPrefs,
+  type GenerationSoftPrefs,
+} from '../../domain/plans/generation/scoring'
 
 export type GenerationError =
   | 'no-eligible-candidates'
@@ -190,6 +195,22 @@ export class GenerationService {
       this.tags.getAll(),
       this.ingredients.getAll(),
     ])
+    const previousStart = addDays(plan.startDate, -7)
+    const previous = await this.plans.getByStartDate(previousStart)
+    const previousGraph = previous ? await this.plans.getGraph(previous.id) : undefined
+    const previousWeekRecipeIds = [
+      ...new Set((previousGraph?.cookingEvents ?? []).map((event) => event.recipeId)),
+    ]
+    const tagNamesById: Record<string, string> = {}
+    for (const tag of tags) tagNamesById[tag.id] = tag.name
+    const softPrefs: GenerationSoftPrefs = mergeGenerationSoftPrefs({
+      quickMealsOnlyDays: settings.quickMealsOnlyDays,
+      avoidMultipleDemandingPreps: settings.avoidMultipleDemandingPreps,
+      favorVegetablesDaily: settings.favorVegetablesDaily,
+      preferredBatchPrepDays: settings.preferredBatchPrepDays,
+      maxBatchPrepUnits: settings.maxBatchPrepUnits,
+      generationPreferredTagIds: settings.generationPreferredTagIds,
+    })
     return {
       ok: true,
       value: {
@@ -213,6 +234,9 @@ export class GenerationService {
           tagIds: tags.map((tag) => tag.id),
           ingredientIds: ingredients.map((ingredient) => ingredient.id),
         },
+        softPrefs,
+        previousWeekRecipeIds,
+        tagNamesById,
       },
     }
   }

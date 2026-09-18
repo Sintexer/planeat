@@ -4,6 +4,7 @@ import type { MealSlot } from '../MealSlot'
 import { eligibleStandaloneRecipes, isStandaloneEligible, selectFirstCandidate } from './candidates'
 import { DEFAULT_GENERATION_HARD_POLICY } from './constraints'
 import { fingerprintFromInput, type GenerationInput } from './proposal'
+import { DEFAULT_GENERATION_SOFT_PREFS } from './scoring'
 
 function recipe(overrides: Partial<Recipe>): Recipe {
   return {
@@ -47,6 +48,9 @@ function input(overrides: Partial<GenerationInput> = {}): GenerationInput {
     policy: DEFAULT_GENERATION_HARD_POLICY,
     fixedMeals: [],
     catalogs: { recipeIds: [], tagIds: [], ingredientIds: [] },
+    softPrefs: DEFAULT_GENERATION_SOFT_PREFS,
+    previousWeekRecipeIds: [],
+    tagNamesById: {},
     ...overrides,
   }
 }

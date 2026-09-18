@@ -15,6 +15,7 @@ import {
 import type { LibraryCleanupKind } from '../../domain/libraryViews/LibraryView'
 import { SHOPPING_SECTIONS, type ShoppingSection } from '../../domain/groceries/shoppingSections'
 import type { ConstraintReason } from '../../domain/plans/generation/constraints'
+import type { ScoreReasonCode } from '../../domain/plans/generation/scoring'
 import { UNIT_REGISTRY } from '../../domain/shared/UnitRegistry'
 import type { MessageId } from './messages'
 import type { Translate } from './t'
@@ -26,6 +27,10 @@ export function mealTypeLabel(t: Translate, mealType: string): string {
 
 export function constraintReasonLabel(t: Translate, reason: ConstraintReason): string {
   return t(`generation.reason.${reason}` as MessageId)
+}
+
+export function scoreReasonLabel(t: Translate, code: ScoreReasonCode): string {
+  return t(`generation.score.${code}` as MessageId)
 }
 
 export function roleLabel(t: Translate, role: RecipeRole): string {

@@ -66,15 +66,19 @@ function emptyPlan(overrides: Partial<Plan> = {}): Plan {
 
 class FakePlanRepository implements PlanRepository {
   graph: PlanGraph
+  previous?: PlanGraph
   addCalls: AddCookingEventComponentInput[] = []
   batchCalls: AddCookingEventComponentInput[][] = []
 
-  constructor(graph: PlanGraph) {
+  constructor(graph: PlanGraph, previous?: PlanGraph) {
     this.graph = graph
+    this.previous = previous
   }
 
   async getById(id: PlanId) {
-    return this.graph.plan.id === id ? this.graph.plan : undefined
+    if (this.graph.plan.id === id) return this.graph.plan
+    if (this.previous?.plan.id === id) return this.previous.plan
+    return undefined
   }
 
   async getSlot(slotId: string) {
@@ -86,7 +90,9 @@ class FakePlanRepository implements PlanRepository {
   }
 
   async getGraph(id: PlanId) {
-    return this.graph.plan.id === id ? this.graph : undefined
+    if (this.graph.plan.id === id) return this.graph
+    if (this.previous?.plan.id === id) return this.previous
+    return undefined
   }
 
   async addCookingEventComponent(planId: PlanId, input: AddCookingEventComponentInput) {
@@ -129,8 +135,10 @@ class FakePlanRepository implements PlanRepository {
     return components
   }
 
-  getByStartDate: PlanRepository['getByStartDate'] = () => {
-    throw new Error('not implemented')
+  getByStartDate: PlanRepository['getByStartDate'] = async (startDate) => {
+    if (this.graph.plan.startDate === startDate) return this.graph.plan
+    if (this.previous?.plan.startDate === startDate) return this.previous.plan
+    return undefined
   }
   createPlanWithSlots: PlanRepository['createPlanWithSlots'] = () => {
     throw new Error('not implemented')
@@ -314,8 +322,9 @@ function makeServices(
   recipes: Recipe[],
   runner?: GenerationSearchRunner,
   settings: Settings = DEFAULT_SETTINGS,
+  previous?: PlanGraph,
 ) {
-  const plans = new FakePlanRepository(graph)
+  const plans = new FakePlanRepository(graph, previous)
   const recipeRepo = new FakeRecipeRepository(recipes)
   const quantities = new QuantityService()
   const tags = new FakeTagRepository()
@@ -578,6 +587,30 @@ describe('GenerationService', () => {
         reasons: ['exclude-ingredients'],
       },
     ])
+  })
+
+  it('loads previous-week recipe ids as planned history', async () => {
+    const soup = baseRecipe()
+    const previous = makeGraph({
+      plan: emptyPlan({ id: 'plan-prev', startDate: '2025-12-29' }),
+      cookingEvents: [
+        {
+          id: 'e-old',
+          planId: 'plan-prev',
+          sessionId: 'session-old',
+          recipeId: soup.id,
+          recipeSnapshot: { ...soup, tags: ['Comfort'] },
+          outputQuantity: { value: 3, unit: 'serving' },
+          scheduledDate: '2025-12-29',
+        },
+      ],
+    })
+    const { generation } = makeServices(makeGraph(), [soup], undefined, DEFAULT_SETTINGS, previous)
+    const prepared = await generation.prepareGeneration(['slot-dinner'], { seed: 'seed-1' })
+    expect(prepared.ok).toBe(true)
+    if (!prepared.ok) return
+    expect(prepared.value.previousWeekRecipeIds).toEqual(['recipe-soup'])
+    expect(prepared.value.softPrefs.maxBatchPrepUnits).toBe(DEFAULT_SETTINGS.maxBatchPrepUnits)
   })
 
   it('rejects a stale fingerprint and leaves the plan unchanged', async () => {

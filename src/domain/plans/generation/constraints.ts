@@ -138,13 +138,14 @@ export function missingGenerationPolicyRefs(
     tagIds: Iterable<string>
     ingredientIds: Iterable<string>
   },
+  extraTagIds: readonly string[] = [],
 ): MissingPolicyRefs {
   const recipes = new Set(catalogs.recipeIds)
   const tags = new Set(catalogs.tagIds)
   const ingredients = new Set(catalogs.ingredientIds)
   return {
     recipeIds: policy.excludedRecipeIds.filter((id) => !recipes.has(id)),
-    tagIds: [...policy.requiredTagIds, ...policy.excludedTagIds].filter(
+    tagIds: [...policy.requiredTagIds, ...policy.excludedTagIds, ...(extraTagIds ?? [])].filter(
       (id, index, all) => all.indexOf(id) === index && !tags.has(id),
     ),
     ingredientIds: [...policy.includeIngredientIds, ...policy.excludeIngredientIds].filter(

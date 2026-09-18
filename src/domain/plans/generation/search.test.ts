@@ -4,6 +4,7 @@ import { scaleQuantity } from '../../shared/scaleQuantity'
 import type { MealSlot } from '../MealSlot'
 import { DEFAULT_GENERATION_HARD_POLICY } from './constraints'
 import { fingerprintFromInput, type GenerationInput } from './proposal'
+import { DEFAULT_GENERATION_SOFT_PREFS } from './scoring'
 import { runGenerationSearch } from './search'
 
 function recipe(overrides: Partial<Recipe> = {}): Recipe {
@@ -49,6 +50,9 @@ function input(overrides: Partial<GenerationInput> = {}): GenerationInput {
     policy: DEFAULT_GENERATION_HARD_POLICY,
     fixedMeals: [],
     catalogs: { recipeIds: ['soup'], tagIds: [], ingredientIds: [] },
+    softPrefs: DEFAULT_GENERATION_SOFT_PREFS,
+    previousWeekRecipeIds: [],
+    tagNamesById: {},
     ...overrides,
   }
 }
@@ -108,8 +112,8 @@ describe('runGenerationSearch', () => {
       'req-1',
       scaleQuantity,
     )
-    expect(proposal.assignments).toEqual([])
     expect(proposal.unfilled.map((row) => row.slotId)).toEqual(['slot-filled', 'slot-out'])
+    expect(proposal.assignments).toEqual([])
   })
 
   it('is deterministic for the same snapshot, seed, and version', () => {
@@ -118,7 +122,7 @@ describe('runGenerationSearch', () => {
     const b = runGenerationSearch(snapshot, 'req-b', scaleQuantity)
     expect(a.fingerprint).toBe(b.fingerprint)
     expect(a.assignments).toEqual(b.assignments)
-    expect(a.algorithmVersion).toBe('30')
+    expect(a.algorithmVersion).toBe('31')
   })
 
   it('uses a per-slot quantity override', () => {
@@ -167,11 +171,29 @@ describe('runGenerationSearch', () => {
       'req-1',
       scaleQuantity,
     )
+    expect(proposal.assignments).toHaveLength(1)
     expect(proposal.assignments[0].recipeId).toBe('rice')
     expect(proposal.diagnostics.fixedConflicts[0]).toMatchObject({
       slotId: 'slot-mon',
       reasons: ['exclude-ingredients'],
     })
+  })
+
+  it('prefers a quick recipe on a configured quick-meal day', () => {
+    const demanding = recipe({ id: 'aaa', effort: 'demanding', totalTimeMinutes: 25 })
+    const quick = recipe({ id: 'zzz', name: 'Eggs', effort: 'quick', totalTimeMinutes: 15 })
+    const wednesday = slot({ date: '2026-01-07' })
+    const proposal = runGenerationSearch(
+      input({
+        recipes: [demanding, quick],
+        requestedSlots: [{ slot: wednesday, componentCount: 0 }],
+        softPrefs: { ...DEFAULT_GENERATION_SOFT_PREFS, quickMealsOnlyDays: [3] },
+      }),
+      'req-1',
+      scaleQuantity,
+    )
+    expect(proposal.assignments[0].recipeId).toBe('zzz')
+    expect(proposal.assignments[0].scoreReasons.some((row) => row.code === 'quick-day')).toBe(true)
   })
 })
 
@@ -193,5 +215,17 @@ describe('fingerprintFromInput', () => {
         }),
       ),
     ).not.toBe(base)
+  })
+
+  it('changes when soft prefs or previous-week history change', () => {
+    const base = fingerprintFromInput(input())
+    expect(
+      fingerprintFromInput(
+        input({
+          softPrefs: { ...DEFAULT_GENERATION_SOFT_PREFS, quickMealsOnlyDays: [3] },
+        }),
+      ),
+    ).not.toBe(base)
+    expect(fingerprintFromInput(input({ previousWeekRecipeIds: ['soup'] }))).not.toBe(base)
   })
 })

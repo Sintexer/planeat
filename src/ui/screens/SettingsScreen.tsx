@@ -64,6 +64,7 @@ interface SettingsForm {
   maxTotalTimeMinutes: number | ''
   unknownTimePolicy: UnknownDataPolicy
   unknownIngredientPolicy: UnknownDataPolicy
+  generationPreferredTagIds: string[]
 }
 
 async function downloadCurrentBackup(
@@ -166,6 +167,7 @@ export function SettingsScreen() {
       maxTotalTimeMinutes: '',
       unknownTimePolicy: DEFAULT_GENERATION_HARD_POLICY.unknownTimePolicy,
       unknownIngredientPolicy: DEFAULT_GENERATION_HARD_POLICY.unknownIngredientPolicy,
+      generationPreferredTagIds: [],
     },
   })
 
@@ -173,6 +175,7 @@ export function SettingsScreen() {
   const quickMealsDaysKey = settings?.quickMealsOnlyDays.join(',') ?? ''
   const policy = settings?.generationHardPolicy
   const policyKey = policy ? JSON.stringify(mergeGenerationHardPolicy(policy)) : ''
+  const preferredTagsKey = settings?.generationPreferredTagIds.join(',') ?? ''
 
   useEffect(() => {
     if (!settings) return
@@ -194,6 +197,7 @@ export function SettingsScreen() {
       maxTotalTimeMinutes: settings.generationHardPolicy.maxTotalTimeMinutes ?? '',
       unknownTimePolicy: settings.generationHardPolicy.unknownTimePolicy,
       unknownIngredientPolicy: settings.generationHardPolicy.unknownIngredientPolicy,
+      generationPreferredTagIds: [...settings.generationPreferredTagIds],
     })
     // Hydrate from stored fields, not the liveQuery object identity (a new
     // mergeSettingsDefaults result every emit would retrigger setValues forever).
@@ -209,6 +213,7 @@ export function SettingsScreen() {
     settings?.uiLocale,
     settings?.measurementPreference,
     policyKey,
+    preferredTagsKey,
   ])
 
   const handleSubmit = form.onSubmit(async (values) => {
@@ -234,6 +239,7 @@ export function SettingsScreen() {
         unknownTimePolicy: values.unknownTimePolicy,
         unknownIngredientPolicy: values.unknownIngredientPolicy,
       }),
+      generationPreferredTagIds: values.generationPreferredTagIds,
     })
     notifications.show({ message: t('settings.saved'), color: 'success' })
   })
@@ -296,6 +302,7 @@ export function SettingsScreen() {
       tagIds: (tags ?? []).map((tag) => tag.id),
       ingredientIds: (ingredients ?? []).map((ingredient) => ingredient.id),
     },
+    form.values.generationPreferredTagIds,
   )
   const missingRefCount =
     liveMissing.recipeIds.length + liveMissing.tagIds.length + liveMissing.ingredientIds.length
@@ -434,6 +441,18 @@ export function SettingsScreen() {
                   label={t('settings.favorVegetables')}
                   disabled={!settings}
                   {...form.getInputProps('favorVegetablesDaily', { type: 'checkbox' })}
+                />
+                <MultiSelect
+                  label={t('settings.generationPreferredTags')}
+                  description={t('settings.generationPreferredTagsHelp')}
+                  searchable
+                  disabled={!settings}
+                  data={selectDataWithExtras(
+                    tagOptions,
+                    form.values.generationPreferredTagIds,
+                    t('common.unavailableTag'),
+                  )}
+                  {...form.getInputProps('generationPreferredTagIds')}
                 />
               </Stack>
             </Paper>

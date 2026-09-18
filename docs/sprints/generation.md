@@ -253,6 +253,8 @@ Facet semantics: **OR within a selected-value facet, AND between facets.** Hard 
 
 Soft preferences: quick-meal days, effort, recipe repetition (include `maxPreferredRepeats` when set), preferred household tags, distribution of active cooking workload (`activeTimeMinutes` as a proxy; do not sum total times as elapsed duration). Reuse `softPrompts.ts` as **signals to encode**, not as the search engine.
 
+**Shipped.** `scoring.ts` lexicographic pick among Sprint 30-eligible recipes; preview score reasons; `generationPreferredTagIds` on Settings. No beam search. No Dexie or backup-format bump.
+
 ---
 
 ## Sprint 32 — Bounded weekly search

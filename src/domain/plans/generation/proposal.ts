@@ -11,9 +11,15 @@ import {
   type GenerationDiagnostics,
   type GenerationHardPolicy,
 } from './constraints'
+import {
+  canonicalizeGenerationSoftPrefs,
+  DEFAULT_GENERATION_SOFT_PREFS,
+  type GenerationSoftPrefs,
+  type ScoreReason,
+} from './scoring'
 
-export const GENERATION_ALGORITHM_VERSION = '30'
-export const GENERATION_POLICY_VERSION = '30'
+export const GENERATION_ALGORITHM_VERSION = '31'
+export const GENERATION_POLICY_VERSION = '31'
 
 export type RequestedGenerationSlot = {
   slot: MealSlot
@@ -37,6 +43,9 @@ export type GenerationInput = {
   policy: GenerationHardPolicy
   fixedMeals: readonly FixedMeal[]
   catalogs: GenerationCatalogIds
+  softPrefs: GenerationSoftPrefs
+  previousWeekRecipeIds: readonly string[]
+  tagNamesById: Readonly<Record<string, string>>
 }
 
 export type SlotAssignment = {
@@ -46,6 +55,7 @@ export type SlotAssignment = {
   mealType: MealType
   outputQuantity: Quantity
   allocatedQuantity: Quantity
+  scoreReasons: ScoreReason[]
 }
 
 export type UnfilledSlot = {
@@ -81,6 +91,8 @@ export type GenerationFingerprintParts = {
   eligible: readonly { id: string; updatedAt: number }[]
   overrides: readonly { slotId: string; value: number; unit: string }[]
   policy: GenerationHardPolicy
+  softPrefs: GenerationSoftPrefs
+  previousWeekRecipeIds: readonly string[]
 }
 
 export function generationInputFingerprint(parts: GenerationFingerprintParts): string {
@@ -104,11 +116,16 @@ export function generationInputFingerprint(parts: GenerationFingerprintParts): s
     eligible,
     overrides,
     policy: canonicalizeGenerationHardPolicy(parts.policy),
+    softPrefs: canonicalizeGenerationSoftPrefs(parts.softPrefs),
+    previousWeekRecipeIds: [...parts.previousWeekRecipeIds].sort((a, b) =>
+      a < b ? -1 : a > b ? 1 : 0,
+    ),
   })
 }
 
 export function fingerprintFromInput(input: GenerationInput): string {
   const policy = input.policy ?? DEFAULT_GENERATION_HARD_POLICY
+  const softPrefs = input.softPrefs ?? DEFAULT_GENERATION_SOFT_PREFS
   const mealTypes = [...new Set(input.requestedSlots.map((row) => row.slot.mealType))]
   const eligibleIds = new Map<string, number>()
   for (const mealType of mealTypes) {
@@ -135,5 +152,7 @@ export function fingerprintFromInput(input: GenerationInput): string {
     eligible: [...eligibleIds.entries()].map(([id, updatedAt]) => ({ id, updatedAt })),
     overrides,
     policy,
+    softPrefs,
+    previousWeekRecipeIds: input.previousWeekRecipeIds ?? [],
   })
 }

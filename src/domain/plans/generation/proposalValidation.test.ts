@@ -3,6 +3,7 @@ import type { Recipe } from '../../recipes/Recipe'
 import type { MealSlot } from '../MealSlot'
 import { DEFAULT_GENERATION_HARD_POLICY } from './constraints'
 import { fingerprintFromInput, type GenerationInput, type WeekGenerationProposal } from './proposal'
+import { DEFAULT_GENERATION_SOFT_PREFS } from './scoring'
 import { validateProposalAgainstLive, validateSlotForGeneration } from './proposalValidation'
 
 function recipe(overrides: Partial<Recipe> = {}): Recipe {
@@ -47,6 +48,9 @@ function live(overrides: Partial<GenerationInput> = {}): GenerationInput {
     policy: DEFAULT_GENERATION_HARD_POLICY,
     fixedMeals: [],
     catalogs: { recipeIds: ['soup'], tagIds: [], ingredientIds: [] },
+    softPrefs: DEFAULT_GENERATION_SOFT_PREFS,
+    previousWeekRecipeIds: [],
+    tagNamesById: {},
     ...overrides,
   }
 }
@@ -59,8 +63,8 @@ function proposal(
   const target = snapshot.requestedSlots[0]
   return {
     requestId: 'req-1',
-    algorithmVersion: '30',
-    policyVersion: '30',
+    algorithmVersion: '31',
+    policyVersion: '31',
     seed: snapshot.seed,
     fingerprint: fingerprintFromInput(snapshot),
     planId: snapshot.planId,
@@ -72,6 +76,7 @@ function proposal(
         mealType: target.slot.mealType,
         outputQuantity: { value: 2, unit: 'serving' },
         allocatedQuantity: { value: 2, unit: 'serving' },
+        scoreReasons: [],
       },
     ],
     unfilled: [],
