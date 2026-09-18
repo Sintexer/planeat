@@ -13,7 +13,7 @@ import {
 } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
-import { IconFileImport, IconPlus, IconCarrot, IconApple, IconTag } from '@tabler/icons-react'
+import { AppleLogo, Carrot, Plus, Tag, UploadSimple } from '@phosphor-icons/react'
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { useServices } from '../../app/servicesContext'
@@ -258,7 +258,7 @@ export function RecipesScreen() {
 
   const applyBulkTags = (ops: { addNames?: string[]; removeTagIds?: string[] }) => {
     if (selectedRefs.length === 0) {
-      notifications.show({ message: applyTagsErrorMessage(t, 'empty-selection'), color: 'red' })
+      notifications.show({ message: applyTagsErrorMessage(t, 'empty-selection'), color: 'error' })
       return
     }
     const addLabel = (ops.addNames ?? []).filter((name) => name.trim()).join(', ')
@@ -277,10 +277,10 @@ export function RecipesScreen() {
         void (async () => {
           const result = await tagService.applyTagsToCatalogItems(selectedRefs, ops)
           if (!result.ok) {
-            notifications.show({ message: applyTagsErrorMessage(t, result.error), color: 'red' })
+            notifications.show({ message: applyTagsErrorMessage(t, result.error), color: 'error' })
             return
           }
-          notifications.show({ message: t('recipes.tagsUpdated'), color: 'green' })
+          notifications.show({ message: t('recipes.tagsUpdated'), color: 'success' })
           setAddOpened(false)
           setRemoveOpened(false)
           setAddNames([])
@@ -304,7 +304,7 @@ export function RecipesScreen() {
               size={34}
               aria-label={t('recipes.import')}
             >
-              <IconFileImport size={18} />
+              <UploadSimple size={18} />
             </ActionIcon>
             <ActionIcon
               component={Link}
@@ -315,7 +315,7 @@ export function RecipesScreen() {
               size={34}
               aria-label={t('recipes.new')}
             >
-              <IconPlus size={18} />
+              <Plus size={18} />
             </ActionIcon>
           </Group>
         }
@@ -333,7 +333,7 @@ export function RecipesScreen() {
           size={34}
           aria-label={t('recipes.simpleFoods')}
         >
-          <IconApple size={18} />
+          <AppleLogo size={18} />
         </ActionIcon>
         <Text
           component={Link}
@@ -354,7 +354,7 @@ export function RecipesScreen() {
           aria-label={t('recipes.ingredients')}
           ml="sm"
         >
-          <IconCarrot size={18} />
+          <Carrot size={18} />
         </ActionIcon>
         <Text
           component={Link}
@@ -375,7 +375,7 @@ export function RecipesScreen() {
           aria-label={t('recipes.tags')}
           ml="sm"
         >
-          <IconTag size={18} />
+          <Tag size={18} />
         </ActionIcon>
         <Text
           component={Link}
@@ -416,14 +416,14 @@ export function RecipesScreen() {
             onSaveAsNew={async (name) => {
               const result = await libraryViewService.create(name, currentCriteria)
               if (!result.ok) {
-                notifications.show({ message: viewErrorMessage(t, result.error), color: 'red' })
+                notifications.show({ message: viewErrorMessage(t, result.error), color: 'error' })
                 return false
               }
               recipesBrowseState.loadedViewId = result.view.id
               setLoadedViewId(result.view.id)
               notifications.show({
                 message: t('view.saved', { name: result.view.name }),
-                color: 'green',
+                color: 'success',
               })
               return true
             }}
@@ -431,32 +431,32 @@ export function RecipesScreen() {
               if (!loadedViewId) return false
               const result = await libraryViewService.updateCriteria(loadedViewId, currentCriteria)
               if (!result.ok) {
-                notifications.show({ message: viewErrorMessage(t, result.error), color: 'red' })
+                notifications.show({ message: viewErrorMessage(t, result.error), color: 'error' })
                 return false
               }
-              notifications.show({ message: t('view.updated'), color: 'green' })
+              notifications.show({ message: t('view.updated'), color: 'success' })
               return true
             }}
             onRename={async (name) => {
               if (!loadedViewId) return false
               const result = await libraryViewService.rename(loadedViewId, name)
               if (!result.ok) {
-                notifications.show({ message: viewErrorMessage(t, result.error), color: 'red' })
+                notifications.show({ message: viewErrorMessage(t, result.error), color: 'error' })
                 return false
               }
-              notifications.show({ message: t('view.renamed'), color: 'green' })
+              notifications.show({ message: t('view.renamed'), color: 'success' })
               return true
             }}
             onDelete={async () => {
               if (!loadedViewId) return
               const result = await libraryViewService.delete(loadedViewId)
               if (!result.ok) {
-                notifications.show({ message: viewErrorMessage(t, result.error), color: 'red' })
+                notifications.show({ message: viewErrorMessage(t, result.error), color: 'error' })
                 return
               }
               recipesBrowseState.loadedViewId = null
               setLoadedViewId(null)
-              notifications.show({ message: t('view.deleted'), color: 'green' })
+              notifications.show({ message: t('view.deleted'), color: 'success' })
             }}
           />
           <Select

@@ -1,5 +1,5 @@
 import { ActionIcon, Group, Paper, SimpleGrid, Stack, Text, UnstyledButton } from '@mantine/core'
-import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
+import { CaretLeft, CaretRight } from '@phosphor-icons/react'
 import {
   monthContainsDate,
   type LocalDate,
@@ -49,7 +49,7 @@ export function PlanWeekPicker({
             onMonthChange(next.year, next.month)
           }}
         >
-          <IconChevronLeft size={16} />
+          <CaretLeft size={16} />
         </ActionIcon>
         <Text size="sm" fw={600}>
           {formatMonthTitle(year, month, bcp47)}
@@ -63,7 +63,7 @@ export function PlanWeekPicker({
             onMonthChange(next.year, next.month)
           }}
         >
-          <IconChevronRight size={16} />
+          <CaretRight size={16} />
         </ActionIcon>
       </Group>
 
@@ -89,8 +89,8 @@ export function PlanWeekPicker({
               py={3}
               style={{
                 borderRadius: 10,
-                background: selected ? 'var(--mantine-color-green-0)' : undefined,
-                outline: selected ? '1px solid var(--mantine-color-green-3)' : undefined,
+                background: selected ? 'var(--mantine-color-primary-light)' : undefined,
+                outline: selected ? '1px solid var(--mantine-color-primary-4)' : undefined,
               }}
             >
               <SimpleGrid cols={7} spacing={4}>
@@ -104,10 +104,13 @@ export function PlanWeekPicker({
                       size="xs"
                       py={5}
                       fw={isToday || selected ? 600 : 400}
-                      c={!inMonth ? 'dimmed' : isPast ? 'gray.5' : isToday ? 'green.7' : undefined}
+                      c={
+                        !inMonth ? 'dimmed' : isPast ? 'gray.5' : isToday ? 'primary.7' : undefined
+                      }
                       style={{
                         borderRadius: 8,
-                        background: isToday && inMonth ? 'var(--mantine-color-green-1)' : undefined,
+                        background:
+                          isToday && inMonth ? 'var(--mantine-color-primary-light)' : undefined,
                       }}
                     >
                       {Number(date.slice(8, 10))}

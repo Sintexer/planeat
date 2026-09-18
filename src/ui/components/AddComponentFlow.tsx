@@ -275,12 +275,12 @@ export function AddComponentFlow({
     const event = item.cookingEvent
     if (!event) return
     if (item.ineligibleReason) {
-      notifications.show({ message: item.ineligibleReason, color: 'red' })
+      notifications.show({ message: item.ineligibleReason, color: 'error' })
       return
     }
     const result = await planService.listEligibleCookingEventsForSlot(slot.id, event.recipeId)
     if (!result.ok) {
-      notifications.show({ message: addComponentErrorMessage(t, result.error), color: 'red' })
+      notifications.show({ message: addComponentErrorMessage(t, result.error), color: 'error' })
       return
     }
     const events = result.events.length > 0 ? result.events : [event]
@@ -321,7 +321,7 @@ export function AddComponentFlow({
     const result = await planService.addSimpleFoodComponent(slot.id, simpleFoodId)
     setBusy(false)
     if (!result.ok) {
-      notifications.show({ message: addComponentErrorMessage(t, result.error), color: 'red' })
+      notifications.show({ message: addComponentErrorMessage(t, result.error), color: 'error' })
       return
     }
     handleClose()
@@ -352,7 +352,7 @@ export function AddComponentFlow({
     if (step.kind !== 'source') return
     const result = await planService.listEligibleCookingEventsForSlot(slot.id, step.recipeId)
     if (!result.ok) {
-      notifications.show({ message: addComponentErrorMessage(t, result.error), color: 'red' })
+      notifications.show({ message: addComponentErrorMessage(t, result.error), color: 'error' })
       return
     }
     if (result.events.length === 0) {
@@ -383,7 +383,10 @@ export function AddComponentFlow({
   const confirmCookNew = async () => {
     if (step.kind !== 'cook-new') return
     if (typeof allocValue !== 'number' || typeof outputValue !== 'number') {
-      notifications.show({ message: addComponentErrorMessage(t, 'invalid-quantity'), color: 'red' })
+      notifications.show({
+        message: addComponentErrorMessage(t, 'invalid-quantity'),
+        color: 'error',
+      })
       return
     }
     const allocatedQuantity = { value: allocValue, unit: allocUnit }
@@ -406,7 +409,7 @@ export function AddComponentFlow({
         })
         return
       }
-      notifications.show({ message: addComponentErrorMessage(t, result.error), color: 'red' })
+      notifications.show({ message: addComponentErrorMessage(t, result.error), color: 'error' })
       return
     }
     handleClose()
@@ -415,7 +418,10 @@ export function AddComponentFlow({
   const confirmUseExisting = async () => {
     if (step.kind !== 'use-existing' || !selectedEventId) return
     if (typeof allocValue !== 'number') {
-      notifications.show({ message: addComponentErrorMessage(t, 'invalid-quantity'), color: 'red' })
+      notifications.show({
+        message: addComponentErrorMessage(t, 'invalid-quantity'),
+        color: 'error',
+      })
       return
     }
     const allocatedQuantity = { value: allocValue, unit: allocUnit }
@@ -433,7 +439,7 @@ export function AddComponentFlow({
         })
         return
       }
-      notifications.show({ message: addComponentErrorMessage(t, result.error), color: 'red' })
+      notifications.show({ message: addComponentErrorMessage(t, result.error), color: 'error' })
       return
     }
     handleClose()
@@ -543,7 +549,7 @@ export function AddComponentFlow({
                     style={{
                       borderRadius: 4,
                       border: selected
-                        ? '1px solid var(--mantine-color-blue-5)'
+                        ? '1px solid var(--mantine-color-primary-filled)'
                         : '1px solid transparent',
                     }}
                   >

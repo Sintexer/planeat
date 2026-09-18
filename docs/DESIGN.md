@@ -1,31 +1,37 @@
 # Visual Design and UX Guidelines
 
-This document describes the current visual identity and UI conventions for PlanEat. There is no separate design-token file or brand system beyond what's listed here — this **is** the source of truth, and it should stay accurate rather than aspirational: update it in the same change that touches `src/app/theme.ts` or introduces a new reusable UI pattern.
+This document describes the current visual identity and UI conventions for PlanEat. Update it in the same change that touches `src/app/theme.ts`, `src/index.css` color-scheme tokens, or a reusable UI pattern.
 
 ## Overview
 
-PlanEat is a utilitarian household tool, not a marketing surface. The UI leans on Mantine's defaults rather than a custom brand system: the goal is a clean, offline-friendly, mobile-first app a household member can use one-handed while cooking or shopping, not a distinctive visual identity. Resist adding custom colors, fonts, or spacing scales unless a real usability problem — not aesthetic preference — requires it.
+PlanEat follows a warm cream/espresso household visual language: mostly neutrals, one terracotta accent, and semantic color only when it carries meaning. The source mockups live in `design/Meal Planner Design Schema.dc.html`. Tokens are defined in `src/app/theme.ts` (palettes, type, radius) and applied to Mantine surface CSS variables in `src/index.css` (`:root[data-mantine-color-scheme='light'|'dark']`). Do not add a third token source.
 
 ## Theme
 
-The entire Mantine theme override is in `src/app/theme.ts`:
+`src/app/theme.ts` sets `primaryColor: 'primary'` (terracotta), Inter for body, Sora for headings, and a radius scale where `md` is 8px (buttons/inputs) and `lg` is 12px (cards). Custom palettes: `primary`, `secondary` (berry, one moment per screen at most), `success`, `warning`, `error`, plus a warm espresso `dark` array for dark-mode Paper/Modal.
 
-```ts
-export const theme = createTheme({
-  primaryColor: 'green',
-  defaultRadius: 'md',
-})
-```
+Surface neutrals (also in `src/index.css`):
 
-Everything else — typography scale, spacing, shadows, breakpoints, dark mode — is Mantine's stock default theme. There are no custom design tokens (no custom color palette, no custom font) to document beyond this. If that changes, add a **Colors**/**Typography** section here with the actual token values, not a placeholder.
+| Token                     | Light                                              | Dark                |
+| ------------------------- | -------------------------------------------------- | ------------------- |
+| bg / body                 | `#fff7f1`                                          | `#17100c`           |
+| surface / default         | `#fffdf9`                                          | `#261d19`           |
+| text                      | `#271d17`                                          | `#f4ede8`           |
+| border                    | `#e4dcd6`                                          | `#3a312c`           |
+| primary                   | `#cf6139` (hover `#bb4717`; dark filled `#e67d58`) |                     |
+| secondary                 | `#b7445d`                                          |                     |
+| success / warning / error | `#47944c` / `#e3ae28` / `#cc3336`                  | functional use only |
 
-The PWA manifest's `theme_color` (browser chrome / splash screen) is `#2f9e44` (`vite.config.ts`), matching Mantine's `green` primary swatch.
+Sora (500/600/700) and Inter (400/500/600) are self-hosted `woff2` files under `public/fonts/` — no Google Fonts CDN. Phosphor icons (`@phosphor-icons/react`) replace Tabler: Regular by default, Fill/Bold for selected/active.
+
+The PWA `theme_color` is `#cf6139` (`index.html`, `vite.config.ts`).
 
 ## Layout
 
 - `src/ui/layouts/AppLayout.tsx` + `src/ui/components/BottomNav.tsx`: a fixed bottom navigation bar (Plan / Groceries / Recipes / Settings), `HashRouter`-based routing. This is a mobile-first layout — desktop is not a separate design target.
 - `src/ui/components/ScreenHeader.tsx`: the shared per-screen title/back-navigation header, used instead of ad hoc `<Title>` + back-button markup per screen.
-- Screens are `Stack`-based single-column layouts; there is no custom grid system.
+- Plan has two views: a horizontally scrollable week grid (`src/ui/plans/PlanWeekGrid.tsx`) as the default, drilling into the existing day strip + `MealSlotCard` stack.
+- Screens are `Stack`-based single-column layouts; there is no custom grid system beyond the Plan week grid.
 
 ## Components — conventions to follow, not just examples
 
@@ -37,11 +43,14 @@ The PWA manifest's `theme_color` (browser chrome / splash screen) is `#2f9e44` (
 - **Ingredient identity entry uses a browsable combobox**, not a plain `TextInput` — see `src/ui/components/IngredientNameField.tsx`. It combines a Mantine `Combobox` (click/focus to browse the full ingredient list without typing) with `fuse.js` fuzzy filtering while typing. Fuzzy search is advisory only: selecting a suggestion or confirming typed text always resolves through `IngredientService`, never by trusting the fuzzy match directly (see `AGENTS.md`: `fuse.js` proposes candidates, it must never merge identity).
 - **Offline-safe media**: `RecipePhotoThumb.tsx` renders a reliable placeholder when a remote `photoUrl` can't load — backups never include image bytes, only URLs, so this placeholder path is load-bearing, not cosmetic.
 - **Filter UI**: `src/ui/catalog/FilterDrawer.tsx` is a Mantine `Drawer`-based staged-filter panel (draft state, explicit "Show N items" commit) — the reference pattern for any future multi-facet filter UI, instead of applying every toggle immediately.
+- **Meal-type color**: do not tint cards per breakfast/lunch/dinner. One terracotta icon circle on a neutral card for every meal type.
 
 ## Do's and Don't's
 
 - **Do** reach for a stock Mantine component first; only wrap it when there's a repeated, app-specific behavior to encapsulate.
 - **Do** route every confirmation/disambiguation dialog through `@mantine/modals`.
-- **Don't** introduce a second design-token source (a CSS variables file, a separate theme object, a competing color palette) — `src/app/theme.ts` is the only place theme tokens live.
+- **Do** keep `success` / `warning` / `error` for their meaning (confirmations, plan gaps, destructive/validation). Leftover chips stay neutral; carryover-risk uses `warning`.
+- **Don't** introduce a third design-token source beyond `src/app/theme.ts` and the Mantine CSS-variable overrides in `src/index.css`.
+- **Don't** load fonts from a CDN — self-host under `public/fonts/` so the PWA can precache `woff2`.
 - **Don't** reintroduce comma-separated text entry for a list of short strings — use `TagsInput`.
-- **Don't** treat this document as permission to invent a bigger design system than the product currently has. Keep it in sync with what's actually in `src/app/theme.ts` and the components above, not with what a "typical" design doc contains.
+- **Don't** treat this document as permission to invent a bigger design system than the product currently has. Keep it in sync with what's actually in `src/app/theme.ts` and the components above.

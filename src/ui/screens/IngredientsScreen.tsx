@@ -13,7 +13,7 @@ import {
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
-import { IconChevronDown, IconChevronUp, IconTrash } from '@tabler/icons-react'
+import { CaretDown, CaretUp, Trash } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { useServices } from '../../app/servicesContext'
 import type { Ingredient } from '../../domain/ingredients/Ingredient'
@@ -110,12 +110,12 @@ export function IngredientsScreen() {
           result.error === 'name-collision'
             ? t('ingredients.nameCollision')
             : t('validation.nameRequired'),
-        color: 'red',
+        color: 'error',
       })
       return
     }
     form.reset()
-    notifications.show({ message: t('ingredients.added'), color: 'green' })
+    notifications.show({ message: t('ingredients.added'), color: 'success' })
   })
 
   const handleDelete = (ingredient: Ingredient) => {
@@ -123,14 +123,14 @@ export function IngredientsScreen() {
       title: t('ingredients.deleteTitle'),
       children: <Text>{t('ingredients.deleteBody', { name: ingredient.name })}</Text>,
       labels: { confirm: t('action.delete'), cancel: t('action.cancel') },
-      confirmProps: { color: 'red' },
+      confirmProps: { color: 'error' },
       onConfirm: async () => {
         const result = await ingredientService.deleteIngredient(ingredient.id)
         if (!result.ok) {
-          notifications.show({ message: t('ingredients.notFound'), color: 'red' })
+          notifications.show({ message: t('ingredients.notFound'), color: 'error' })
           return
         }
-        notifications.show({ message: t('ingredients.deleted'), color: 'green' })
+        notifications.show({ message: t('ingredients.deleted'), color: 'success' })
       },
     })
   }
@@ -212,15 +212,15 @@ export function IngredientsScreen() {
                     }
                     onClick={() => setExpandedId(expanded ? null : ingredient.id)}
                   >
-                    {expanded ? <IconChevronUp size={18} /> : <IconChevronDown size={18} />}
+                    {expanded ? <CaretUp size={18} /> : <CaretDown size={18} />}
                   </ActionIcon>
                   <ActionIcon
                     variant="subtle"
-                    color="red"
+                    color="error"
                     aria-label={t('ingredients.deleteNamed', { name: ingredient.name })}
                     onClick={() => handleDelete(ingredient)}
                   >
-                    <IconTrash size={18} />
+                    <Trash size={18} />
                   </ActionIcon>
                 </Group>
               </Group>

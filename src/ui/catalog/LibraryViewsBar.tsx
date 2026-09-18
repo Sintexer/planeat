@@ -55,7 +55,7 @@ export function LibraryViewsBar({
       title: t('library.deleteViewTitle', { name: loaded.name }),
       children: <Text>{t('library.deleteViewBody')}</Text>,
       labels: { confirm: t('library.deleteView'), cancel: t('action.cancel') },
-      confirmProps: { color: 'red' },
+      confirmProps: { color: 'error' },
       onConfirm: () => {
         void onDelete()
       },
@@ -106,7 +106,7 @@ export function LibraryViewsBar({
         <Button
           size="compact-xs"
           variant="subtle"
-          color="red"
+          color="error"
           disabled={!loaded}
           onClick={confirmDelete}
         >

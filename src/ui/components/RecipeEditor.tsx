@@ -16,7 +16,7 @@ import {
   Title,
 } from '@mantine/core'
 import { useForm } from '@mantine/form'
-import { IconPlus, IconTrash } from '@tabler/icons-react'
+import { Plus, Trash } from '@phosphor-icons/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { notifications } from '@mantine/notifications'
@@ -191,7 +191,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
   const handleSubmit = form.onSubmit(async (values) => {
     const built = buildPartialWriteFromForm(values)
     if (!built) {
-      notifications.show({ message: t('editor.invalidYield'), color: 'red' })
+      notifications.show({ message: t('editor.invalidYield'), color: 'error' })
       return
     }
 
@@ -207,7 +207,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
           t,
         )
         if (!ingredient) {
-          notifications.show({ message: t('editor.resolveNameFailed'), color: 'red' })
+          notifications.show({ message: t('editor.resolveNameFailed'), color: 'error' })
           return
         }
         nextLine = { ...line, ingredientId: ingredient.id }
@@ -225,11 +225,11 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
             result.error === 'invalid-photo-url'
               ? t('editor.invalidPhotoUrl')
               : t('editor.saveFailedDetail', { error: result.error }),
-          color: 'red',
+          color: 'error',
         })
         return
       }
-      notifications.show({ message: t('editor.saved'), color: 'green' })
+      notifications.show({ message: t('editor.saved'), color: 'success' })
       window.setTimeout(() => {
         void navigate(`/recipes/${result.recipe.id}`, { replace: true })
       }, 0)
@@ -244,11 +244,11 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
           result.error === 'invalid-photo-url'
             ? t('editor.invalidPhotoUrl')
             : t('editor.saveFailedDetail', { error: result.error }),
-        color: 'red',
+        color: 'error',
       })
       return
     }
-    notifications.show({ message: t('editor.saved'), color: 'green' })
+    notifications.show({ message: t('editor.saved'), color: 'success' })
     window.setTimeout(() => {
       void navigate(`/recipes/${recipe.id}`, { replace: true })
     }, 0)
@@ -399,7 +399,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
               key={line.key}
               gap="xs"
               p="sm"
-              style={{ border: '1px solid var(--mantine-color-gray-3)', borderRadius: 8 }}
+              style={{ border: '1px solid var(--mantine-color-default-border)', borderRadius: 8 }}
             >
               <Group align="flex-end" wrap="nowrap">
                 <IngredientNameField
@@ -430,7 +430,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
                 />
                 <ActionIcon
                   variant="subtle"
-                  color="red"
+                  color="error"
                   aria-label={t('editor.removeIngredient')}
                   onClick={() =>
                     form.setFieldValue(
@@ -441,7 +441,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
                     )
                   }
                 >
-                  <IconTrash size={18} />
+                  <Trash size={18} />
                 </ActionIcon>
               </Group>
               {line.sourceText ? (
@@ -548,7 +548,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
           ))}
           <Button
             variant="light"
-            leftSection={<IconPlus size={16} />}
+            leftSection={<Plus size={16} />}
             onClick={() =>
               form.setFieldValue('ingredientLines', [...ingredientLines, emptyIngredientLine()])
             }

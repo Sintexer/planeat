@@ -1,5 +1,5 @@
 import { Alert, Button, Group, Modal, Stack, Text, TextInput, ActionIcon } from '@mantine/core'
-import { IconCalendar, IconPencil, IconTrash } from '@tabler/icons-react'
+import { Calendar, PencilSimple, Trash } from '@phosphor-icons/react'
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import { useMemo, useState } from 'react'
@@ -138,11 +138,11 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                   : result.error === 'empty-name'
                     ? t('meal.emptyName')
                     : t('meal.saveFavoriteFailed')
-              notifications.show({ message, color: 'red' })
+              notifications.show({ message, color: 'error' })
               return
             }
             modals.closeAll()
-            notifications.show({ message: t('meal.favoriteSaved'), color: 'green' })
+            notifications.show({ message: t('meal.favoriteSaved'), color: 'success' })
           }}
         />
       ),
@@ -159,12 +159,12 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
           result.error === 'favorite-missing-ref'
             ? t('meal.missingRef', { label: result.missingLabel ?? t('common.unknownItem') })
             : planErrorMessage(t, result.error),
-        color: 'red',
+        color: 'error',
       })
       return
     }
     setInsertFavoriteOpen(false)
-    notifications.show({ message: t('meal.inserted', { name: favorite.name }), color: 'green' })
+    notifications.show({ message: t('meal.inserted', { name: favorite.name }), color: 'success' })
   }
 
   const deleteFavorite = async (favoriteId: string, name: string) => {
@@ -176,11 +176,11 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
         </Text>
       ),
       labels: { confirm: t('action.delete'), cancel: t('action.cancel') },
-      confirmProps: { color: 'red' },
+      confirmProps: { color: 'error' },
       onConfirm: () => {
         void mealFavoriteService.delete(favoriteId).then((result) => {
           if (!result.ok) {
-            notifications.show({ message: t('meal.deleteFavoriteFailed'), color: 'red' })
+            notifications.show({ message: t('meal.deleteFavoriteFailed'), color: 'error' })
           }
         })
       },
@@ -244,7 +244,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                 },
               })
               if (!bump.ok) {
-                notifications.show({ message: planErrorMessage(t, bump.error), color: 'red' })
+                notifications.show({ message: planErrorMessage(t, bump.error), color: 'error' })
                 return
               }
               // Raise output enough for all other allocations + this one
@@ -268,7 +268,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                 allocatedQuantity,
               )
               if (!alloc.ok) {
-                notifications.show({ message: planErrorMessage(t, alloc.error), color: 'red' })
+                notifications.show({ message: planErrorMessage(t, alloc.error), color: 'error' })
                 return
               }
               setEditComponentId(undefined)
@@ -299,7 +299,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                   if (!created.ok) {
                     notifications.show({
                       message: planErrorMessage(t, created.error),
-                      color: 'red',
+                      color: 'error',
                     })
                     return
                   }
@@ -311,7 +311,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
         })
         return
       }
-      notifications.show({ message: planErrorMessage(t, result.error), color: 'red' })
+      notifications.show({ message: planErrorMessage(t, result.error), color: 'error' })
       return
     }
     setEditComponentId(undefined)
@@ -324,7 +324,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
       scheduledDate: prepDate,
     })
     if (!result.ok) {
-      notifications.show({ message: planErrorMessage(t, result.error), color: 'red' })
+      notifications.show({ message: planErrorMessage(t, result.error), color: 'error' })
       return
     }
     setEditEventId(undefined)
@@ -349,7 +349,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
               scheduledDate: args.scheduledDate ?? slot.date,
             })
             if (!result.ok) {
-              notifications.show({ message: planErrorMessage(t, result.error), color: 'red' })
+              notifications.show({ message: planErrorMessage(t, result.error), color: 'error' })
               return
             }
             setAddOpen(false)
@@ -371,14 +371,14 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
               outputQuantity: { value: needed, unit: event.outputQuantity.unit },
             })
             if (!bump.ok) {
-              notifications.show({ message: planErrorMessage(t, bump.error), color: 'red' })
+              notifications.show({ message: planErrorMessage(t, bump.error), color: 'error' })
               return
             }
             const linked = await planService.linkExistingCookingEvent(slot.id, event.id, {
               allocatedQuantity: args.allocatedQuantity,
             })
             if (!linked.ok) {
-              notifications.show({ message: planErrorMessage(t, linked.error), color: 'red' })
+              notifications.show({ message: planErrorMessage(t, linked.error), color: 'error' })
               return
             }
             setAddOpen(false)
@@ -404,7 +404,10 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                   },
                 )
                 if (!created.ok) {
-                  notifications.show({ message: planErrorMessage(t, created.error), color: 'red' })
+                  notifications.show({
+                    message: planErrorMessage(t, created.error),
+                    color: 'error',
+                  })
                   return
                 }
                 setAddOpen(false)
@@ -423,11 +426,11 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
             <Text size="sm">{t('meal.removeNamedBody', { name: componentLabel(item) })}</Text>
           ),
           labels: { confirm: t('action.remove'), cancel: t('action.cancel') },
-          confirmProps: { color: 'red' },
+          confirmProps: { color: 'error' },
           onConfirm: () => {
             void planService.removeComponent(item.component.id).then((result) => {
               if (!result.ok) {
-                notifications.show({ message: planErrorMessage(t, result.error), color: 'red' })
+                notifications.show({ message: planErrorMessage(t, result.error), color: 'error' })
               }
             })
           },
@@ -438,7 +441,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
       const eventId = item.component.source.cookingEventId
       const depsResult = await planService.listCookingEventDependents(eventId)
       if (!depsResult.ok) {
-        notifications.show({ message: planErrorMessage(t, depsResult.error), color: 'red' })
+        notifications.show({ message: planErrorMessage(t, depsResult.error), color: 'error' })
         return
       }
       const others = depsResult.dependents.filter((d) => d.componentId !== item.component.id)
@@ -449,11 +452,11 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
             <Text size="sm">{t('meal.removeNamedBody', { name: componentLabel(item) })}</Text>
           ),
           labels: { confirm: t('action.remove'), cancel: t('action.cancel') },
-          confirmProps: { color: 'red' },
+          confirmProps: { color: 'error' },
           onConfirm: () => {
             void planService.removeComponent(item.component.id).then((result) => {
               if (!result.ok) {
-                notifications.show({ message: planErrorMessage(t, result.error), color: 'red' })
+                notifications.show({ message: planErrorMessage(t, result.error), color: 'error' })
               }
             })
           },
@@ -478,7 +481,10 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                 modals.closeAll()
                 void planService.removeComponent(item.component.id).then((result) => {
                   if (!result.ok) {
-                    notifications.show({ message: planErrorMessage(t, result.error), color: 'red' })
+                    notifications.show({
+                      message: planErrorMessage(t, result.error),
+                      color: 'error',
+                    })
                   }
                 })
               }}
@@ -486,13 +492,16 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
               {t('meal.removeThisOnly')}
             </Button>
             <Button
-              color="red"
+              color="error"
               variant="light"
               onClick={() => {
                 modals.closeAll()
                 void planService.removeCookingEventEverywhere(eventId).then((result) => {
                   if (!result.ok) {
-                    notifications.show({ message: planErrorMessage(t, result.error), color: 'red' })
+                    notifications.show({
+                      message: planErrorMessage(t, result.error),
+                      color: 'error',
+                    })
                   }
                 })
               }}
@@ -539,7 +548,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
               key={item.component.id}
               gap={4}
               p="xs"
-              style={{ border: '1px solid var(--mantine-color-gray-3)', borderRadius: 8 }}
+              style={{ border: '1px solid var(--mantine-color-default-border)', borderRadius: 8 }}
             >
               <Group justify="space-between" wrap="nowrap" align="flex-start">
                 <Stack gap={0} style={{ minWidth: 0, flex: 1 }}>
@@ -562,7 +571,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                     aria-label={t('meal.editAllocation')}
                     onClick={() => openEditAllocation(item)}
                   >
-                    <IconPencil size={16} />
+                    <PencilSimple size={16} />
                   </ActionIcon>
                   {item.cookingEvent && (
                     <ActionIcon
@@ -570,16 +579,16 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                       aria-label={t('meal.editPrep')}
                       onClick={() => openEditPrep(item)}
                     >
-                      <IconCalendar size={16} />
+                      <Calendar size={16} />
                     </ActionIcon>
                   )}
                   <ActionIcon
                     variant="subtle"
-                    color="red"
+                    color="error"
                     aria-label={t('meal.removeComponentAria')}
                     onClick={() => confirmRemoveComponent(item)}
                   >
-                    <IconTrash size={16} />
+                    <Trash size={16} />
                   </ActionIcon>
                 </Group>
               </Group>
@@ -678,11 +687,11 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
               </Button>
               <ActionIcon
                 variant="subtle"
-                color="red"
+                color="error"
                 aria-label={t('meal.deleteFavoriteAria', { name: favorite.name })}
                 onClick={() => void deleteFavorite(favorite.id, favorite.name)}
               >
-                <IconTrash size={16} />
+                <Trash size={16} />
               </ActionIcon>
             </Group>
           ))}

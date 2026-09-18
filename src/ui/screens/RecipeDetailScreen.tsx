@@ -10,7 +10,7 @@ import {
   List,
   Select,
 } from '@mantine/core'
-import { IconTrash } from '@tabler/icons-react'
+import { Trash } from '@phosphor-icons/react'
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import { useMemo, useState } from 'react'
@@ -138,14 +138,14 @@ export function RecipeDetailScreen() {
       title: t('detail.deleteRecipe'),
       children: <Text>{t('detail.deleteRecipeBody', { name: recipe.name })}</Text>,
       labels: { confirm: t('action.delete'), cancel: t('action.cancel') },
-      confirmProps: { color: 'red' },
+      confirmProps: { color: 'error' },
       onConfirm: async () => {
         const result = await recipeService.deleteRecipe(recipe.id)
         if (!result.ok) {
-          notifications.show({ message: t('detail.recipeNotFound'), color: 'red' })
+          notifications.show({ message: t('detail.recipeNotFound'), color: 'error' })
           return
         }
-        notifications.show({ message: t('detail.recipeDeleted'), color: 'green' })
+        notifications.show({ message: t('detail.recipeDeleted'), color: 'success' })
         navigate('/recipes')
       },
     })
@@ -161,7 +161,7 @@ export function RecipeDetailScreen() {
             <Button component={Link} to={`/recipes/${recipe.id}/edit`} variant="light">
               {t('detail.edit')}
             </Button>
-            <Button color="red" variant="subtle" onClick={handleDelete}>
+            <Button color="error" variant="subtle" onClick={handleDelete}>
               {t('action.delete')}
             </Button>
           </Group>
@@ -316,17 +316,20 @@ export function RecipeDetailScreen() {
               <Text size="sm">{pairingLabel(pairing)}</Text>
               <ActionIcon
                 variant="subtle"
-                color="red"
+                color="error"
                 aria-label={t('detail.removePairing')}
                 onClick={() => {
                   void pairingService.remove(pairing.id).then((result) => {
                     if (!result.ok) {
-                      notifications.show({ message: t('detail.removePairingFailed'), color: 'red' })
+                      notifications.show({
+                        message: t('detail.removePairingFailed'),
+                        color: 'error',
+                      })
                     }
                   })
                 }}
               >
-                <IconTrash size={16} />
+                <Trash size={16} />
               </ActionIcon>
             </Group>
           ))}
@@ -355,12 +358,12 @@ export function RecipeDetailScreen() {
                       : result.error === 'self-pairing'
                         ? t('detail.selfPairing')
                         : t('detail.pairingFailed'),
-                  color: 'red',
+                  color: 'error',
                 })
                 return
               }
               setPairingPick(null)
-              notifications.show({ message: t('detail.pairingAdded'), color: 'green' })
+              notifications.show({ message: t('detail.pairingAdded'), color: 'success' })
             })
           }}
         >

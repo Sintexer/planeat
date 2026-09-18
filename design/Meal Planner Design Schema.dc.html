@@ -1,0 +1,882 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="./support.js"></script>
+  </head>
+  <body>
+    <x-dc>
+      <helmet>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&display=swap"
+          rel="stylesheet"
+        />
+        <style>
+          body {
+            margin: 0;
+          }
+          doc-page :is(h1, h2, h3) {
+            font-family: 'Sora', sans-serif;
+            text-wrap: balance;
+          }
+          doc-page :is(p, li, td, th) {
+            font-family: 'Inter', sans-serif;
+          }
+          doc-page table {
+            border-collapse: collapse;
+            width: 100%;
+          }
+          doc-page a {
+            color: #bb4717;
+          }
+          doc-page a:hover {
+            color: #cf6139;
+          }
+        </style>
+        <script src="./doc-page.js"></script>
+      </helmet>
+      <style id="__om-edit-overrides"></style>
+      <doc-page margin="0.85in">
+        <div
+          style="
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #948577;
+            margin-bottom: 8px;
+          "
+        >
+          Design Schema · Meal Planning App
+        </div>
+        <h1 style="font-size: 34px; font-weight: 700; color: #271d17; margin: 0 0 6px 0">
+          Visual Design Schema
+        </h1>
+        <p style="font-size: 15px; color: #675b54; margin: 0 0 32px 0; line-height: 1.5">
+          Color, type, and iconography guidelines for a warm, food-forward meal planning app, across
+          iOS, Android, and web, with full light and dark mode support.
+        </p>
+
+        <h2
+          style="
+            font-size: 20px;
+            font-weight: 600;
+            color: #271d17;
+            border-bottom: 2px solid #e4dcd6;
+            padding-bottom: 8px;
+            margin: 36px 0 14px 0;
+          "
+        >
+          1. Theme & Mood
+        </h2>
+        <p style="font-size: 14px; line-height: 1.7; color: #271d17; margin: 0 0 12px 0">
+          The app should feel like a well-lit kitchen counter, not a spreadsheet: warm, tactile,
+          appetite-forward. The palette is built on a warm neutral base (cream, not white; espresso,
+          not black) with a single terracotta accent doing almost all of the color work, and a muted
+          berry red held in reserve for a small set of secondary moments. This keeps focus on food
+          photography, which supplies the app's real color and visual interest, while the UI itself
+          stays quiet and confident.
+        </p>
+        <p style="font-size: 14px; line-height: 1.7; color: #271d17; margin: 0">
+          Avoid a "nutrition app" clinical feel (stark white, clinical blue/green) and avoid a
+          "delivery app" loud feel (saturated red/orange everywhere, badges, urgency cues). This is
+          a planning tool used daily, often while cooking — it should recede and let recipe photos
+          and text lead.
+        </p>
+
+        <h2
+          style="
+            font-size: 20px;
+            font-weight: 600;
+            color: #271d17;
+            border-bottom: 2px solid #e4dcd6;
+            padding-bottom: 8px;
+            margin: 36px 0 14px 0;
+          "
+        >
+          2. Color Palette
+        </h2>
+        <p style="font-size: 14px; line-height: 1.7; color: #271d17; margin: 0 0 16px 0">
+          All colors are defined in OKLCH so hue, chroma, and lightness stay consistent and
+          predictable across the whole system — hex values below are for direct implementation. Both
+          accent colors share the same chroma (0.15) and sit in the warm half of the wheel; only hue
+          shifts, which is what keeps them feeling like one family rather than two unrelated brand
+          colors.
+        </p>
+
+        <table style="margin-bottom: 8px">
+          <thead>
+            <tr style="background: #fff7f1">
+              <th
+                style="
+                  text-align: left;
+                  padding: 8px;
+                  font-size: 12px;
+                  color: #675b54;
+                  border-bottom: 1px solid #e4dcd6;
+                "
+              >
+                Token
+              </th>
+              <th
+                style="
+                  text-align: left;
+                  padding: 8px;
+                  font-size: 12px;
+                  color: #675b54;
+                  border-bottom: 1px solid #e4dcd6;
+                "
+              >
+                OKLCH
+              </th>
+              <th
+                style="
+                  text-align: left;
+                  padding: 8px;
+                  font-size: 12px;
+                  color: #675b54;
+                  border-bottom: 1px solid #e4dcd6;
+                "
+              >
+                Hex
+              </th>
+              <th
+                style="
+                  text-align: left;
+                  padding: 8px;
+                  font-size: 12px;
+                  color: #675b54;
+                  border-bottom: 1px solid #e4dcd6;
+                "
+              >
+                Swatch
+              </th>
+              <th
+                style="
+                  text-align: left;
+                  padding: 8px;
+                  font-size: 12px;
+                  color: #675b54;
+                  border-bottom: 1px solid #e4dcd6;
+                "
+              >
+                Use
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">bg / light</td>
+              <td style="padding: 8px; font-size: 12px; color: #675b54; font-family: monospace">
+                98% 0.012 60
+              </td>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">#fff7f1</td>
+              <td style="padding: 8px">
+                <div
+                  style="
+                    width: 28px;
+                    height: 18px;
+                    background: #fff7f1;
+                    border: 1px solid #e4dcd6;
+                    border-radius: 3px;
+                  "
+                ></div>
+              </td>
+              <td style="padding: 8px; font-size: 13px">App background, light mode</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">surface / light</td>
+              <td style="padding: 8px; font-size: 12px; color: #675b54; font-family: monospace">
+                99.5% 0.006 60
+              </td>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">#fffdf9</td>
+              <td style="padding: 8px">
+                <div
+                  style="
+                    width: 28px;
+                    height: 18px;
+                    background: #fffdf9;
+                    border: 1px solid #e4dcd6;
+                    border-radius: 3px;
+                  "
+                ></div>
+              </td>
+              <td style="padding: 8px; font-size: 13px">Cards, sheets, modals</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">text / light</td>
+              <td style="padding: 8px; font-size: 12px; color: #675b54; font-family: monospace">
+                24% 0.02 50
+              </td>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">#271d17</td>
+              <td style="padding: 8px">
+                <div
+                  style="width: 28px; height: 18px; background: #271d17; border-radius: 3px"
+                ></div>
+              </td>
+              <td style="padding: 8px; font-size: 13px">Primary text, light mode</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">
+                text-muted / light
+              </td>
+              <td style="padding: 8px; font-size: 12px; color: #675b54; font-family: monospace">
+                48% 0.02 50
+              </td>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">#675b54</td>
+              <td style="padding: 8px">
+                <div
+                  style="width: 28px; height: 18px; background: #675b54; border-radius: 3px"
+                ></div>
+              </td>
+              <td style="padding: 8px; font-size: 13px">Secondary text, captions, timestamps</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">border / light</td>
+              <td style="padding: 8px; font-size: 12px; color: #675b54; font-family: monospace">
+                90% 0.012 60
+              </td>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">#e4dcd6</td>
+              <td style="padding: 8px">
+                <div
+                  style="width: 28px; height: 18px; background: #e4dcd6; border-radius: 3px"
+                ></div>
+              </td>
+              <td style="padding: 8px; font-size: 13px">Hairlines, dividers, input borders</td>
+            </tr>
+            <tr>
+              <td
+                style="padding: 8px; font-size: 13px; font-family: monospace; background: #fff7f1"
+              >
+                bg / dark
+              </td>
+              <td
+                style="
+                  padding: 8px;
+                  font-size: 12px;
+                  color: #675b54;
+                  font-family: monospace;
+                  background: #fff7f1;
+                "
+              >
+                18% 0.014 50
+              </td>
+              <td
+                style="padding: 8px; font-size: 13px; font-family: monospace; background: #fff7f1"
+              >
+                #17100c
+              </td>
+              <td style="padding: 8px; background: #fff7f1">
+                <div
+                  style="width: 28px; height: 18px; background: #17100c; border-radius: 3px"
+                ></div>
+              </td>
+              <td style="padding: 8px; font-size: 13px; background: #fff7f1">
+                App background, dark mode
+              </td>
+            </tr>
+            <tr>
+              <td
+                style="padding: 8px; font-size: 13px; font-family: monospace; background: #fff7f1"
+              >
+                surface / dark
+              </td>
+              <td
+                style="
+                  padding: 8px;
+                  font-size: 12px;
+                  color: #675b54;
+                  font-family: monospace;
+                  background: #fff7f1;
+                "
+              >
+                24% 0.016 50
+              </td>
+              <td
+                style="padding: 8px; font-size: 13px; font-family: monospace; background: #fff7f1"
+              >
+                #261d19
+              </td>
+              <td style="padding: 8px; background: #fff7f1">
+                <div
+                  style="width: 28px; height: 18px; background: #261d19; border-radius: 3px"
+                ></div>
+              </td>
+              <td style="padding: 8px; font-size: 13px; background: #fff7f1">
+                Cards, sheets, modals, dark mode
+              </td>
+            </tr>
+            <tr>
+              <td
+                style="padding: 8px; font-size: 13px; font-family: monospace; background: #fff7f1"
+              >
+                text / dark
+              </td>
+              <td
+                style="
+                  padding: 8px;
+                  font-size: 12px;
+                  color: #675b54;
+                  font-family: monospace;
+                  background: #fff7f1;
+                "
+              >
+                95% 0.01 60
+              </td>
+              <td
+                style="padding: 8px; font-size: 13px; font-family: monospace; background: #fff7f1"
+              >
+                #f4ede8
+              </td>
+              <td style="padding: 8px; background: #fff7f1">
+                <div
+                  style="width: 28px; height: 18px; background: #f4ede8; border-radius: 3px"
+                ></div>
+              </td>
+              <td style="padding: 8px; font-size: 13px; background: #fff7f1">
+                Primary text, dark mode
+              </td>
+            </tr>
+            <tr>
+              <td
+                style="padding: 8px; font-size: 13px; font-family: monospace; background: #fff7f1"
+              >
+                border / dark
+              </td>
+              <td
+                style="
+                  padding: 8px;
+                  font-size: 12px;
+                  color: #675b54;
+                  font-family: monospace;
+                  background: #fff7f1;
+                "
+              >
+                32% 0.016 50
+              </td>
+              <td
+                style="padding: 8px; font-size: 13px; font-family: monospace; background: #fff7f1"
+              >
+                #3a312c
+              </td>
+              <td style="padding: 8px; background: #fff7f1">
+                <div
+                  style="width: 28px; height: 18px; background: #3a312c; border-radius: 3px"
+                ></div>
+              </td>
+              <td style="padding: 8px; font-size: 13px; background: #fff7f1">
+                Hairlines, dividers, dark mode
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">primary</td>
+              <td style="padding: 8px; font-size: 12px; color: #675b54; font-family: monospace">
+                62% 0.15 40
+              </td>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">#cf6139</td>
+              <td style="padding: 8px">
+                <div
+                  style="width: 28px; height: 18px; background: #cf6139; border-radius: 3px"
+                ></div>
+              </td>
+              <td style="padding: 8px; font-size: 13px">Terracotta — the one brand accent</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">
+                primary-hover / pressed
+              </td>
+              <td style="padding: 8px; font-size: 12px; color: #675b54; font-family: monospace">
+                55% 0.16 40
+              </td>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">#bb4717</td>
+              <td style="padding: 8px">
+                <div
+                  style="width: 28px; height: 18px; background: #bb4717; border-radius: 3px"
+                ></div>
+              </td>
+              <td style="padding: 8px; font-size: 13px">Button hover/pressed states, link color</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">
+                primary / dark mode
+              </td>
+              <td style="padding: 8px; font-size: 12px; color: #675b54; font-family: monospace">
+                70% 0.14 40
+              </td>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">#e67d58</td>
+              <td style="padding: 8px">
+                <div
+                  style="width: 28px; height: 18px; background: #e67d58; border-radius: 3px"
+                ></div>
+              </td>
+              <td style="padding: 8px; font-size: 13px">
+                Lighten primary in dark mode to hold contrast/vibrancy
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">secondary</td>
+              <td style="padding: 8px; font-size: 12px; color: #675b54; font-family: monospace">
+                55% 0.15 10
+              </td>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">#b7445d</td>
+              <td style="padding: 8px">
+                <div
+                  style="width: 28px; height: 18px; background: #b7445d; border-radius: 3px"
+                ></div>
+              </td>
+              <td style="padding: 8px; font-size: 13px">Berry red — sparing secondary accent</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">success</td>
+              <td style="padding: 8px; font-size: 12px; color: #675b54; font-family: monospace">
+                60% 0.13 145
+              </td>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">#47944c</td>
+              <td style="padding: 8px">
+                <div
+                  style="width: 28px; height: 18px; background: #47944c; border-radius: 3px"
+                ></div>
+              </td>
+              <td style="padding: 8px; font-size: 13px">Confirmations, completed/checked items</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">warning</td>
+              <td style="padding: 8px; font-size: 12px; color: #675b54; font-family: monospace">
+                78% 0.15 85
+              </td>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">#e3ae28</td>
+              <td style="padding: 8px">
+                <div
+                  style="width: 28px; height: 18px; background: #e3ae28; border-radius: 3px"
+                ></div>
+              </td>
+              <td style="padding: 8px; font-size: 13px">Low stock, expiring soon, plan gaps</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">error</td>
+              <td style="padding: 8px; font-size: 12px; color: #675b54; font-family: monospace">
+                56% 0.19 25
+              </td>
+              <td style="padding: 8px; font-size: 13px; font-family: monospace">#cc3336</td>
+              <td style="padding: 8px">
+                <div
+                  style="width: 28px; height: 18px; background: #cc3336; border-radius: 3px"
+                ></div>
+              </td>
+              <td style="padding: 8px; font-size: 13px">Destructive actions, validation errors</td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="font-size: 12px; color: #948577; margin: 6px 0 0 0">
+          Semantic colors (success/warning/error) are functional only — never used decoratively, so
+          their meaning stays unambiguous next to the food photography's natural reds and greens.
+        </p>
+
+        <h2
+          style="
+            font-size: 20px;
+            font-weight: 600;
+            color: #271d17;
+            border-bottom: 2px solid #e4dcd6;
+            padding-bottom: 8px;
+            margin: 36px 0 14px 0;
+          "
+        >
+          3. How Much Color to Use
+        </h2>
+        <p style="font-size: 14px; line-height: 1.7; color: #271d17; margin: 0 0 12px 0">
+          Target roughly
+          <strong>90% neutral, 8% primary accent, 2% everything else</strong> (secondary accent +
+          semantic colors combined) across any given screen. In practice: the background, surfaces,
+          borders, and body text are neutral cream/espresso tones; the terracotta primary appears on
+          one or two elements per screen at most (the primary CTA, the active tab/nav indicator, a
+          selected state); the berry secondary and semantic colors appear only when their specific
+          condition is true, never as ambient decoration.
+        </p>
+        <p style="font-size: 14px; line-height: 1.7; color: #271d17; margin: 0 0 12px 0">
+          This is intentionally accent-scarce. A meal planning app is opened repeatedly, often
+          several times a day — a busy, saturated UI fatigues fast under that frequency. Scarcity
+          also makes the accent meaningful: because terracotta appears almost nowhere else, when it
+          does appear it reads unambiguously as "the thing to act on." Food photography is the
+          actual color event on every screen; the UI's job is to frame it, not compete with it.
+        </p>
+        <p style="font-size: 14px; line-height: 1.7; color: #271d17; margin: 0">
+          Never use the primary or secondary accent as a full-bleed background behind text (fails
+          contrast at scale and reads as decoration, not signal). Both are used as: text/icon fills,
+          thin borders or underlines, small fills (buttons, chips, dots, progress bars), or at low
+          opacity (8–12%) as a tinted background behind an icon or chip — never as a large solid
+          color field.
+        </p>
+
+        <h2
+          style="
+            font-size: 20px;
+            font-weight: 600;
+            color: #271d17;
+            border-bottom: 2px solid #e4dcd6;
+            padding-bottom: 8px;
+            margin: 36px 0 14px 0;
+          "
+        >
+          4. Where Each Color Goes
+        </h2>
+        <table style="margin-bottom: 8px">
+          <thead>
+            <tr style="background: #fff7f1">
+              <th
+                style="
+                  text-align: left;
+                  padding: 8px;
+                  font-size: 12px;
+                  color: #675b54;
+                  border-bottom: 1px solid #e4dcd6;
+                "
+              >
+                Color
+              </th>
+              <th
+                style="
+                  text-align: left;
+                  padding: 8px;
+                  font-size: 12px;
+                  color: #675b54;
+                  border-bottom: 1px solid #e4dcd6;
+                "
+              >
+                Applied to
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding: 8px; font-size: 13px; font-weight: 600; color: #cf6139">
+                Primary (terracotta)
+              </td>
+              <td style="padding: 8px; font-size: 13px; line-height: 1.6">
+                Primary CTA buttons ("Add to plan," "Start cooking," "Generate grocery list"),
+                active nav/tab indicator, selected day in the week view, the app's core icon set
+                when active/selected, focus rings, progress bars (calories, macros, plan
+                completion), links in body text.
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px; font-weight: 600; color: #b7445d">
+                Secondary (berry)
+              </td>
+              <td style="padding: 8px; font-size: 13px; line-height: 1.6">
+                Favorited/saved recipe indicator (a filled heart), a "new" or "seasonal" tag on a
+                recipe, one accent moment in onboarding or empty states. Used in one place per
+                screen at most — it should read as a distinct, occasional signal, not a second brand
+                color.
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px; font-weight: 600; color: #47944c">
+                Success (green)
+              </td>
+              <td style="padding: 8px; font-size: 13px; line-height: 1.6">
+                Checked-off grocery items, "meal logged," completed prep steps, in-stock pantry
+                indicators.
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px; font-weight: 600; color: #c4900f">
+                Warning (amber)
+              </td>
+              <td style="padding: 8px; font-size: 13px; line-height: 1.6">
+                Ingredient expiring soon, an unplanned day in the week view, a recipe missing pantry
+                items.
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px; font-weight: 600; color: #cc3336">
+                Error (red)
+              </td>
+              <td style="padding: 8px; font-size: 13px; line-height: 1.6">
+                Delete/remove confirmations, failed sync, required-field validation.
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px; font-weight: 600; color: #675b54">
+                Neutrals
+              </td>
+              <td style="padding: 8px; font-size: 13px; line-height: 1.6">
+                Everything else: backgrounds, card surfaces, body and label text, dividers, disabled
+                states, unselected icons and nav items, input fields.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2
+          style="
+            font-size: 20px;
+            font-weight: 600;
+            color: #271d17;
+            border-bottom: 2px solid #e4dcd6;
+            padding-bottom: 8px;
+            margin: 36px 0 14px 0;
+          "
+        >
+          5. Dark Mode
+        </h2>
+        <p style="font-size: 14px; line-height: 1.7; color: #271d17; margin: 0 0 12px 0">
+          Dark mode is not an inverted light mode — it uses its own warm espresso base (#17100c
+          background, #261d19 surface) rather than pure black, so photography and warm accents don't
+          look cold against it. The primary accent is lightened and slightly desaturated in dark
+          mode (#e67d58 instead of #cf6139) to hold the same perceived vibrancy and stay above 4.5:1
+          contrast on the dark background; the same logic applies to secondary and semantic colors —
+          lighten, don't just reuse the light-mode value. Elevation in dark mode is shown by
+          lightening the surface a step (background → surface → raised surface), not by adding
+          shadow, which reads poorly on dark backgrounds.
+        </p>
+
+        <h2
+          style="
+            font-size: 20px;
+            font-weight: 600;
+            color: #271d17;
+            border-bottom: 2px solid #e4dcd6;
+            padding-bottom: 8px;
+            margin: 36px 0 14px 0;
+          "
+        >
+          6. Typography
+        </h2>
+        <p style="font-size: 14px; line-height: 1.7; color: #271d17; margin: 0 0 12px 0">
+          <strong>Headings — Sora</strong> (Google Fonts, weights 500/600/700). A geometric sans
+          with a bit of warmth in its curves, used for screen titles, recipe names, and section
+          headers. <strong>Body — Inter</strong> (Google Fonts, weights 400/500/600), for everything
+          else: ingredient lists, instructions, labels, buttons, nav. Both are free, variable, and
+          have full Latin + extended character support for localization.
+        </p>
+        <p style="font-size: 14px; line-height: 1.7; color: #271d17; margin: 0 0 12px 0">
+          Two families only. Don't introduce a third for numbers or data — use Inter's tabular
+          figures for calorie counts, macros, and quantities so they align in tables and lists.
+        </p>
+        <table style="margin-bottom: 8px">
+          <thead>
+            <tr style="background: #fff7f1">
+              <th
+                style="
+                  text-align: left;
+                  padding: 8px;
+                  font-size: 12px;
+                  color: #675b54;
+                  border-bottom: 1px solid #e4dcd6;
+                "
+              >
+                Role
+              </th>
+              <th
+                style="
+                  text-align: left;
+                  padding: 8px;
+                  font-size: 12px;
+                  color: #675b54;
+                  border-bottom: 1px solid #e4dcd6;
+                "
+              >
+                Font
+              </th>
+              <th
+                style="
+                  text-align: left;
+                  padding: 8px;
+                  font-size: 12px;
+                  color: #675b54;
+                  border-bottom: 1px solid #e4dcd6;
+                "
+              >
+                Weight
+              </th>
+              <th
+                style="
+                  text-align: left;
+                  padding: 8px;
+                  font-size: 12px;
+                  color: #675b54;
+                  border-bottom: 1px solid #e4dcd6;
+                "
+              >
+                Size
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding: 8px; font-size: 13px">Screen title</td>
+              <td style="padding: 8px; font-size: 13px; font-family: 'Sora', sans-serif">Sora</td>
+              <td style="padding: 8px; font-size: 13px">700</td>
+              <td style="padding: 8px; font-size: 13px">28–32px</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px">Section header</td>
+              <td style="padding: 8px; font-size: 13px; font-family: 'Sora', sans-serif">Sora</td>
+              <td style="padding: 8px; font-size: 13px">600</td>
+              <td style="padding: 8px; font-size: 13px">18–20px</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px">Recipe/card title</td>
+              <td style="padding: 8px; font-size: 13px; font-family: 'Sora', sans-serif">Sora</td>
+              <td style="padding: 8px; font-size: 13px">600</td>
+              <td style="padding: 8px; font-size: 13px">16px</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px">Body / ingredients / steps</td>
+              <td style="padding: 8px; font-size: 13px; font-family: 'Inter', sans-serif">Inter</td>
+              <td style="padding: 8px; font-size: 13px">400</td>
+              <td style="padding: 8px; font-size: 13px">15–16px</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px">Label / caption / meta</td>
+              <td style="padding: 8px; font-size: 13px; font-family: 'Inter', sans-serif">Inter</td>
+              <td style="padding: 8px; font-size: 13px">500</td>
+              <td style="padding: 8px; font-size: 13px">12–13px</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-size: 13px">Button label</td>
+              <td style="padding: 8px; font-size: 13px; font-family: 'Inter', sans-serif">Inter</td>
+              <td style="padding: 8px; font-size: 13px">600</td>
+              <td style="padding: 8px; font-size: 13px">15px</td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="font-size: 12px; color: #948577; margin: 6px 0 0 0">
+          Minimum body text size is 15px for mobile, given how often this app is read at arm's
+          length while cooking. Line height 1.5–1.6 for body copy.
+        </p>
+
+        <h2
+          style="
+            font-size: 20px;
+            font-weight: 600;
+            color: #271d17;
+            border-bottom: 2px solid #e4dcd6;
+            padding-bottom: 8px;
+            margin: 36px 0 14px 0;
+          "
+        >
+          7. Iconography
+        </h2>
+        <p style="font-size: 14px; line-height: 1.7; color: #271d17; margin: 0 0 12px 0">
+          Use <strong>Phosphor Icons</strong>, Regular weight by default, Fill/Bold weight for
+          selected or active states (nav, filled heart, checked states). Phosphor's line weight is
+          close to Inter's and it has broad coverage of food/kitchen-adjacent glyphs (bowl, cooking
+          pot, carrot, timer, shopping bag, calendar) without needing custom icons for most flows.
+          Keep icons single-color — either current text color or the primary accent when indicating
+          an active/selected state — never multi-color or filled with photography.
+        </p>
+        <p style="font-size: 14px; line-height: 1.7; color: #271d17; margin: 0">
+          Standard sizes: 20px for inline/list icons, 24px for nav and toolbar icons, 32px for
+          empty-state or onboarding illustration-adjacent icons. Stroke width 1.5px at 20–24px
+          sizes.
+        </p>
+
+        <h2
+          style="
+            font-size: 20px;
+            font-weight: 600;
+            color: #271d17;
+            border-bottom: 2px solid #e4dcd6;
+            padding-bottom: 8px;
+            margin: 36px 0 14px 0;
+          "
+        >
+          8. Surfaces, Elevation & Imagery
+        </h2>
+        <p style="font-size: 14px; line-height: 1.7; color: #271d17; margin: 0 0 12px 0">
+          Use elevation sparingly: a card sits on the background with either a 1px border (#e4dcd6
+          light / #3a312c dark) or a soft shadow (0 1px 3px rgba(23,16,12,0.08)) — not both. Reserve
+          heavier shadow (0 8px 24px rgba(23,16,12,0.12)) for genuinely floating elements: modals,
+          action sheets, the sticky "generate grocery list" bar. Corner radius: 12px for cards and
+          images, 8px for buttons and inputs, full-round for chips and avatar-style elements —
+          consistent across the app.
+        </p>
+        <p style="font-size: 14px; line-height: 1.7; color: #271d17; margin: 0">
+          Recipe and ingredient photography should be warm, natural-light food photography — no
+          illustration, no 3D render style, no stock-photo gloss. Where real photography isn't
+          available yet, use a subtly striped neutral placeholder (not a colored block) labeled in
+          monospace with what belongs there, e.g. "recipe photo — 4:3." Photography, not UI color,
+          should be the most saturated thing on any given screen.
+        </p>
+
+        <h2
+          style="
+            font-size: 20px;
+            font-weight: 600;
+            color: #271d17;
+            border-bottom: 2px solid #e4dcd6;
+            padding-bottom: 8px;
+            margin: 36px 0 14px 0;
+          "
+        >
+          9. Accessibility
+        </h2>
+        <p style="font-size: 14px; line-height: 1.7; color: #271d17; margin: 0 0 12px 0">
+          WCAG AA throughout: body text and icons at 4.5:1 minimum against their background; large
+          text (24px+/18px+ bold) and the primary accent used decoratively (progress bar fills,
+          dividers) at 3:1 minimum. All the text/background pairings in the token table above meet
+          this in both light and dark mode. Never convey status by color alone — pair
+          success/warning/error with an icon or label (a checkmark, not just a green dot).
+        </p>
+        <p style="font-size: 14px; line-height: 1.7; color: #271d17; margin: 0">
+          Touch targets are 44×44px minimum on mobile, including checkboxes on grocery-list items
+          and stepper controls on serving-size/quantity fields.
+        </p>
+
+        <h2
+          style="
+            font-size: 20px;
+            font-weight: 600;
+            color: #271d17;
+            border-bottom: 2px solid #e4dcd6;
+            padding-bottom: 8px;
+            margin: 36px 0 14px 0;
+          "
+        >
+          10. Implementation Notes
+        </h2>
+        <ul
+          style="font-size: 14px; line-height: 1.8; color: #271d17; padding-left: 20px; margin: 0"
+        >
+          <li>
+            Define all colors as design tokens (semantic names —
+            <code style="background: #fff7f1; padding: 1px 5px; border-radius: 3px; font-size: 13px"
+              >color-bg</code
+            >,
+            <code style="background: #fff7f1; padding: 1px 5px; border-radius: 3px; font-size: 13px"
+              >color-primary</code
+            >, etc.), never hardcoded hex in components, so light/dark switch by swapping the token
+            set.
+          </li>
+          <li>
+            Store the source-of-truth values in OKLCH; generate hex/sRGB fallbacks at build time for
+            platforms without OKLCH support.
+          </li>
+          <li>
+            Respect system-level light/dark preference by default, with a manual override in
+            Settings.
+          </li>
+          <li>
+            Load Sora and Inter as variable fonts where the platform supports it (web, Android) to
+            avoid shipping multiple static weights; iOS can bundle static weights actually used
+            (400/500/600/700).
+          </li>
+          <li>
+            Import Phosphor as an SVG icon set (not the full icon font) and tree-shake to only the
+            glyphs used, to keep bundle size down.
+          </li>
+        </ul>
+      </doc-page>
+      <template id="__bundler_thumbnail"
+        ><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+          <rect width="100" height="100" fill="#fff7f1" />
+          <circle cx="50" cy="42" r="20" fill="#cf6139" />
+          <rect x="30" y="70" width="40" height="8" rx="4" fill="#271d17" /></svg
+      ></template>
+    </x-dc>
+  </body>
+</html>

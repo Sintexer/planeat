@@ -14,7 +14,7 @@ import {
   Tooltip,
   UnstyledButton,
 } from '@mantine/core'
-import { IconAdjustments, IconAlertTriangle } from '@tabler/icons-react'
+import { Sliders, Warning } from '@phosphor-icons/react'
 import Fuse from 'fuse.js'
 import { useEffect, useMemo, useState } from 'react'
 import type { TagId } from '../../domain/tags/Tag'
@@ -141,7 +141,7 @@ function ItemRow({
           ineligible
             ? { opacity: 0.55 }
             : leftover
-              ? { background: 'var(--mantine-color-teal-light)' }
+              ? { background: 'var(--mantine-color-default-hover)' }
               : undefined
         }
       >
@@ -167,28 +167,23 @@ function ItemRow({
             </Text>
             <Group gap={4}>
               {(item.kind === 'recipe' || item.kind === 'simple-food') && (
-                <Badge
-                  size="xs"
-                  color={item.kind === 'recipe' ? 'blue' : 'grape'}
-                  variant="dot"
-                  radius="sm"
-                >
+                <Badge size="xs" color="gray" variant="dot" radius="sm">
                   {kindLabel(t, item.kind)}
                 </Badge>
               )}
               {ineligible ? (
                 <Badge
                   size="xs"
-                  color="red"
+                  color="error"
                   variant="filled"
                   radius="xl"
-                  leftSection={<IconAlertTriangle size={10} />}
+                  leftSection={<Warning size={10} />}
                 >
                   {ineligibleLabel}
                 </Badge>
               ) : (
                 leftover && (
-                  <Badge size="xs" color="teal" variant="filled" radius="xl">
+                  <Badge size="xs" color="gray" variant="outline" radius="xl">
                     {t('catalog.remainingBadge')}
                   </Badge>
                 )
@@ -518,7 +513,7 @@ export function DishCatalog({
           size="compact-xs"
           variant="default"
           radius="sm"
-          leftSection={<IconAdjustments size={14} />}
+          leftSection={<Sliders size={14} />}
           onClick={() => setFilterDrawerOpened(true)}
         >
           {extraFilters > 0

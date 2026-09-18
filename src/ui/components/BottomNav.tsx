@@ -1,11 +1,5 @@
 import { UnstyledButton, Stack, Text, Group } from '@mantine/core'
-import {
-  IconCalendarWeek,
-  IconShoppingCart,
-  IconBook2,
-  IconSettings,
-  type Icon,
-} from '@tabler/icons-react'
+import { BookOpen, CalendarBlank, Gear, ShoppingBag, type Icon } from '@phosphor-icons/react'
 import { NavLink, useLocation } from 'react-router'
 import { useLocalization } from '../localization/LocalizationContext'
 import type { MessageId } from '../localization/messages'
@@ -21,25 +15,25 @@ const NAV_ITEMS: NavItem[] = [
   {
     to: '/plan',
     message: 'nav.plan',
-    icon: IconCalendarWeek,
+    icon: CalendarBlank,
     isActive: (path) => path === '/plan' || path.startsWith('/plan/'),
   },
   {
     to: '/lists',
     message: 'nav.groceries',
-    icon: IconShoppingCart,
+    icon: ShoppingBag,
     isActive: (path) => path === '/lists' || path.startsWith('/lists/'),
   },
   {
     to: '/recipes',
     message: 'nav.recipes',
-    icon: IconBook2,
+    icon: BookOpen,
     isActive: (path) => path === '/recipes' || path.startsWith('/recipes/'),
   },
   {
     to: '/settings',
     message: 'nav.settings',
-    icon: IconSettings,
+    icon: Gear,
     isActive: (path) => path === '/settings' || path.startsWith('/settings/'),
   },
 ]
@@ -57,11 +51,11 @@ export function BottomNav() {
             <UnstyledButton
               w="100%"
               py={8}
-              c={active ? 'green' : 'dimmed'}
+              c={active ? 'primary' : 'dimmed'}
               style={{ minHeight: 44 }}
             >
               <Stack align="center" gap={4}>
-                <Icon size={20} />
+                <Icon size={20} weight={active ? 'fill' : 'regular'} />
                 <Text fz={10} fw={600}>
                   {t(message)}
                 </Text>

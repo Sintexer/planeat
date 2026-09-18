@@ -25,7 +25,7 @@
     "@mantine/hooks": "^9.6.0",
     "@mantine/modals": "^9.6.0",
     "@mantine/notifications": "^9.6.0",
-    "@tabler/icons-react": "^3.46.0",
+    "@phosphor-icons/react": "^2.1.10",
     "convert-units": "^2.3.4",
     "dayjs": "^1.11.23",
     "dexie": "^4.4.5",

@@ -1,28 +1,10 @@
-import {
-  ActionIcon,
-  Badge,
-  Group,
-  Paper,
-  Stack,
-  Text,
-  Menu,
-  UnstyledButton,
-  useComputedColorScheme,
-} from '@mantine/core'
-import {
-  IconAlertTriangle,
-  IconCoffee,
-  IconDots,
-  IconMoonStars,
-  IconPlus,
-  IconToolsKitchen2,
-  IconX,
-} from '@tabler/icons-react'
-import { type MealType } from '../../domain/shared/MealEnums'
+import { ActionIcon, Badge, Group, Paper, Stack, Text, Menu, UnstyledButton } from '@mantine/core'
+import { DotsThree, Plus, Warning, X } from '@phosphor-icons/react'
 import { mealTypeLabel } from '../localization/labels'
 import { RecipePhotoThumb } from './RecipePhotoThumb'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
 import { useLocalization } from '../localization/LocalizationContext'
+import { MEAL_TYPE_ICONS } from '../plans/mealTypeIcons'
 import { componentLabel, type SlotComponentDisplay, type SlotDisplay } from '../plans/slotDisplay'
 
 interface MealSlotCardProps {
@@ -33,18 +15,6 @@ interface MealSlotCardProps {
   onClear: () => void
   onExclude: () => void
   onUnexclude: () => void
-}
-
-const MEAL_ICONS: Record<MealType, typeof IconCoffee> = {
-  breakfast: IconCoffee,
-  lunch: IconToolsKitchen2,
-  dinner: IconMoonStars,
-}
-
-const MEAL_ACCENT: Record<MealType, string> = {
-  breakfast: 'yellow',
-  lunch: 'green',
-  dinner: 'indigo',
 }
 
 function DishRow({
@@ -59,61 +29,59 @@ function DishRow({
   onOpen: () => void
 }) {
   const formatQty = useFormatQuantity()
+  const { t } = useLocalization()
   const label = componentLabel(item)
   const qty = formatQty(item.component.allocatedQuantity)
   const isLeftover = item.cookingEvent !== undefined && item.cookingEvent.scheduledDate !== mealDate
 
   return (
     <UnstyledButton onClick={onOpen} w="100%" style={{ textAlign: 'left' }}>
-      <Paper p={8} radius="md" shadow="xs">
-        <Group wrap="nowrap" align="center" gap="sm">
-          <RecipePhotoThumb url={item.photoUrl} label={label} size={56} />
-          <Stack gap={6} style={{ minWidth: 0, flex: 1 }}>
-            <Text size="sm" fw={600} lineClamp={2}>
-              {label}
-            </Text>
-            <Group gap={6}>
-              <Badge variant="light" size="sm" radius="xl" color="gray">
-                {qty}
+      <Group wrap="nowrap" align="center" gap="sm">
+        <RecipePhotoThumb url={item.photoUrl} label={label} size={52} />
+        <Stack gap={6} style={{ minWidth: 0, flex: 1 }}>
+          <Text size="sm" fw={500} lineClamp={2}>
+            {label}
+          </Text>
+          <Group gap={6}>
+            <Badge variant="light" size="sm" radius="xl" color="gray">
+              {qty}
+            </Badge>
+            {isLeftover && (
+              <Badge variant="outline" color="gray" size="sm" radius="xl">
+                {t('plan.leftover')}
               </Badge>
-              {isLeftover && (
-                <Badge color="teal" variant="light" size="sm" radius="xl">
-                  Leftover
-                </Badge>
-              )}
-              {wontCarryOver && (
-                <Badge
-                  color="red"
-                  variant="light"
-                  size="sm"
-                  radius="xl"
-                  leftSection={<IconAlertTriangle size={12} />}
-                >
-                  Won&apos;t carry over
-                </Badge>
-              )}
-            </Group>
-          </Stack>
-        </Group>
-      </Paper>
+            )}
+            {wontCarryOver && (
+              <Badge
+                color="warning"
+                variant="light"
+                size="sm"
+                radius="xl"
+                leftSection={<Warning size={12} />}
+              >
+                {t('plan.wontCarryOver')}
+              </Badge>
+            )}
+          </Group>
+        </Stack>
+      </Group>
     </UnstyledButton>
   )
 }
 
-function AddDishButton({
-  onOpen,
-  colorScheme,
-  label,
-}: {
-  onOpen: () => void
-  colorScheme: 'light' | 'dark'
-  label: string
-}) {
+function AddDishButton({ onOpen, label }: { onOpen: () => void; label: string }) {
   return (
     <UnstyledButton onClick={onOpen} w="100%" style={{ textAlign: 'center' }}>
-      <Paper p={10} radius="md" bg={colorScheme === 'dark' ? 'dark.5' : 'white'}>
+      <Paper
+        p={10}
+        radius="md"
+        style={{
+          border: '1.5px dashed var(--mantine-color-default-border)',
+          background: 'transparent',
+        }}
+      >
         <Group gap={6} justify="center">
-          <IconPlus size={16} />
+          <Plus size={16} />
           <Text size="sm" fw={500}>
             {label}
           </Text>
@@ -143,7 +111,7 @@ function SlotMenu({
     <Menu position="bottom-end" withinPortal>
       <Menu.Target>
         <ActionIcon variant="subtle" color="gray" aria-label={t('slot.actions')}>
-          <IconDots size={18} />
+          <DotsThree size={18} />
         </ActionIcon>
       </Menu.Target>
       <Menu.Dropdown>
@@ -158,7 +126,7 @@ function SlotMenu({
               {hasComponents ? t('slot.editMeal') : t('slot.addDish')}
             </Menu.Item>
             {hasComponents && (
-              <Menu.Item color="red" leftSection={<IconX size={14} />} onClick={onClear}>
+              <Menu.Item color="error" leftSection={<X size={14} />} onClick={onClear}>
                 {t('action.clear')}
               </Menu.Item>
             )}
@@ -180,14 +148,11 @@ export function MealSlotCard({
 }: MealSlotCardProps) {
   const { slot, components } = display
   const hasComponents = components.length > 0
-  const MealIcon = MEAL_ICONS[slot.mealType]
-  const accent = MEAL_ACCENT[slot.mealType]
-  const colorScheme = useComputedColorScheme('light')
-  const cardBg = colorScheme === 'dark' ? `${accent}.9` : `${accent}.0`
+  const MealIcon = MEAL_TYPE_ICONS[slot.mealType]
   const { t } = useLocalization()
 
   return (
-    <Paper p="sm" radius="lg" bg={cardBg}>
+    <Paper p="sm" radius="lg" withBorder>
       <Stack gap="sm">
         <Group justify="space-between" wrap="nowrap" align="center">
           <Group gap="sm" wrap="nowrap">
@@ -195,13 +160,19 @@ export function MealSlotCard({
               radius="xl"
               w={32}
               h={32}
-              bg={`${accent}.5`}
-              c="white"
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'color-mix(in srgb, var(--mantine-color-primary-6) 12%, transparent)',
+                color: 'var(--mantine-color-primary-filled)',
+              }}
             >
               <MealIcon size={16} />
             </Paper>
-            <Text fw={700}>{mealTypeLabel(t, slot.mealType)}</Text>
+            <Text fw={600} style={{ fontFamily: 'Sora, Inter, sans-serif' }}>
+              {mealTypeLabel(t, slot.mealType)}
+            </Text>
           </Group>
           <SlotMenu
             excluded={slot.excluded}
@@ -232,18 +203,11 @@ export function MealSlotCard({
               />
             ))}
             {!hasComponents && (
-              <Paper
-                p={12}
-                radius="md"
-                bg={colorScheme === 'dark' ? 'dark.6' : 'gray.1'}
-                withBorder={false}
-              >
-                <Text size="sm" c="dimmed">
-                  {t('slot.notPlanned')}
-                </Text>
-              </Paper>
+              <Text size="sm" c="dimmed">
+                {t('slot.notPlanned')}
+              </Text>
             )}
-            <AddDishButton onOpen={onOpen} colorScheme={colorScheme} label={t('slot.addDish')} />
+            <AddDishButton onOpen={onOpen} label={t('slot.addDish')} />
           </>
         )}
       </Stack>

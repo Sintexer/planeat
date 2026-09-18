@@ -25,7 +25,7 @@ export function UpdatePrompt({
   if (offlineReady) {
     return (
       <Notification
-        color="green"
+        color="success"
         onClose={() => setOfflineReady(false)}
         style={{ position: 'fixed', bottom: 76, left: 16, right: 16, zIndex: 300 }}
       >
@@ -37,7 +37,7 @@ export function UpdatePrompt({
   if (needRefresh) {
     return (
       <Notification
-        color="blue"
+        color="primary"
         onClose={() => setNeedRefresh(false)}
         style={{ position: 'fixed', bottom: 76, left: 16, right: 16, zIndex: 300 }}
       >

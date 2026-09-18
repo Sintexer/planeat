@@ -145,6 +145,10 @@ export const ruMessages = {
   'plan.sameDayTooltip':
     'Это блюдо нужно съесть в день готовки. Остаток нельзя перенести на другой день.',
   'plan.prepUnits': 'Заготовка · {units}',
+  'plan.backToWeek': 'Неделя',
+  'plan.gridMeals': 'Приёмы',
+  'plan.leftover': 'Остаток',
+  'plan.wontCarryOver': 'Не переносится',
   'mealType.breakfast': 'Завтрак',
   'mealType.lunch': 'Обед',
   'mealType.dinner': 'Ужин',

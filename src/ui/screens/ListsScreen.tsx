@@ -80,7 +80,7 @@ export function ListsScreen() {
                   {t('action.view')}
                 </Button>
               ) : (
-                <Badge color="green" variant="light">
+                <Badge color="success" variant="light">
                   {t(`lists.status.${list.status}` as 'lists.status.open')}
                 </Badge>
               )}

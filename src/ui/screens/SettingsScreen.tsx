@@ -61,7 +61,7 @@ async function downloadCurrentBackup(
   link.download = `planeat-backup-${dayjs().format('YYYY-MM-DD')}.json`
   link.click()
   URL.revokeObjectURL(url)
-  notifications.show({ message: exportedMessage, color: 'green' })
+  notifications.show({ message: exportedMessage, color: 'success' })
 }
 
 function BackupCounts({ summary }: { summary: BackupRestoreSummary }) {
@@ -150,7 +150,7 @@ export function SettingsScreen() {
       uiLocale: parseUiLocale(values.uiLocale),
       measurementPreference: parseMeasurementPreference(values.measurementPreference),
     })
-    notifications.show({ message: t('settings.saved'), color: 'green' })
+    notifications.show({ message: t('settings.saved'), color: 'success' })
   })
 
   const handleExport = () => void downloadCurrentBackup(backupService, t('settings.backupExported'))
@@ -176,7 +176,7 @@ export function SettingsScreen() {
     if (!result.ok) {
       notifications.show({
         message: restoreMessage(result.error, result.foundVersion),
-        color: 'red',
+        color: 'error',
       })
       return
     }
@@ -190,7 +190,7 @@ export function SettingsScreen() {
     try {
       parsed = JSON.parse(await file.text())
     } catch {
-      notifications.show({ message: t('settings.invalidJson'), color: 'red' })
+      notifications.show({ message: t('settings.invalidJson'), color: 'error' })
       return
     }
 
@@ -198,7 +198,7 @@ export function SettingsScreen() {
     if (!inspected.ok) {
       notifications.show({
         message: restoreMessage(inspected.error, inspected.foundVersion),
-        color: 'red',
+        color: 'error',
       })
       return
     }
@@ -219,7 +219,7 @@ export function SettingsScreen() {
             <Button variant="default" onClick={() => modals.closeAll()}>
               {t('action.cancel')}
             </Button>
-            <Button color="red" onClick={() => void restoreBackup(parsed)}>
+            <Button color="error" onClick={() => void restoreBackup(parsed)}>
               {t('settings.replaceRestore')}
             </Button>
           </Group>

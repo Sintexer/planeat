@@ -142,6 +142,10 @@ export const enMessages = {
   'plan.sameDayTooltip':
     "This recipe must be eaten the day it's cooked. Unused portions can't be moved to another day.",
   'plan.prepUnits': 'Prep · {units}',
+  'plan.backToWeek': 'Week',
+  'plan.gridMeals': 'Meals',
+  'plan.leftover': 'Leftover',
+  'plan.wontCarryOver': "Won't carry over",
   'mealType.breakfast': 'Breakfast',
   'mealType.lunch': 'Lunch',
   'mealType.dinner': 'Dinner',

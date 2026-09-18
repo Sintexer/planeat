@@ -1,5 +1,5 @@
 import { ActionIcon, Group, Stack, Title } from '@mantine/core'
-import { IconChevronLeft } from '@tabler/icons-react'
+import { CaretLeft } from '@phosphor-icons/react'
 import type { ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { useLocalization } from '../localization/LocalizationContext'
@@ -36,7 +36,7 @@ export function ScreenHeader({ title, fallbackTo, actions }: ScreenHeaderProps) 
             onClick={handleBack}
             style={{ flexShrink: 0 }}
           >
-            <IconChevronLeft size={18} />
+            <CaretLeft size={18} />
           </ActionIcon>
           <Title
             order={1}

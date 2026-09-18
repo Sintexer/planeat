@@ -43,11 +43,11 @@ function TagRow({
             : result.error === 'empty-name'
               ? t('tags.emptyName')
               : t('tags.notFound'),
-        color: 'red',
+        color: 'error',
       })
       return
     }
-    notifications.show({ message: t('tags.renamed'), color: 'green' })
+    notifications.show({ message: t('tags.renamed'), color: 'success' })
   }
 
   const handleArchiveToggle = async () => {
@@ -55,12 +55,12 @@ function TagRow({
       ? await tagService.unarchiveTag(tag.id)
       : await tagService.archiveTag(tag.id)
     if (!result.ok) {
-      notifications.show({ message: t('tags.notFound'), color: 'red' })
+      notifications.show({ message: t('tags.notFound'), color: 'error' })
       return
     }
     notifications.show({
       message: archived ? t('tags.restored') : t('tags.archivedNotice'),
-      color: 'green',
+      color: 'success',
     })
   }
 
@@ -73,7 +73,7 @@ function TagRow({
       title: t('tags.mergeTitle'),
       children: <Text>{t('tags.mergeBody', { source: tag.name, target: target.name })}</Text>,
       labels: { confirm: t('tags.merge'), cancel: t('action.cancel') },
-      confirmProps: { color: 'red' },
+      confirmProps: { color: 'error' },
       onCancel: () => setMergeTarget(null),
       onConfirm: () => {
         void (async () => {
@@ -81,14 +81,14 @@ function TagRow({
           if (!result.ok) {
             notifications.show({
               message: result.error === 'same-tag' ? t('tags.sameTag') : t('tags.notFound'),
-              color: 'red',
+              color: 'error',
             })
             setMergeTarget(null)
             return
           }
           notifications.show({
             message: t('tags.mergedInto', { name: target.name }),
-            color: 'green',
+            color: 'success',
           })
         })()
       },
@@ -108,15 +108,15 @@ function TagRow({
         </Text>
       ),
       labels: { confirm: t('tags.deleteConfirm'), cancel: t('action.cancel') },
-      confirmProps: { color: 'red' },
+      confirmProps: { color: 'error' },
       onConfirm: () => {
         void (async () => {
           const result = await tagService.deleteTag(tag.id)
           if (!result.ok) {
-            notifications.show({ message: t('tags.notFound'), color: 'red' })
+            notifications.show({ message: t('tags.notFound'), color: 'error' })
             return
           }
-          notifications.show({ message: t('tags.deleted'), color: 'green' })
+          notifications.show({ message: t('tags.deleted'), color: 'success' })
         })()
       },
     })
@@ -163,7 +163,7 @@ function TagRow({
             disabled={otherTags.length === 0}
             aria-label={t('tags.mergeNamed', { name: tag.name })}
           />
-          <Button size="xs" variant="light" color="red" onClick={() => void handleDelete()}>
+          <Button size="xs" variant="light" color="error" onClick={() => void handleDelete()}>
             {t('action.delete')}
           </Button>
         </Group>

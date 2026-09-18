@@ -1,0 +1,933 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="./support.js"></script>
+  </head>
+  <body>
+    <x-dc>
+      <helmet>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600&display=swap"
+          rel="stylesheet"
+        />
+        <link
+          rel="stylesheet"
+          href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css"
+        />
+        <style>
+          body {
+            margin: 0;
+          }
+        </style>
+      </helmet>
+      <style id="__om-edit-overrides"></style>
+      <div
+        style="
+          min-height: 100vh;
+          display: flex;
+          align-items: flex-start;
+          justify-content: center;
+          gap: 40px;
+          flex-wrap: wrap;
+          background: #efe6dc;
+          padding: 40px 24px;
+          box-sizing: border-box;
+        "
+      >
+        <div>
+          <div
+            style="
+              font-family: 'Inter', sans-serif;
+              font-weight: 600;
+              font-size: 12px;
+              letter-spacing: 0.06em;
+              text-transform: uppercase;
+              color: #948577;
+              margin-bottom: 10px;
+              text-align: center;
+            "
+          >
+            Week View
+          </div>
+          <x-import
+            component-from-global-scope="IOSDevice"
+            from="./ios-frame.jsx"
+            hint-size="402,874"
+          >
+            <div
+              style="
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                background: #fff7f1;
+                font-family: 'Inter', sans-serif;
+              "
+            >
+              <div
+                style="
+                  flex: none;
+                  padding: 64px 16px 10px 16px;
+                  background: #fff7f1;
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                "
+              >
+                <button
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                    padding: 6px 12px 6px 8px;
+                    border-radius: 18px;
+                    border: 1px solid #e4dcd6;
+                    background: #fffdf9;
+                    color: #675b54;
+                    font-family: 'Inter', sans-serif;
+                    font-weight: 600;
+                    font-size: 14px;
+                  "
+                  style-hover="border-color:#cf6139;color:#bb4717"
+                >
+                  <i class="ph ph-caret-left" style="font-size: 15px"></i>Home
+                </button>
+                <button
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                    padding: 6px 12px 6px 10px;
+                    border-radius: 18px;
+                    border: 1px solid #e4dcd6;
+                    background: #fffdf9;
+                    color: #675b54;
+                    font-family: 'Inter', sans-serif;
+                    font-weight: 600;
+                    font-size: 14px;
+                  "
+                  style-hover="border-color:#cf6139;color:#bb4717"
+                >
+                  <i class="ph ph-shopping-bag" style="font-size: 15px"></i>Groceries
+                </button>
+              </div>
+
+              <div style="flex: 1; overflow: auto; position: relative; background: #fff7f1">
+                <div
+                  style="
+                    display: grid;
+                    grid-template-columns: 92px repeat(7, 128px);
+                    width: max-content;
+                  "
+                >
+                  <div
+                    style="
+                      position: sticky;
+                      top: 0;
+                      z-index: 2;
+                      background: #fff7f1;
+                      border-bottom: 1px solid #e4dcd6;
+                      border-right: 1px solid #e4dcd6;
+                      height: 56px;
+                      box-sizing: border-box;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                    "
+                  >
+                    <span
+                      style="
+                        font-family: 'Inter', sans-serif;
+                        font-weight: 600;
+                        font-size: 10px;
+                        letter-spacing: 0.06em;
+                        color: #948577;
+                        text-transform: uppercase;
+                      "
+                      >Meals</span
+                    >
+                  </div>
+
+                  <sc-for list="{{ days }}" as="day" hint-placeholder-count="7">
+                    <div
+                      style="
+                        position: sticky;
+                        top: 0;
+                        z-index: 2;
+                        background: #fff7f1;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 4px;
+                        padding: 10px 4px;
+                        border-bottom: 1px solid #e4dcd6;
+                        border-right: 1px solid #e4dcd6;
+                        height: 56px;
+                        box-sizing: border-box;
+                        cursor: pointer;
+                      "
+                      style-hover="background:rgba(207,97,57,0.06)"
+                    >
+                      <div
+                        style="
+                          font-family: 'Inter', sans-serif;
+                          font-weight: 600;
+                          font-size: 11px;
+                          letter-spacing: 0.04em;
+                          color: #675b54;
+                        "
+                      >
+                        {{ day.label }}
+                      </div>
+                      <sc-if value="{{ day.isToday }}" hint-placeholder-val="{{ false }}">
+                        <div
+                          style="
+                            width: 26px;
+                            height: 26px;
+                            border-radius: 50%;
+                            background: #cf6139;
+                            color: #fff;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-family: 'Sora', sans-serif;
+                            font-weight: 700;
+                            font-size: 14px;
+                          "
+                        >
+                          {{ day.date }}
+                        </div>
+                      </sc-if>
+                      <sc-if value="{{ day.notToday }}" hint-placeholder-val="{{ true }}">
+                        <div
+                          style="
+                            font-family: 'Sora', sans-serif;
+                            font-weight: 600;
+                            font-size: 16px;
+                            color: #271d17;
+                          "
+                        >
+                          {{ day.date }}
+                        </div>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+
+                  <sc-for list="{{ mealRows }}" as="row" hint-placeholder-count="3">
+                    <div
+                      style="
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 6px;
+                        padding: 12px 6px;
+                        border-right: 1px solid #e4dcd6;
+                        border-bottom: 1px solid #e4dcd6;
+                        box-sizing: border-box;
+                      "
+                    >
+                      <div
+                        style="
+                          width: 28px;
+                          height: 28px;
+                          border-radius: 50%;
+                          background: rgba(207, 97, 57, 0.08);
+                          display: flex;
+                          align-items: center;
+                          justify-content: center;
+                        "
+                      >
+                        <i class="{{ row.iconClass }}" style="font-size: 14px; color: #cf6139"></i>
+                      </div>
+                      <span
+                        style="
+                          font-family: 'Inter', sans-serif;
+                          font-weight: 600;
+                          font-size: 12px;
+                          color: #675b54;
+                          text-align: center;
+                        "
+                        >{{ row.name }}</span
+                      >
+                    </div>
+                    <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="7">
+                      <div
+                        style="position:relative;display:flex;flex-direction:column;gap:6px;padding:8px;box-sizing:border-box;border-right:1px solid #e4dcd6;border-bottom:1px solid #e4dcd6;background:{{ cell.bg }}"
+                      >
+                        <sc-if value="{{ cell.hasWarning }}" hint-placeholder-val="{{ false }}">
+                          <div
+                            style="
+                              position: absolute;
+                              top: 4px;
+                              right: 4px;
+                              width: 16px;
+                              height: 16px;
+                              border-radius: 50%;
+                              background: #e3ae28;
+                              display: flex;
+                              align-items: center;
+                              justify-content: center;
+                              z-index: 1;
+                            "
+                          >
+                            <i class="ph ph-warning" style="font-size: 9px; color: #fff"></i>
+                          </div>
+                        </sc-if>
+                        <sc-if value="{{ cell.hasNote }}" hint-placeholder-val="{{ false }}">
+                          <div
+                            style="
+                              position: absolute;
+                              top: 4px;
+                              right: 4px;
+                              width: 16px;
+                              height: 16px;
+                              border-radius: 50%;
+                              background: #948577;
+                              display: flex;
+                              align-items: center;
+                              justify-content: center;
+                              z-index: 1;
+                            "
+                          >
+                            <i class="ph ph-note" style="font-size: 9px; color: #fff"></i>
+                          </div>
+                        </sc-if>
+                        <sc-for list="{{ cell.dishes }}" as="dish" hint-placeholder-count="1">
+                          <div
+                            style="
+                              display: flex;
+                              align-items: center;
+                              gap: 8px;
+                              background: #fffdf9;
+                              border: 1px solid #e4dcd6;
+                              border-radius: 8px;
+                              padding: 6px;
+                            "
+                          >
+                            <div
+                              style="
+                                width: 32px;
+                                height: 32px;
+                                border-radius: 7px;
+                                flex-shrink: 0;
+                                background: repeating-linear-gradient(
+                                  135deg,
+                                  #f0e6dc,
+                                  #f0e6dc 4px,
+                                  #e6ded7 4px,
+                                  #e6ded7 8px
+                                );
+                              "
+                            ></div>
+                            <span
+                              style="
+                                font-family: 'Inter', sans-serif;
+                                font-weight: 500;
+                                font-size: 13px;
+                                line-height: 1.3;
+                                color: #271d17;
+                              "
+                              >{{ dish }}</span
+                            >
+                          </div>
+                        </sc-for>
+                        <sc-if value="{{ cell.isEmpty }}" hint-placeholder-val="{{ false }}">
+                          <div
+                            style="
+                              border: 1.5px dashed #e4dcd6;
+                              border-radius: 8px;
+                              min-height: 40px;
+                              display: flex;
+                              align-items: center;
+                              justify-content: center;
+                              gap: 4px;
+                              color: #948577;
+                              font-family: 'Inter', sans-serif;
+                              font-weight: 500;
+                              font-size: 13px;
+                            "
+                            style-hover="background:rgba(207,97,57,0.06);border-color:#cf6139;color:#bb4717"
+                          >
+                            <i class="ph ph-plus" style="font-size: 12px"></i>Add
+                          </div>
+                        </sc-if>
+                      </div>
+                    </sc-for>
+                  </sc-for>
+                </div>
+              </div>
+
+              <div
+                style="
+                  flex: none;
+                  padding: 12px 16px 42px 16px;
+                  background: #fff7f1;
+                  border-top: 1px solid #e4dcd6;
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  gap: 8px;
+                "
+              >
+                <button
+                  style="width:36px;height:36px;border-radius:50%;border:1px solid #e4dcd6;background:#fffdf9;display:flex;align-items:center;justify-content:center;color:#675b54;flex-shrink:0;opacity:{{ prevOpacity }}"
+                  style-hover="border-color:#cf6139;color:#bb4717"
+                  onClick="{{ goPrev }}"
+                >
+                  <i class="ph ph-caret-left" style="font-size: 16px"></i>
+                </button>
+                <div style="text-align: center; flex: 1; min-width: 0">
+                  <div
+                    style="
+                      font-family: 'Sora', sans-serif;
+                      font-weight: 700;
+                      font-size: 18px;
+                      color: #271d17;
+                    "
+                  >
+                    {{ title }}
+                  </div>
+                  <div
+                    style="
+                      font-family: 'Inter', sans-serif;
+                      font-weight: 400;
+                      font-size: 13px;
+                      color: #675b54;
+                      margin-top: 2px;
+                    "
+                  >
+                    {{ subtitle }}
+                  </div>
+                </div>
+                <button
+                  style="width:36px;height:36px;border-radius:50%;border:1px solid #e4dcd6;background:#fffdf9;display:flex;align-items:center;justify-content:center;color:#675b54;flex-shrink:0;opacity:{{ nextOpacity }}"
+                  style-hover="border-color:#cf6139;color:#bb4717"
+                  onClick="{{ goNext }}"
+                >
+                  <i class="ph ph-caret-right" style="font-size: 16px"></i>
+                </button>
+              </div>
+            </div>
+          </x-import>
+        </div>
+
+        <div>
+          <div
+            style="
+              font-family: 'Inter', sans-serif;
+              font-weight: 600;
+              font-size: 12px;
+              letter-spacing: 0.06em;
+              text-transform: uppercase;
+              color: #948577;
+              margin-bottom: 10px;
+              text-align: center;
+            "
+          >
+            Day View
+          </div>
+          <x-import
+            component-from-global-scope="IOSDevice"
+            from="./ios-frame.jsx"
+            hint-size="402,874"
+          >
+            <div
+              style="
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                background: #fff7f1;
+                font-family: 'Inter', sans-serif;
+              "
+            >
+              <div
+                style="
+                  flex: none;
+                  padding: 64px 16px 10px 16px;
+                  background: #fff7f1;
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                "
+              >
+                <button
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                    padding: 6px 12px 6px 8px;
+                    border-radius: 18px;
+                    border: 1px solid #e4dcd6;
+                    background: #fffdf9;
+                    color: #675b54;
+                    font-family: 'Inter', sans-serif;
+                    font-weight: 600;
+                    font-size: 14px;
+                  "
+                  style-hover="border-color:#cf6139;color:#bb4717"
+                >
+                  <i class="ph ph-caret-left" style="font-size: 15px"></i>Week
+                </button>
+                <button
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                    padding: 6px 12px 6px 10px;
+                    border-radius: 18px;
+                    border: 1px solid #e4dcd6;
+                    background: #fffdf9;
+                    color: #675b54;
+                    font-family: 'Inter', sans-serif;
+                    font-weight: 600;
+                    font-size: 14px;
+                  "
+                  style-hover="border-color:#cf6139;color:#bb4717"
+                >
+                  <i class="ph ph-shopping-bag" style="font-size: 15px"></i>Generate
+                </button>
+              </div>
+
+              <div
+                style="
+                  flex: 1;
+                  overflow: auto;
+                  padding: 14px 16px 24px 16px;
+                  display: flex;
+                  flex-direction: column;
+                  gap: 14px;
+                "
+              >
+                <sc-for list="{{ dayMeals }}" as="meal" hint-placeholder-count="3">
+                  <sc-if value="{{ meal.isEmptyPlain }}" hint-placeholder-val="{{ false }}">
+                    <div
+                      style="
+                        border: 1.5px dashed #e4dcd6;
+                        border-radius: 12px;
+                        padding: 22px;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        gap: 8px;
+                      "
+                    >
+                      <div
+                        style="
+                          width: 32px;
+                          height: 32px;
+                          border-radius: 50%;
+                          background: rgba(207, 97, 57, 0.08);
+                          display: flex;
+                          align-items: center;
+                          justify-content: center;
+                        "
+                      >
+                        <i class="{{ meal.iconClass }}" style="font-size: 16px; color: #cf6139"></i>
+                      </div>
+                      <span
+                        style="
+                          font-family: 'Inter', sans-serif;
+                          font-weight: 600;
+                          font-size: 14px;
+                          color: #675b54;
+                        "
+                        >{{ meal.name }}</span
+                      >
+                      <div
+                        style="
+                          display: flex;
+                          align-items: center;
+                          gap: 4px;
+                          color: #948577;
+                          font-family: 'Inter', sans-serif;
+                          font-weight: 500;
+                          font-size: 13px;
+                        "
+                        style-hover="color:#bb4717"
+                      >
+                        <i class="ph ph-plus" style="font-size: 12px"></i>Plan {{ meal.name }}
+                      </div>
+                    </div>
+                  </sc-if>
+
+                  <sc-if value="{{ meal.isEmptyWarning }}" hint-placeholder-val="{{ false }}">
+                    <div style="display: flex; flex-direction: column; gap: 8px">
+                      <div
+                        style="
+                          background: rgba(227, 174, 40, 0.08);
+                          border: 1px solid rgba(227, 174, 40, 0.4);
+                          border-radius: 12px;
+                          padding: 14px;
+                          display: flex;
+                          flex-direction: column;
+                          gap: 8px;
+                        "
+                      >
+                        <div style="display: flex; align-items: center; gap: 8px">
+                          <i class="ph ph-warning" style="font-size: 15px; color: #c4900f"></i>
+                          <span
+                            style="
+                              font-family: 'Inter', sans-serif;
+                              font-weight: 600;
+                              font-size: 14px;
+                              color: #271d17;
+                            "
+                            >{{ meal.name }}</span
+                          >
+                        </div>
+                        <div
+                          style="
+                            font-family: 'Inter', sans-serif;
+                            font-weight: 400;
+                            font-size: 13px;
+                            color: #675b54;
+                            line-height: 1.5;
+                          "
+                        >
+                          {{ meal.warningText }}
+                        </div>
+                        <div
+                          style="
+                            display: flex;
+                            align-items: center;
+                            gap: 4px;
+                            color: #a9780a;
+                            font-family: 'Inter', sans-serif;
+                            font-weight: 600;
+                            font-size: 13px;
+                          "
+                          style-hover="color:#8a6108"
+                        >
+                          <i class="ph ph-plus" style="font-size: 12px"></i>Add to {{ meal.name }}
+                        </div>
+                      </div>
+                      <div
+                        style="
+                          border: 1.5px dashed #e4dcd6;
+                          border-radius: 12px;
+                          padding: 12px;
+                          display: flex;
+                          align-items: center;
+                          justify-content: center;
+                          gap: 4px;
+                          color: #948577;
+                          font-family: 'Inter', sans-serif;
+                          font-weight: 500;
+                          font-size: 13px;
+                        "
+                        style-hover="color:#bb4717;border-color:#cf6139"
+                      >
+                        <i class="ph ph-plus" style="font-size: 12px"></i>Plan {{ meal.name }}
+                        instead
+                      </div>
+                    </div>
+                  </sc-if>
+
+                  <sc-if value="{{ meal.isFilled }}" hint-placeholder-val="{{ false }}">
+                    <div
+                      style="
+                        background: #fffdf9;
+                        border: 1px solid #e4dcd6;
+                        border-radius: 12px;
+                        padding: 12px;
+                      "
+                    >
+                      <div
+                        style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px"
+                      >
+                        <div
+                          style="
+                            width: 26px;
+                            height: 26px;
+                            border-radius: 50%;
+                            background: rgba(207, 97, 57, 0.08);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            flex-shrink: 0;
+                          "
+                        >
+                          <i
+                            class="{{ meal.iconClass }}"
+                            style="font-size: 13px; color: #cf6139"
+                          ></i>
+                        </div>
+                        <span
+                          style="
+                            font-family: 'Sora', sans-serif;
+                            font-weight: 600;
+                            font-size: 16px;
+                            color: #271d17;
+                            flex: 1;
+                          "
+                          >{{ meal.name }}</span
+                        >
+                        <div
+                          style="
+                            display: flex;
+                            align-items: center;
+                            gap: 4px;
+                            color: #948577;
+                            cursor: pointer;
+                          "
+                          style-hover="color:#bb4717"
+                        >
+                          <i class="ph ph-pencil-simple" style="font-size: 14px"></i
+                          ><span
+                            style="
+                              font-family: 'Inter', sans-serif;
+                              font-weight: 500;
+                              font-size: 13px;
+                            "
+                            >Edit</span
+                          >
+                        </div>
+                      </div>
+                      <sc-if value="{{ meal.hasNote }}" hint-placeholder-val="{{ false }}">
+                        <div
+                          style="
+                            display: flex;
+                            align-items: flex-start;
+                            gap: 6px;
+                            background: #f4ede7;
+                            border-radius: 8px;
+                            padding: 8px 10px;
+                            margin-bottom: 10px;
+                          "
+                        >
+                          <i
+                            class="ph ph-note"
+                            style="font-size: 14px; color: #948577; margin-top: 1px; flex-shrink: 0"
+                          ></i>
+                          <span
+                            style="
+                              font-family: 'Inter', sans-serif;
+                              font-weight: 400;
+                              font-size: 12.5px;
+                              color: #675b54;
+                              line-height: 1.4;
+                            "
+                            >{{ meal.noteText }}</span
+                          >
+                        </div>
+                      </sc-if>
+                      <div style="display: flex; flex-direction: column; gap: 8px">
+                        <sc-for list="{{ meal.dishes }}" as="dish" hint-placeholder-count="2">
+                          <div style="display: flex; align-items: center; gap: 10px">
+                            <div
+                              style="
+                                width: 52px;
+                                height: 52px;
+                                border-radius: 8px;
+                                flex-shrink: 0;
+                                background: repeating-linear-gradient(
+                                  135deg,
+                                  #f0e6dc,
+                                  #f0e6dc 5px,
+                                  #e6ded7 5px,
+                                  #e6ded7 10px
+                                );
+                              "
+                            ></div>
+                            <span
+                              style="
+                                font-family: 'Inter', sans-serif;
+                                font-weight: 500;
+                                font-size: 14px;
+                                color: #271d17;
+                                flex: 1;
+                                line-height: 1.3;
+                              "
+                              >{{ dish }}</span
+                            >
+                            <div
+                              style="color: #948577; cursor: pointer; flex-shrink: 0"
+                              style-hover="color:#bb4717"
+                            >
+                              <i class="ph ph-book-open" style="font-size: 17px"></i>
+                            </div>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </div>
+                  </sc-if>
+                </sc-for>
+              </div>
+
+              <div
+                style="
+                  flex: none;
+                  padding: 12px 16px 42px 16px;
+                  background: #fff7f1;
+                  border-top: 1px solid #e4dcd6;
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  gap: 8px;
+                "
+              >
+                <button
+                  style="width:36px;height:36px;border-radius:50%;border:1px solid #e4dcd6;background:#fffdf9;display:flex;align-items:center;justify-content:center;color:#675b54;flex-shrink:0;opacity:{{ prevDayOpacity }}"
+                  style-hover="border-color:#cf6139;color:#bb4717"
+                  onClick="{{ goPrevDay }}"
+                >
+                  <i class="ph ph-caret-left" style="font-size: 16px"></i>
+                </button>
+                <div style="text-align: center; flex: 1; min-width: 0">
+                  <div
+                    style="
+                      font-family: 'Sora', sans-serif;
+                      font-weight: 700;
+                      font-size: 18px;
+                      color: #271d17;
+                    "
+                  >
+                    {{ dayTitle }}
+                  </div>
+                  <div
+                    style="
+                      font-family: 'Inter', sans-serif;
+                      font-weight: 400;
+                      font-size: 13px;
+                      color: #675b54;
+                      margin-top: 2px;
+                    "
+                  >
+                    {{ daySubtitle }}
+                  </div>
+                </div>
+                <button
+                  style="width:36px;height:36px;border-radius:50%;border:1px solid #e4dcd6;background:#fffdf9;display:flex;align-items:center;justify-content:center;color:#675b54;flex-shrink:0;opacity:{{ nextDayOpacity }}"
+                  style-hover="border-color:#cf6139;color:#bb4717"
+                  onClick="{{ goNextDay }}"
+                >
+                  <i class="ph ph-caret-right" style="font-size: 16px"></i>
+                </button>
+              </div>
+            </div>
+          </x-import>
+        </div>
+      </div>
+      <template id="__bundler_thumbnail"
+        ><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+          <rect width="100" height="100" fill="#fff7f1" />
+          <rect x="10" y="20" width="80" height="14" rx="4" fill="#e4dcd6" />
+          <rect x="10" y="42" width="35" height="10" rx="3" fill="#cf6139" />
+          <rect x="10" y="58" width="80" height="10" rx="3" fill="#e4dcd6" /></svg
+      ></template>
+    </x-dc>
+    <script type="text/x-dc" data-dc-script>
+      const ICONS = { Breakfast: 'ph ph-sun-horizon', Lunch: 'ph ph-bowl-food', Dinner: 'ph ph-moon-stars' };
+
+      const WEEKS = [
+        {
+          title: 'Last Week', subtitle: 'Sep 7 – 13, 2026',
+          dates: [7, 8, 9, 10, 11, 12, 13], todayIdx: -1,
+          plan: {
+            Breakfast: { mon: ['Smoothie bowl'], tue: [], wed: ['Bagel & cream cheese'], thu: ['Oatmeal'], fri: ['Yogurt & granola'], sat: ['Waffles'], sun: [] },
+            Lunch: { mon: ['Chicken Caesar wrap'], tue: ['Veggie burger'], wed: [], thu: ['Sushi bowl'], fri: ['Grilled cheese & soup'], sat: [], sun: ['Pasta salad'] },
+            Dinner: { mon: ['Beef stir-fry', 'Jasmine rice'], tue: ['Baked ziti'], wed: ['Fish tacos', 'Slaw'], thu: [], fri: ['Pork chops', 'Roasted veg'], sat: ['Ramen'], sun: ['Sunday roast', 'Yorkshire pudding'] },
+          },
+        },
+        {
+          title: 'This Week', subtitle: 'Sep 14 – 20, 2026',
+          dates: [14, 15, 16, 17, 18, 19, 20], todayIdx: 4,
+          plan: {
+            Breakfast: { mon: ['Oatmeal with blueberries'], tue: ['Greek yogurt parfait'], wed: [], thu: ['Scrambled eggs', 'Whole-wheat toast'], fri: ['Avocado toast'], sat: ['Pancakes'], sun: [] },
+            Lunch: { mon: ['Turkey & avocado wrap'], tue: [], wed: ['Lentil soup', 'Sourdough toast'], thu: ['Caesar salad'], fri: ['Leftover stir-fry'], sat: [], sun: ['Roast chicken', 'Green beans', 'Mashed potatoes'] },
+            Dinner: { mon: ['Grilled salmon', 'Steamed rice', 'Sautéed greens'], tue: ['Chicken stir-fry', 'Brown rice'], wed: ['Veggie tacos'], thu: [], fri: ['Baked cod', 'Roasted potatoes'], sat: ['Homemade pizza'], sun: ['Soup & bread'] },
+          },
+        },
+        {
+          title: 'Next Week', subtitle: 'Sep 21 – 27, 2026',
+          dates: [21, 22, 23, 24, 25, 26, 27], todayIdx: -1,
+          plan: {
+            Breakfast: { mon: ['Chia pudding'], tue: ['Banana bread'], wed: [], thu: ['Egg muffins'], fri: ['Smoothie'], sat: [], sun: ['French toast'] },
+            Lunch: { mon: [], tue: ['Quinoa bowl'], wed: ['Falafel wrap'], thu: ['Minestrone'], fri: [], sat: ['BLT sandwich'], sun: ['Grilled veggie panini'] },
+            Dinner: { mon: ['Shrimp scampi', 'Linguine'], tue: ['Beef chili'], wed: [], thu: ['Teriyaki salmon', 'Rice'], fri: ['Margherita pizza'], sat: ['Tacos al pastor'], sun: ['Roast turkey', 'Stuffing'] },
+          },
+        },
+      ];
+
+      const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+      const DAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
+      const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+      // Per-day plans for the day view — sourced from "This Week", Wednesday expanded to show several dishes.
+      const THIS_WEEK_PLAN = WEEKS[1].plan;
+      const DAY_PLANS = DAY_KEYS.map((key, i) => {
+        const meals = {
+          Breakfast: THIS_WEEK_PLAN.Breakfast[key] || [],
+          Lunch: THIS_WEEK_PLAN.Lunch[key] || [],
+          Dinner: THIS_WEEK_PLAN.Dinner[key] || [],
+        };
+        if (key === 'wed') {
+          meals.Lunch = ['Lentil soup', 'Sourdough toast', 'Side salad'];
+          meals.Dinner = ['Veggie tacos', 'Cilantro-lime rice', 'Black beans'];
+        }
+        const warnings = key === 'wed' ? { Breakfast: '2 servings of roasted potatoes are left over from Monday dinner — only 2 of 4 were used.' } : {};
+        const notes = key === 'wed' ? { Lunch: 'You planned rice for today, but had it Tuesday instead.' } : {};
+        return { title: DAY_NAMES[i], subtitle: `Sep ${WEEKS[1].dates[i]}, 2026`, meals, warnings, notes };
+      });
+
+      class Component extends DCLogic {
+        state = { weekIndex: 1, dayIndex: 2 };
+
+        renderVals() {
+          const w = WEEKS[this.state.weekIndex];
+          const days = DAY_KEYS.map((key, i) => {
+            const isToday = i === w.todayIdx;
+            return { key, label: DAY_LABELS[i], date: w.dates[i], isToday, notToday: !isToday };
+          });
+
+          const mealRows = Object.keys(w.plan).map(mealName => ({
+            name: mealName,
+            iconClass: ICONS[mealName],
+            cells: days.map(d => {
+              const dishes = w.plan[mealName][d.key] || [];
+              const isThisWeek = this.state.weekIndex === 1;
+              const hasWarning = isThisWeek && mealName === 'Breakfast' && d.key === 'wed';
+              const hasNote = isThisWeek && mealName === 'Lunch' && d.key === 'wed';
+              return { dishes, isEmpty: dishes.length === 0, bg: d.isToday ? 'rgba(207,97,57,0.06)' : '#fff7f1', hasWarning, hasNote };
+            }),
+          }));
+
+          const dv = DAY_PLANS[this.state.dayIndex];
+          const dayMeals = Object.keys(dv.meals).map(mealName => {
+            const dishes = dv.meals[mealName];
+            const isEmpty = dishes.length === 0;
+            const warningText = dv.warnings[mealName] || null;
+            const noteText = dv.notes[mealName] || null;
+            return {
+              name: mealName,
+              iconClass: ICONS[mealName],
+              dishes,
+              isEmptyPlain: isEmpty && !warningText,
+              isEmptyWarning: isEmpty && !!warningText,
+              isFilled: !isEmpty,
+              warningText, hasNote: !!noteText, noteText,
+            };
+          });
+
+          return {
+            days, mealRows, title: w.title, subtitle: w.subtitle,
+            prevOpacity: this.state.weekIndex === 0 ? 0.35 : 1,
+            nextOpacity: this.state.weekIndex === WEEKS.length - 1 ? 0.35 : 1,
+            goPrev: () => this.setState(s => ({ weekIndex: Math.max(0, s.weekIndex - 1) })),
+            goNext: () => this.setState(s => ({ weekIndex: Math.min(WEEKS.length - 1, s.weekIndex + 1) })),
+            dayTitle: dv.title, daySubtitle: dv.subtitle, dayMeals,
+            prevDayOpacity: this.state.dayIndex === 0 ? 0.35 : 1,
+            nextDayOpacity: this.state.dayIndex === DAY_PLANS.length - 1 ? 0.35 : 1,
+            goPrevDay: () => this.setState(s => ({ dayIndex: Math.max(0, s.dayIndex - 1) })),
+            goNextDay: () => this.setState(s => ({ dayIndex: Math.min(DAY_PLANS.length - 1, s.dayIndex + 1) })),
+          };
+        }
+      }
+    </script>
+  </body>
+</html>

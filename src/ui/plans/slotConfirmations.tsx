@@ -17,7 +17,7 @@ export async function confirmClearSlot(
 ): Promise<void> {
   const shared = await planService.listSharedDependentsForSlot(slotId)
   if (!shared.ok) {
-    notifications.show({ message: planErrorMessage(t, shared.error), color: 'red' })
+    notifications.show({ message: planErrorMessage(t, shared.error), color: 'error' })
     return
   }
 
@@ -26,11 +26,11 @@ export async function confirmClearSlot(
       title: t('confirm.clearMeal'),
       children: <Text size="sm">{t('confirm.clearMealBody')}</Text>,
       labels: { confirm: t('action.clear'), cancel: t('action.cancel') },
-      confirmProps: { color: 'red' },
+      confirmProps: { color: 'error' },
       onConfirm: () => {
         void planService.clearSlot(slotId).then((result) => {
           if (!result.ok) {
-            notifications.show({ message: t('error.clearSlot'), color: 'red' })
+            notifications.show({ message: t('error.clearSlot'), color: 'error' })
           }
         })
       },
@@ -60,7 +60,7 @@ export async function confirmClearSlot(
             modals.closeAll()
             void planService.clearSlot(slotId).then((result) => {
               if (!result.ok) {
-                notifications.show({ message: t('error.clearSlot'), color: 'red' })
+                notifications.show({ message: t('error.clearSlot'), color: 'error' })
               }
             })
           }}
@@ -68,7 +68,7 @@ export async function confirmClearSlot(
           {t('confirm.clearThisOnly')}
         </Button>
         <Button
-          color="red"
+          color="error"
           variant="light"
           onClick={() => {
             modals.closeAll()
@@ -97,14 +97,14 @@ export async function confirmExcludeSlot(
 ): Promise<void> {
   const shared = await planService.listSharedDependentsForSlot(slotId)
   if (!shared.ok) {
-    notifications.show({ message: planErrorMessage(t, shared.error), color: 'red' })
+    notifications.show({ message: planErrorMessage(t, shared.error), color: 'error' })
     return
   }
 
   const runExclude = () => {
     void planService.setSlotExcluded(slotId, true).then((result) => {
       if (!result.ok) {
-        notifications.show({ message: t('error.excludeSlot'), color: 'red' })
+        notifications.show({ message: t('error.excludeSlot'), color: 'error' })
       }
     })
   }
@@ -114,7 +114,7 @@ export async function confirmExcludeSlot(
       title: t('confirm.excludeMeal'),
       children: <Text size="sm">{t('confirm.excludeMealBody')}</Text>,
       labels: { confirm: t('confirm.exclude'), cancel: t('action.cancel') },
-      confirmProps: { color: 'red' },
+      confirmProps: { color: 'error' },
       onConfirm: runExclude,
     })
     return
@@ -146,7 +146,7 @@ export async function confirmExcludeSlot(
           {t('confirm.excludeThisOnly')}
         </Button>
         <Button
-          color="red"
+          color="error"
           variant="light"
           onClick={() => {
             modals.closeAll()

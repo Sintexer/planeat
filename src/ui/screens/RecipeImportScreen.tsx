@@ -10,7 +10,7 @@ import {
 } from '@mantine/core'
 import { Dropzone } from '@mantine/dropzone'
 import { notifications } from '@mantine/notifications'
-import { IconUpload } from '@tabler/icons-react'
+import { UploadSimple } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useServices } from '../../app/servicesContext'
@@ -51,7 +51,7 @@ export function RecipeImportScreen() {
     if (!result.ok) {
       const message = importErrorCopy(t, result.error)
       setError(message)
-      notifications.show({ message, color: 'red' })
+      notifications.show({ message, color: 'error' })
       return
     }
     if (result.candidates.length === 1) {
@@ -72,7 +72,7 @@ export function RecipeImportScreen() {
       setPaste(text)
       runExtract(text)
     } catch {
-      notifications.show({ message: t('import.readFailed'), color: 'red' })
+      notifications.show({ message: t('import.readFailed'), color: 'error' })
     } finally {
       setBusy(false)
     }
@@ -107,7 +107,7 @@ export function RecipeImportScreen() {
         loading={busy}
       >
         <Group justify="center" gap="sm" mih={80} style={{ pointerEvents: 'none' }}>
-          <IconUpload size={20} />
+          <UploadSimple size={20} />
           <Text size="sm">{t('import.dropFile')}</Text>
         </Group>
       </Dropzone>
@@ -131,7 +131,7 @@ export function RecipeImportScreen() {
       </Group>
 
       {error && (
-        <Alert color="red" title={t('import.failedTitle')}>
+        <Alert color="error" title={t('import.failedTitle')}>
           {error}
         </Alert>
       )}
@@ -145,7 +145,7 @@ export function RecipeImportScreen() {
               onClick={() => openCandidate(candidate)}
               p="sm"
               style={{
-                border: '1px solid var(--mantine-color-gray-3)',
+                border: '1px solid var(--mantine-color-default-border)',
                 borderRadius: 8,
                 textAlign: 'left',
               }}

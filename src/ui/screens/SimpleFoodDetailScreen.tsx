@@ -187,14 +187,14 @@ export function SimpleFoodDetailScreen() {
       title: t('foods.deleteTitle'),
       children: <Text>{t('foods.deleteBodyLong', { name: food.name })}</Text>,
       labels: { confirm: t('action.delete'), cancel: t('action.cancel') },
-      confirmProps: { color: 'red' },
+      confirmProps: { color: 'error' },
       onConfirm: async () => {
         const result = await simpleFoodService.deleteSimpleFood(food.id)
         if (!result.ok) {
-          notifications.show({ message: t('foods.notFound'), color: 'red' })
+          notifications.show({ message: t('foods.notFound'), color: 'error' })
           return
         }
-        notifications.show({ message: t('foods.deleted'), color: 'green' })
+        notifications.show({ message: t('foods.deleted'), color: 'success' })
         navigate('/recipes')
       },
     })
@@ -206,7 +206,7 @@ export function SimpleFoodDetailScreen() {
         title={food.name}
         fallbackTo="/recipes"
         actions={
-          <Button color="red" variant="subtle" onClick={handleDelete}>
+          <Button color="error" variant="subtle" onClick={handleDelete}>
             {t('action.delete')}
           </Button>
         }

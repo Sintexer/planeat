@@ -12,7 +12,7 @@ import {
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
-import { IconTrash } from '@tabler/icons-react'
+import { Trash } from '@phosphor-icons/react'
 import { useServices } from '../../app/servicesContext'
 import { resolveIngredientLabel } from '../../domain/ingredients/Ingredient'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
@@ -58,7 +58,7 @@ export function SimpleFoodsScreen() {
       t,
     )
     if (!ingredient) {
-      notifications.show({ message: t('editor.resolveNameFailed'), color: 'red' })
+      notifications.show({ message: t('editor.resolveNameFailed'), color: 'error' })
       return
     }
 
@@ -77,13 +77,13 @@ export function SimpleFoodsScreen() {
     if (!result.ok) {
       notifications.show({
         message: t('foods.createFailed', { error: result.error }),
-        color: 'red',
+        color: 'error',
       })
       return
     }
 
     form.reset()
-    notifications.show({ message: t('foods.added'), color: 'green' })
+    notifications.show({ message: t('foods.added'), color: 'success' })
   })
 
   const handleDelete = (simpleFood: SimpleFood) => {
@@ -91,14 +91,14 @@ export function SimpleFoodsScreen() {
       title: t('foods.deleteTitle'),
       children: <Text>{t('foods.deleteBodyLong', { name: simpleFood.name })}</Text>,
       labels: { confirm: t('action.delete'), cancel: t('action.cancel') },
-      confirmProps: { color: 'red' },
+      confirmProps: { color: 'error' },
       onConfirm: async () => {
         const result = await simpleFoodService.deleteSimpleFood(simpleFood.id)
         if (!result.ok) {
-          notifications.show({ message: t('foods.notFound'), color: 'red' })
+          notifications.show({ message: t('foods.notFound'), color: 'error' })
           return
         }
-        notifications.show({ message: t('foods.deleted'), color: 'green' })
+        notifications.show({ message: t('foods.deleted'), color: 'success' })
       },
     })
   }
@@ -163,11 +163,11 @@ export function SimpleFoodsScreen() {
               </div>
               <ActionIcon
                 variant="subtle"
-                color="red"
+                color="error"
                 aria-label={t('foods.deleteNamed', { name: simpleFood.name })}
                 onClick={() => handleDelete(simpleFood)}
               >
-                <IconTrash size={18} />
+                <Trash size={18} />
               </ActionIcon>
             </Group>
           </Card>

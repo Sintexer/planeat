@@ -11,13 +11,14 @@ import {
   Paper,
 } from '@mantine/core'
 import {
-  IconAlertTriangle,
-  IconCalendar,
-  IconChevronDown,
-  IconChevronLeft,
-  IconChevronRight,
-  IconChevronUp,
-} from '@tabler/icons-react'
+  Calendar,
+  CaretDown,
+  CaretLeft,
+  CaretRight,
+  CaretUp,
+  ShoppingBag,
+  Warning,
+} from '@phosphor-icons/react'
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import { useEffect, useMemo, useState } from 'react'
@@ -55,7 +56,9 @@ import { useRecipes } from '../hooks/useRecipes'
 import { useSettings } from '../hooks/useSettings'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
 import { confirmClearSlot, confirmExcludeSlot } from '../plans/slotConfirmations'
-import { buildSlotDisplays, type SlotDisplay } from '../plans/slotDisplay'
+import { PlanWeekGrid } from '../plans/PlanWeekGrid'
+import { buildSlotDisplays, groupDisplaysByDate, type SlotDisplay } from '../plans/slotDisplay'
+import type { Quantity } from '../../domain/shared/Quantity'
 
 function shortWeekday(date: LocalDate, locale: string): string {
   const [y, m, d] = date.split('-').map(Number)
@@ -99,7 +102,7 @@ export function PlanScreen() {
     if (routePlanId || !weekStartFromSettings || fromStartDate !== null) return
     void planService.getOrCreatePlanForWeek(weekStartFromSettings).then((result) => {
       if (!result.ok) {
-        notifications.show({ message: t('plan.createFailed'), color: 'red' })
+        notifications.show({ message: t('plan.createFailed'), color: 'error' })
       }
     })
   }, [routePlanId, weekStartFromSettings, fromStartDate, planService, t])
@@ -109,6 +112,7 @@ export function PlanScreen() {
     ? fromRoute === undefined
     : settings === undefined || fromStartDate === undefined || fromStartDate === null
 
+  const [viewMode, setViewMode] = useState<'week' | 'day'>(() => (dateQuery ? 'day' : 'week'))
   const [dayOverride, setDayOverride] = useState<LocalDate | undefined>(undefined)
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [calendarMonth, setCalendarMonth] = useState<{ year: number; month: number }>(() =>
@@ -158,9 +162,16 @@ export function PlanScreen() {
     return defaultSelectedDay(graph.plan.startDate, today)
   }, [graph, dayOverride, weekDates, today, dateQuery])
 
+  const weekDisplays = useMemo(
+    () => (graph ? buildSlotDisplays(graph, simpleFoodsById, undefined, recipesById) : []),
+    [graph, simpleFoodsById, recipesById],
+  )
+
+  const displaysByDate = useMemo(() => groupDisplaysByDate(weekDisplays), [weekDisplays])
+
   const dayDisplays = useMemo(
-    () => (graph ? buildSlotDisplays(graph, simpleFoodsById, activeDay, recipesById) : []),
-    [graph, simpleFoodsById, activeDay, recipesById],
+    () => displaysByDate.get(activeDay) ?? [],
+    [displaysByDate, activeDay],
   )
 
   const displaysByMeal = useMemo(() => {
@@ -176,13 +187,27 @@ export function PlanScreen() {
 
   const [editorSlot, setEditorSlot] = useState<MealSlot | undefined>(undefined)
   const editorDisplay = editorSlot
-    ? dayDisplays.find((d) => d.slot.id === editorSlot.id)
+    ? weekDisplays.find((d) => d.slot.id === editorSlot.id)
     : undefined
+
+  const remainingByEventId = useMemo(() => {
+    const map = new Map<string, Quantity | null>()
+    if (!graph) return map
+    for (const event of graph.cookingEvents) {
+      map.set(event.id, planService.remainingForCookingEvent(graph, event.id))
+    }
+    return map
+  }, [graph, planService])
+
+  const openDay = (date: LocalDate) => {
+    setDayOverride(date)
+    setViewMode('day')
+  }
 
   const openWeek = async (weekStart: LocalDate) => {
     const result = await planService.getOrCreatePlanForWeek(weekStart)
     if (!result.ok) {
-      notifications.show({ message: t('plan.openFailed'), color: 'red' })
+      notifications.show({ message: t('plan.openFailed'), color: 'error' })
       return
     }
     setCalendarOpen(false)
@@ -207,7 +232,7 @@ export function PlanScreen() {
   const handleUnexclude = async (slotId: string) => {
     const result = await planService.setSlotExcluded(slotId, false)
     if (!result.ok) {
-      notifications.show({ message: t('plan.unexcludeFailed'), color: 'red' })
+      notifications.show({ message: t('plan.unexcludeFailed'), color: 'error' })
     }
   }
 
@@ -217,11 +242,11 @@ export function PlanScreen() {
     if (!result.ok) {
       notifications.show({
         message: t('grocery.generateFailed', { error: result.error }),
-        color: 'red',
+        color: 'error',
       })
       return
     }
-    notifications.show({ message: t('grocery.created'), color: 'green' })
+    notifications.show({ message: t('grocery.created'), color: 'success' })
     navigate(`/lists/${result.list.id}`)
   }
 
@@ -230,11 +255,11 @@ export function PlanScreen() {
     if (!result.ok) {
       notifications.show({
         message: t('grocery.updateFailed', { error: result.error }),
-        color: 'red',
+        color: 'error',
       })
       return
     }
-    notifications.show({ message: t('grocery.updated'), color: 'green' })
+    notifications.show({ message: t('grocery.updated'), color: 'success' })
     navigate(`/lists/${result.list.id}`)
   }
 
@@ -251,7 +276,7 @@ export function PlanScreen() {
     if (!previewResult.ok) {
       notifications.show({
         message: `Could not preview list update (${previewResult.error})`,
-        color: 'red',
+        color: 'error',
       })
       return
     }
@@ -296,7 +321,7 @@ export function PlanScreen() {
   const endDate = addDays(graph.plan.startDate, 6)
   const thisWeekStart = startOfWeek(today, settings.weekStartDay)
   const isHistoryWeek = graph.plan.startDate < thisWeekStart
-  const accent = isHistoryWeek ? 'gray' : 'green'
+  const accent = isHistoryWeek ? 'gray' : 'primary'
   const units = effortUnitsForDate(graph, activeDay)
   const prepLabel = units > 0 ? t('plan.prepUnits', { units: formatEffortUnits(units) }) : null
   const dayEvents = cookingEventsOnDate(graph, activeDay)
@@ -322,19 +347,56 @@ export function PlanScreen() {
       .map((row) => row.id),
   )
 
+  const groceryAction = (
+    <Button
+      variant="default"
+      radius="xl"
+      size="compact-sm"
+      leftSection={<ShoppingBag size={15} />}
+      onClick={() => void handleGenerateGroceries()}
+    >
+      {t('grocery.generate')}
+    </Button>
+  )
+
   return (
     <Stack gap="lg">
-      <PageTitle
-        actions={
-          isHistoryWeek ? (
-            <Badge color="gray" variant="light" radius="xl">
-              {t('week.history')}
-            </Badge>
-          ) : undefined
-        }
-      >
-        Plan
-      </PageTitle>
+      {viewMode === 'week' ? (
+        <PageTitle
+          actions={
+            <Group gap="xs" wrap="nowrap">
+              {isHistoryWeek ? (
+                <Badge color="gray" variant="light" radius="xl">
+                  {t('week.history')}
+                </Badge>
+              ) : null}
+              {groceryAction}
+            </Group>
+          }
+        >
+          {t('plan.title')}
+        </PageTitle>
+      ) : (
+        <Group justify="space-between" align="center" wrap="nowrap">
+          <Button
+            variant="default"
+            radius="xl"
+            size="compact-sm"
+            leftSection={<CaretLeft size={15} />}
+            onClick={() => setViewMode('week')}
+          >
+            {t('plan.backToWeek')}
+          </Button>
+          <Group gap="xs" wrap="nowrap">
+            {isHistoryWeek ? (
+              <Badge color="gray" variant="light" radius="xl">
+                {t('week.history')}
+              </Badge>
+            ) : null}
+            {groceryAction}
+          </Group>
+        </Group>
+      )}
 
       <Group justify="space-between" align="center">
         <ActionIcon
@@ -344,7 +406,7 @@ export function PlanScreen() {
           aria-label={t('week.prev')}
           onClick={() => void goToAdjacentWeek(-1)}
         >
-          <IconChevronLeft size={18} />
+          <CaretLeft size={18} />
         </ActionIcon>
         <UnstyledButton
           onClick={toggleCalendar}
@@ -355,7 +417,7 @@ export function PlanScreen() {
           aria-label={t('week.calendar')}
         >
           <Group gap={6} justify="center">
-            <IconCalendar size={15} style={isHistoryWeek ? { opacity: 0.55 } : undefined} />
+            <Calendar size={15} style={isHistoryWeek ? { opacity: 0.55 } : undefined} />
             <Stack gap={0} align="center">
               <Text fw={600} size="sm" c={isHistoryWeek ? 'dimmed' : undefined}>
                 {label}
@@ -364,7 +426,7 @@ export function PlanScreen() {
                 {graph.plan.startDate} – {endDate} · {graph.plan.peopleCount} people
               </Text>
             </Stack>
-            {calendarOpen ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
+            {calendarOpen ? <CaretUp size={14} /> : <CaretDown size={14} />}
           </Group>
         </UnstyledButton>
         <ActionIcon
@@ -374,7 +436,7 @@ export function PlanScreen() {
           aria-label={t('week.nextNav')}
           onClick={() => void goToAdjacentWeek(1)}
         >
-          <IconChevronRight size={18} />
+          <CaretRight size={18} />
         </ActionIcon>
       </Group>
 
@@ -390,157 +452,165 @@ export function PlanScreen() {
         />
       )}
 
-      <Group gap={4} justify="space-between" wrap="nowrap">
-        {weekDates.map((date) => {
-          const active = date === activeDay
-          const isToday = date === today
-          const isPastDay = date < today
-          const planned = isDayPlanned(graph, date)
-          return (
-            <UnstyledButton
-              key={date}
-              onClick={() => setDayOverride(date)}
-              style={{ flex: 1, minWidth: 0 }}
-              aria-label={`${shortWeekday(date, bcp47)} ${dayNumber(date)}, ${planned ? t('plan.dayPlanned') : t('plan.dayEmpty')}`}
-            >
-              <Stack gap={6} align="center">
-                <Text
-                  size="xs"
-                  c={active || planned ? undefined : 'dimmed'}
-                  fw={active || planned ? 600 : 400}
-                  style={isHistoryWeek || isPastDay ? { opacity: 0.75 } : undefined}
-                >
-                  {shortWeekday(date, bcp47)}
-                </Text>
-                <Paper
-                  radius="xl"
-                  w={32}
-                  h={32}
-                  bg={
-                    active
-                      ? `${accent}.6`
-                      : planned
-                        ? `${accent}.1`
-                        : isToday
-                          ? `${accent}.0`
-                          : 'transparent'
-                  }
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: active
-                      ? undefined
-                      : planned
-                        ? `1.5px solid var(--mantine-color-${accent}-4)`
-                        : '1.5px dashed var(--mantine-color-default-border)',
-                  }}
-                >
-                  <Text
-                    size="sm"
-                    fw={600}
-                    c={
-                      active
-                        ? 'white'
-                        : planned
-                          ? undefined
-                          : isHistoryWeek || isPastDay
-                            ? 'dimmed'
-                            : 'dimmed'
-                    }
-                  >
-                    {dayNumber(date)}
-                  </Text>
-                </Paper>
-              </Stack>
-            </UnstyledButton>
-          )
-        })}
-      </Group>
-
-      {remainingThisWeek.length > 0 && (
-        <Group gap={6} wrap="wrap">
-          {remainingThisWeek.map((row) =>
-            row.carryoverRisk ? (
-              <Tooltip key={row.id} label={t('plan.sameDayTooltip')} multiline w={240}>
-                <Badge
-                  variant="light"
-                  color="red"
-                  radius="xl"
-                  size="sm"
-                  leftSection={<IconAlertTriangle size={12} />}
-                >
-                  {row.name} · {formatQty(row.remaining)} {t('quantity.left')} ·{' '}
-                  {t('plan.sameDayOnly')}
-                </Badge>
-              </Tooltip>
-            ) : (
-              <Badge key={row.id} variant="light" color={accent} radius="xl" size="sm">
-                {row.name} · {formatQty(row.remaining)} {t('quantity.remaining')}
-              </Badge>
-            ),
-          )}
-        </Group>
-      )}
-
-      <Stack
-        gap="lg"
-        style={
-          isHistoryWeek
-            ? { opacity: 0.78, filter: 'grayscale(0.4)', transition: 'opacity 120ms ease' }
-            : undefined
-        }
-      >
-        {prepLabel && (
-          <Text size="sm" c="dimmed">
-            {prepLabel}
-            {dayEvents.length > 0
-              ? ` · ${dayEvents.map((event) => event.recipeSnapshot.name).join(', ')}`
-              : ''}
-          </Text>
-        )}
-
-        <SoftPromptAlerts prompts={weekPrompts} />
-        <SoftPromptAlerts prompts={dayPrompts} omitDatePrefix />
-
-        {!isDayPlanned(graph, activeDay) && (
-          <Text size="sm" c="dimmed">
-            {t('slot.notPlanned')}
-          </Text>
-        )}
-
-        <Stack gap={22}>
-          {MEAL_TYPES.map((mealType) => {
-            const meals = displaysByMeal.get(mealType) ?? []
-            if (meals.length === 0) {
-              return (
-                <Text key={mealType} size="sm" c="dimmed">
-                  {t('slot.noSlot')}
-                </Text>
-              )
-            }
-            return meals.map((display) => (
-              <MealSlotCard
-                key={display.slot.id}
-                display={display}
-                wontCarryOverEventIds={wontCarryOverEventIds}
-                onOpen={() => setEditorSlot(display.slot)}
-                onClear={() => void confirmClearSlot(planService, display.slot.id, t)}
-                onExclude={() => void confirmExcludeSlot(planService, display.slot.id, t)}
-                onUnexclude={() => void handleUnexclude(display.slot.id)}
-              />
-            ))
-          })}
+      {viewMode === 'week' ? (
+        <Stack gap="md">
+          <SoftPromptAlerts prompts={weekPrompts} />
+          <PlanWeekGrid
+            weekDates={weekDates}
+            today={today}
+            displaysByDate={displaysByDate}
+            remainingByEventId={remainingByEventId}
+            onSelectDay={openDay}
+            onAddDish={(slot) => setEditorSlot(slot)}
+          />
         </Stack>
+      ) : (
+        <>
+          <Group gap={4} justify="space-between" wrap="nowrap">
+            {weekDates.map((date) => {
+              const active = date === activeDay
+              const isToday = date === today
+              const isPastDay = date < today
+              const planned = isDayPlanned(graph, date)
+              return (
+                <UnstyledButton
+                  key={date}
+                  onClick={() => setDayOverride(date)}
+                  style={{ flex: 1, minWidth: 0 }}
+                  aria-label={`${shortWeekday(date, bcp47)} ${dayNumber(date)}, ${planned ? t('plan.dayPlanned') : t('plan.dayEmpty')}`}
+                >
+                  <Stack gap={6} align="center">
+                    <Text
+                      size="xs"
+                      c={active || planned ? undefined : 'dimmed'}
+                      fw={active || planned ? 600 : 400}
+                      style={isHistoryWeek || isPastDay ? { opacity: 0.75 } : undefined}
+                    >
+                      {shortWeekday(date, bcp47)}
+                    </Text>
+                    <Paper
+                      radius="xl"
+                      w={32}
+                      h={32}
+                      bg={
+                        active
+                          ? `${accent}.6`
+                          : planned
+                            ? `${accent}.1`
+                            : isToday
+                              ? `${accent}.0`
+                              : 'transparent'
+                      }
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: active
+                          ? undefined
+                          : planned
+                            ? `1.5px solid var(--mantine-color-${accent}-4)`
+                            : '1.5px dashed var(--mantine-color-default-border)',
+                      }}
+                    >
+                      <Text
+                        size="sm"
+                        fw={600}
+                        c={
+                          active
+                            ? 'white'
+                            : planned
+                              ? undefined
+                              : isHistoryWeek || isPastDay
+                                ? 'dimmed'
+                                : 'dimmed'
+                        }
+                      >
+                        {dayNumber(date)}
+                      </Text>
+                    </Paper>
+                  </Stack>
+                </UnstyledButton>
+              )
+            })}
+          </Group>
 
-        <Button
-          onClick={() => void handleGenerateGroceries()}
-          variant={isHistoryWeek ? 'default' : 'light'}
-          color={isHistoryWeek ? 'gray' : undefined}
-        >
-          {t('grocery.generate')}
-        </Button>
-      </Stack>
+          {remainingThisWeek.length > 0 && (
+            <Group gap={6} wrap="wrap">
+              {remainingThisWeek.map((row) =>
+                row.carryoverRisk ? (
+                  <Tooltip key={row.id} label={t('plan.sameDayTooltip')} multiline w={240}>
+                    <Badge
+                      variant="light"
+                      color="warning"
+                      radius="xl"
+                      size="sm"
+                      leftSection={<Warning size={12} />}
+                    >
+                      {row.name} · {formatQty(row.remaining)} {t('quantity.left')} ·{' '}
+                      {t('plan.sameDayOnly')}
+                    </Badge>
+                  </Tooltip>
+                ) : (
+                  <Badge key={row.id} variant="light" color={accent} radius="xl" size="sm">
+                    {row.name} · {formatQty(row.remaining)} {t('quantity.remaining')}
+                  </Badge>
+                ),
+              )}
+            </Group>
+          )}
+
+          <Stack
+            gap="lg"
+            style={
+              isHistoryWeek
+                ? { opacity: 0.78, filter: 'grayscale(0.4)', transition: 'opacity 120ms ease' }
+                : undefined
+            }
+          >
+            {prepLabel && (
+              <Text size="sm" c="dimmed">
+                {prepLabel}
+                {dayEvents.length > 0
+                  ? ` · ${dayEvents.map((event) => event.recipeSnapshot.name).join(', ')}`
+                  : ''}
+              </Text>
+            )}
+
+            <SoftPromptAlerts prompts={weekPrompts} />
+            <SoftPromptAlerts prompts={dayPrompts} omitDatePrefix />
+
+            {!isDayPlanned(graph, activeDay) && (
+              <Text size="sm" c="dimmed">
+                {t('slot.notPlanned')}
+              </Text>
+            )}
+
+            <Stack gap={22}>
+              {MEAL_TYPES.map((mealType) => {
+                const meals = displaysByMeal.get(mealType) ?? []
+                if (meals.length === 0) {
+                  return (
+                    <Text key={mealType} size="sm" c="dimmed">
+                      {t('slot.noSlot')}
+                    </Text>
+                  )
+                }
+                return meals.map((display) => (
+                  <MealSlotCard
+                    key={display.slot.id}
+                    display={display}
+                    wontCarryOverEventIds={wontCarryOverEventIds}
+                    onOpen={() => setEditorSlot(display.slot)}
+                    onClear={() => void confirmClearSlot(planService, display.slot.id, t)}
+                    onExclude={() => void confirmExcludeSlot(planService, display.slot.id, t)}
+                    onUnexclude={() => void handleUnexclude(display.slot.id)}
+                  />
+                ))
+              })}
+            </Stack>
+          </Stack>
+        </>
+      )}
 
       {editorSlot && (
         <MealEditor

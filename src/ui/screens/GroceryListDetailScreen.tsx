@@ -19,7 +19,7 @@ import {
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
-import { IconChevronDown, IconChevronUp, IconPencil, IconTrash } from '@tabler/icons-react'
+import { CaretDown, CaretUp, PencilSimple, Trash } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useServices } from '../../app/servicesContext'
@@ -179,7 +179,7 @@ export function GroceryListDetailScreen() {
     if (!result.ok) {
       notifications.show({
         message: t('grocery.error.updateItem', { error: result.error }),
-        color: 'red',
+        color: 'error',
       })
     }
   }
@@ -191,7 +191,7 @@ export function GroceryListDetailScreen() {
       if (!result.ok) {
         notifications.show({
           message: t('grocery.error.updateItem', { error: result.error }),
-          color: 'red',
+          color: 'error',
         })
         return
       }
@@ -208,7 +208,7 @@ export function GroceryListDetailScreen() {
     if (!result.ok) {
       notifications.show({
         message: t('grocery.error.addItem', { error: result.error }),
-        color: 'red',
+        color: 'error',
       })
       return
     }
@@ -235,7 +235,7 @@ export function GroceryListDetailScreen() {
     if (!result.ok) {
       notifications.show({
         message: t('grocery.saveFailed', { error: result.error }),
-        color: 'red',
+        color: 'error',
       })
       return
     }
@@ -247,13 +247,13 @@ export function GroceryListDetailScreen() {
       title: t('grocery.deleteItemTitle'),
       children: <Text>{t('grocery.deleteItemBody', { name: item.label })}</Text>,
       labels: { confirm: t('action.delete'), cancel: t('action.cancel') },
-      confirmProps: { color: 'red' },
+      confirmProps: { color: 'error' },
       onConfirm: async () => {
         const result = await groceryService.deleteItem(item.id)
         if (!result.ok) {
           notifications.show({
             message: t('grocery.error.delete', { error: result.error }),
-            color: 'red',
+            color: 'error',
           })
         }
       },
@@ -266,7 +266,7 @@ export function GroceryListDetailScreen() {
         if (!result.ok) {
           notifications.show({
             message: t('grocery.error.reopen', { error: result.error }),
-            color: 'red',
+            color: 'error',
           })
         }
       })
@@ -281,7 +281,7 @@ export function GroceryListDetailScreen() {
           if (!result.ok) {
             notifications.show({
               message: t('grocery.error.close', { error: result.error }),
-              color: 'red',
+              color: 'error',
             })
           }
         })
@@ -294,13 +294,13 @@ export function GroceryListDetailScreen() {
       title: t('grocery.deleteListTitle'),
       children: <Text>{t('grocery.deleteListBody', { name: list.title })}</Text>,
       labels: { confirm: t('grocery.deleteListConfirm'), cancel: t('action.cancel') },
-      confirmProps: { color: 'red' },
+      confirmProps: { color: 'error' },
       onConfirm: async () => {
         const result = await groceryService.deleteList(list.id)
         if (!result.ok) {
           notifications.show({
             message: t('grocery.error.delete', { error: result.error }),
-            color: 'red',
+            color: 'error',
           })
           return
         }
@@ -390,11 +390,7 @@ export function GroceryListDetailScreen() {
                     <Text size="xs" c="dimmed">
                       Used by
                     </Text>
-                    {expandedSourceId === item.id ? (
-                      <IconChevronUp size={14} />
-                    ) : (
-                      <IconChevronDown size={14} />
-                    )}
+                    {expandedSourceId === item.id ? <CaretUp size={14} /> : <CaretDown size={14} />}
                   </Group>
                 </UnstyledButton>
                 <Collapse expanded={expandedSourceId === item.id}>
@@ -423,15 +419,15 @@ export function GroceryListDetailScreen() {
                 aria-label={`Edit ${item.label}`}
                 onClick={() => startEdit(item)}
               >
-                <IconPencil size={16} />
+                <PencilSimple size={16} />
               </ActionIcon>
               <ActionIcon
                 variant="subtle"
-                color="red"
+                color="error"
                 aria-label={`Delete ${item.label}`}
                 onClick={() => handleDeleteItem(item)}
               >
-                <IconTrash size={16} />
+                <Trash size={16} />
               </ActionIcon>
             </Group>
           )}
@@ -509,7 +505,7 @@ export function GroceryListDetailScreen() {
         <Button variant="light" onClick={handleCloseOrReopen}>
           {closed ? t('grocery.reopen') : t('grocery.close')}
         </Button>
-        <Button variant="subtle" color="red" onClick={handleDeleteList}>
+        <Button variant="subtle" color="error" onClick={handleDeleteList}>
           {t('grocery.deleteListConfirm')}
         </Button>
       </Group>
