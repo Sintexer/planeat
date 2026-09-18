@@ -11,6 +11,7 @@ import type { IngredientRepository } from '../ports/IngredientRepository'
 import {
   type GenerationInput,
   type WeekGenerationProposal,
+  mergeGenerationSearchBudget,
 } from '../../domain/plans/generation/proposal'
 import {
   fixedMealsFromPlan,
@@ -237,6 +238,7 @@ export class GenerationService {
         softPrefs,
         previousWeekRecipeIds,
         tagNamesById,
+        searchBudget: mergeGenerationSearchBudget(settings.generationSearchBudget),
       },
     }
   }

@@ -50,6 +50,10 @@ export const ruMessages = {
   'generation.customAmount': 'Свои порции',
   'generation.running': 'Подбор…',
   'generation.unfilledRow': 'Нет полного блюда для: {meal}.',
+  'generation.searchIncompleteRow':
+    'Подбор остановился по лимиту времени до заполнения: {meal}. Это не значит, что неделю нельзя составить.',
+  'generation.searchBudgetExhausted':
+    'Подбор использовал {used} из {budget} расширений и оставил часть приёмов пустыми.',
   'generation.weekApplied': 'Блюда добавлены',
   'generation.diagnosticsTitle': 'Почему часть приёмов осталась пустой',
   'generation.dropCount': '{count} рецептов не подошли для {meal}: {reason}.',
@@ -158,6 +162,11 @@ export const ruMessages = {
   'settings.unknownIngredients': 'Рецепты с непривязанными строками ингредиентов',
   'settings.unknownExclude': 'Не предлагать',
   'settings.unknownAllow': 'Разрешить',
+  'settings.searchBudgetHelp':
+    'Эти значения ограничивают объём работы «Подобрать меню», а не качество рецептов. Уменьшите их, чтобы остановиться раньше; это не второй набор кулинарных правил.',
+  'settings.beamWidth': 'Ширина луча поиска',
+  'settings.perSlotCandidateLimit': 'Кандидатов на один приём пищи',
+  'settings.expansionBudget': 'Максимум расширений поиска',
   'settings.missingGenerationRefs':
     'Нет в этой библиотеке — ограничение сохраняется: рецепты {recipes}, метки {tags}, ингредиенты {ingredients}.',
   'settings.backupMissingGenerationRefs':

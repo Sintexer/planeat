@@ -144,6 +144,13 @@ const settingsSchema = z.object({
     })
     .optional(),
   generationPreferredTagIds: z.array(z.string()).optional(),
+  generationSearchBudget: z
+    .object({
+      beamWidth: z.number(),
+      expansionBudget: z.number(),
+      perSlotCandidateLimit: z.number(),
+    })
+    .optional(),
 })
 
 const planSchema = z.object({

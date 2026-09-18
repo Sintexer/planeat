@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped through **Sprint 31**. Next sequenced work is **Sprint 32** (bounded weekly search). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
+Shipped through **Sprint 32**. Next sequenced work is **Sprint 33** (known multi-component meals). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
 
 ## Done — project initialization
 
@@ -141,7 +141,13 @@ Shipped through **Sprint 31**. Next sequenced work is **Sprint 32** (bounded wee
 - Among hard-eligible recipes, pick by a versioned lexicographic score: quick-meal days, effort, repetition (including `maxPreferredRepeats`), prep-unit workload, vegetables, preferred generation tags, preferred prep days.
 - Missing recorded time is not treated as fastest. Previous-week planned dishes count as planned history. Preview lists score reasons. Additive `generationPreferredTagIds`. No beam search. No Dexie or backup-format bump.
 
-## Next — Phase 7 automatic meal planning (Sprints 32–38)
+## Done — Sprint 32 (bounded weekly search)
+
+- Chronological beam search over requested empty slots with a lexicographic week score (coverage before preference penalties).
+- Household search budget (beam width, per-slot candidate limit, expansion budget) on Settings; additive backup; proposal records budget used. Exhaustion yields `search-incomplete`, not infeasibility.
+- Same snapshot + seed + version + budget is deterministic. No Dexie or backup-format bump.
+
+## Next — Phase 7 automatic meal planning (Sprints 33–38)
 
 Local, explainable generation. Proposals only; apply through existing cooking events; grocery lists stay manual. No backend or LLM.
 

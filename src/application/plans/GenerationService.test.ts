@@ -611,6 +611,7 @@ describe('GenerationService', () => {
     if (!prepared.ok) return
     expect(prepared.value.previousWeekRecipeIds).toEqual(['recipe-soup'])
     expect(prepared.value.softPrefs.maxBatchPrepUnits).toBe(DEFAULT_SETTINGS.maxBatchPrepUnits)
+    expect(prepared.value.searchBudget).toEqual(DEFAULT_SETTINGS.generationSearchBudget)
   })
 
   it('rejects a stale fingerprint and leaves the plan unchanged', async () => {

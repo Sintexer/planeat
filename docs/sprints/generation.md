@@ -295,6 +295,8 @@ Soft preferences: quick-meal days, effort, recipe repetition (include `maxPrefer
 
 **Split.** If beam search + UI diagnostics overflow capacity: ship search behind the existing generate action first; polish budget diagnostics in a follow-up slice before Sprint 33.
 
+**Shipped.** Chronological beam search in `search.ts` (`algorithmVersion` `32`); persisted `generationSearchBudget` on Settings with backup round-trip; proposal `budgetUsed` / `expansionsUsed`; `search-incomplete` vs `no-eligible-candidates`; Settings budget fields and preview copy. No Dexie or backup-format bump.
+
 ---
 
 ## Sprint 33 — Known multi-component meals

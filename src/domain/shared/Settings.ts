@@ -20,6 +20,11 @@ import {
   mergeGenerationHardPolicy,
   type GenerationHardPolicy,
 } from '../plans/generation/constraints'
+import {
+  DEFAULT_GENERATION_SEARCH_BUDGET,
+  mergeGenerationSearchBudget,
+  type GenerationSearchBudget,
+} from '../plans/generation/proposal'
 
 export interface Settings {
   id: 'app-settings'
@@ -40,6 +45,7 @@ export interface Settings {
   catalogGroup: CatalogGroup
   generationHardPolicy: GenerationHardPolicy
   generationPreferredTagIds: string[]
+  generationSearchBudget: GenerationSearchBudget
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -57,6 +63,7 @@ export const DEFAULT_SETTINGS: Settings = {
   catalogGroup: DEFAULT_CATALOG_GROUP,
   generationHardPolicy: DEFAULT_GENERATION_HARD_POLICY,
   generationPreferredTagIds: [],
+  generationSearchBudget: DEFAULT_GENERATION_SEARCH_BUDGET,
 }
 
 /** Merge missing planning-preference fields onto a stored settings row. */
@@ -90,5 +97,6 @@ export function mergeSettingsDefaults(row: Partial<Settings> & { id: 'app-settin
     generationPreferredTagIds: Array.isArray(row.generationPreferredTagIds)
       ? row.generationPreferredTagIds.filter((id): id is string => typeof id === 'string')
       : DEFAULT_SETTINGS.generationPreferredTagIds,
+    generationSearchBudget: mergeGenerationSearchBudget(row.generationSearchBudget),
   }
 }

@@ -29,7 +29,8 @@ export class DexieSettingsRepository implements SettingsRepository {
         !('catalogSort' in existing) ||
         !('catalogGroup' in existing) ||
         !('generationHardPolicy' in existing) ||
-        !Array.isArray(existing.generationPreferredTagIds)
+        !Array.isArray(existing.generationPreferredTagIds) ||
+        !('generationSearchBudget' in existing)
       ) {
         await this.db.settings.put(merged)
       }

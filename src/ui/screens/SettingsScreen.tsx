@@ -45,6 +45,10 @@ import {
   missingGenerationPolicyRefs,
   type UnknownDataPolicy,
 } from '../../domain/plans/generation/constraints'
+import {
+  DEFAULT_GENERATION_SEARCH_BUDGET,
+  mergeGenerationSearchBudget,
+} from '../../domain/plans/generation/proposal'
 
 interface SettingsForm {
   householdSize: number
@@ -65,6 +69,9 @@ interface SettingsForm {
   unknownTimePolicy: UnknownDataPolicy
   unknownIngredientPolicy: UnknownDataPolicy
   generationPreferredTagIds: string[]
+  beamWidth: number
+  expansionBudget: number
+  perSlotCandidateLimit: number
 }
 
 async function downloadCurrentBackup(
@@ -168,6 +175,9 @@ export function SettingsScreen() {
       unknownTimePolicy: DEFAULT_GENERATION_HARD_POLICY.unknownTimePolicy,
       unknownIngredientPolicy: DEFAULT_GENERATION_HARD_POLICY.unknownIngredientPolicy,
       generationPreferredTagIds: [],
+      beamWidth: DEFAULT_GENERATION_SEARCH_BUDGET.beamWidth,
+      expansionBudget: DEFAULT_GENERATION_SEARCH_BUDGET.expansionBudget,
+      perSlotCandidateLimit: DEFAULT_GENERATION_SEARCH_BUDGET.perSlotCandidateLimit,
     },
   })
 
@@ -176,6 +186,10 @@ export function SettingsScreen() {
   const policy = settings?.generationHardPolicy
   const policyKey = policy ? JSON.stringify(mergeGenerationHardPolicy(policy)) : ''
   const preferredTagsKey = settings?.generationPreferredTagIds.join(',') ?? ''
+  const searchBudget = settings?.generationSearchBudget
+  const searchBudgetKey = searchBudget
+    ? JSON.stringify(mergeGenerationSearchBudget(searchBudget))
+    : ''
 
   useEffect(() => {
     if (!settings) return
@@ -198,6 +212,9 @@ export function SettingsScreen() {
       unknownTimePolicy: settings.generationHardPolicy.unknownTimePolicy,
       unknownIngredientPolicy: settings.generationHardPolicy.unknownIngredientPolicy,
       generationPreferredTagIds: [...settings.generationPreferredTagIds],
+      beamWidth: settings.generationSearchBudget.beamWidth,
+      expansionBudget: settings.generationSearchBudget.expansionBudget,
+      perSlotCandidateLimit: settings.generationSearchBudget.perSlotCandidateLimit,
     })
     // Hydrate from stored fields, not the liveQuery object identity (a new
     // mergeSettingsDefaults result every emit would retrigger setValues forever).
@@ -214,6 +231,7 @@ export function SettingsScreen() {
     settings?.measurementPreference,
     policyKey,
     preferredTagsKey,
+    searchBudgetKey,
   ])
 
   const handleSubmit = form.onSubmit(async (values) => {
@@ -240,6 +258,11 @@ export function SettingsScreen() {
         unknownIngredientPolicy: values.unknownIngredientPolicy,
       }),
       generationPreferredTagIds: values.generationPreferredTagIds,
+      generationSearchBudget: mergeGenerationSearchBudget({
+        beamWidth: values.beamWidth,
+        expansionBudget: values.expansionBudget,
+        perSlotCandidateLimit: values.perSlotCandidateLimit,
+      }),
     })
     notifications.show({ message: t('settings.saved'), color: 'success' })
   })
@@ -540,6 +563,30 @@ export function SettingsScreen() {
                   disabled={!settings}
                   allowDeselect={false}
                   {...form.getInputProps('unknownIngredientPolicy')}
+                />
+                <Text size="sm" c="dimmed">
+                  {t('settings.searchBudgetHelp')}
+                </Text>
+                <NumberInput
+                  label={t('settings.beamWidth')}
+                  min={1}
+                  max={32}
+                  disabled={!settings}
+                  {...form.getInputProps('beamWidth')}
+                />
+                <NumberInput
+                  label={t('settings.perSlotCandidateLimit')}
+                  min={1}
+                  max={32}
+                  disabled={!settings}
+                  {...form.getInputProps('perSlotCandidateLimit')}
+                />
+                <NumberInput
+                  label={t('settings.expansionBudget')}
+                  min={1}
+                  max={10000}
+                  disabled={!settings}
+                  {...form.getInputProps('expansionBudget')}
                 />
                 {missingRefCount > 0 && (
                   <Text size="sm" c="dimmed">

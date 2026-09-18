@@ -18,8 +18,60 @@ import {
   type ScoreReason,
 } from './scoring'
 
-export const GENERATION_ALGORITHM_VERSION = '31'
+export const GENERATION_ALGORITHM_VERSION = '32'
 export const GENERATION_POLICY_VERSION = '31'
+
+export type GenerationSearchBudget = {
+  beamWidth: number
+  expansionBudget: number
+  perSlotCandidateLimit: number
+}
+
+export const DEFAULT_GENERATION_SEARCH_BUDGET: GenerationSearchBudget = {
+  beamWidth: 8,
+  expansionBudget: 400,
+  perSlotCandidateLimit: 8,
+}
+
+const MAX_BEAM_WIDTH = 32
+const MAX_EXPANSION_BUDGET = 10_000
+const MAX_PER_SLOT_CANDIDATES = 32
+
+function clampBudgetInt(value: unknown, fallback: number, min: number, max: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
+  return Math.min(max, Math.max(min, Math.trunc(value)))
+}
+
+export function mergeGenerationSearchBudget(
+  row?: Partial<GenerationSearchBudget> | null,
+): GenerationSearchBudget {
+  return {
+    beamWidth: clampBudgetInt(
+      row?.beamWidth,
+      DEFAULT_GENERATION_SEARCH_BUDGET.beamWidth,
+      1,
+      MAX_BEAM_WIDTH,
+    ),
+    expansionBudget: clampBudgetInt(
+      row?.expansionBudget,
+      DEFAULT_GENERATION_SEARCH_BUDGET.expansionBudget,
+      1,
+      MAX_EXPANSION_BUDGET,
+    ),
+    perSlotCandidateLimit: clampBudgetInt(
+      row?.perSlotCandidateLimit,
+      DEFAULT_GENERATION_SEARCH_BUDGET.perSlotCandidateLimit,
+      1,
+      MAX_PER_SLOT_CANDIDATES,
+    ),
+  }
+}
+
+export function canonicalizeGenerationSearchBudget(
+  budget: GenerationSearchBudget,
+): GenerationSearchBudget {
+  return mergeGenerationSearchBudget(budget)
+}
 
 export type RequestedGenerationSlot = {
   slot: MealSlot
@@ -46,6 +98,7 @@ export type GenerationInput = {
   softPrefs: GenerationSoftPrefs
   previousWeekRecipeIds: readonly string[]
   tagNamesById: Readonly<Record<string, string>>
+  searchBudget?: GenerationSearchBudget
 }
 
 export type SlotAssignment = {
@@ -58,10 +111,12 @@ export type SlotAssignment = {
   scoreReasons: ScoreReason[]
 }
 
+export type UnfilledReason = 'no-eligible-candidates' | 'search-incomplete'
+
 export type UnfilledSlot = {
   slotId: MealSlotId
   mealType: MealType
-  reason: 'no-eligible-candidates'
+  reason: UnfilledReason
 }
 
 export type WeekGenerationProposal = {
@@ -75,6 +130,8 @@ export type WeekGenerationProposal = {
   assignments: SlotAssignment[]
   unfilled: UnfilledSlot[]
   diagnostics: GenerationDiagnostics
+  budgetUsed: GenerationSearchBudget
+  expansionsUsed: number
 }
 
 /** Sprint 28 name: a week proposal, often with a single assignment. */
@@ -93,6 +150,7 @@ export type GenerationFingerprintParts = {
   policy: GenerationHardPolicy
   softPrefs: GenerationSoftPrefs
   previousWeekRecipeIds: readonly string[]
+  searchBudget: GenerationSearchBudget
 }
 
 export function generationInputFingerprint(parts: GenerationFingerprintParts): string {
@@ -120,12 +178,14 @@ export function generationInputFingerprint(parts: GenerationFingerprintParts): s
     previousWeekRecipeIds: [...parts.previousWeekRecipeIds].sort((a, b) =>
       a < b ? -1 : a > b ? 1 : 0,
     ),
+    searchBudget: canonicalizeGenerationSearchBudget(parts.searchBudget),
   })
 }
 
 export function fingerprintFromInput(input: GenerationInput): string {
   const policy = input.policy ?? DEFAULT_GENERATION_HARD_POLICY
   const softPrefs = input.softPrefs ?? DEFAULT_GENERATION_SOFT_PREFS
+  const searchBudget = mergeGenerationSearchBudget(input.searchBudget)
   const mealTypes = [...new Set(input.requestedSlots.map((row) => row.slot.mealType))]
   const eligibleIds = new Map<string, number>()
   for (const mealType of mealTypes) {
@@ -154,5 +214,6 @@ export function fingerprintFromInput(input: GenerationInput): string {
     policy,
     softPrefs,
     previousWeekRecipeIds: input.previousWeekRecipeIds ?? [],
+    searchBudget,
   })
 }

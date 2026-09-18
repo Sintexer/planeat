@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Recipe } from '../../recipes/Recipe'
 import {
   compareScoredCandidates,
+  compareWeekObjectives,
   DEFAULT_GENERATION_SOFT_PREFS,
   scoreReasonsForPick,
   selectBestCandidate,
@@ -96,5 +97,13 @@ describe('compareScoredCandidates', () => {
     const only = recipe({ id: 'only', effort: 'demanding' })
     expect(selectBestCandidate([only], context())?.recipe.id).toBe('only')
     expect(selectBestCandidate([], context())).toBeUndefined()
+  })
+})
+
+describe('compareWeekObjectives', () => {
+  it('ranks coverage above preference penalties', () => {
+    expect(
+      compareWeekObjectives({ coverage: 2, penalties: [9, 9] }, { coverage: 1, penalties: [0, 0] }),
+    ).toBeLessThan(0)
   })
 })

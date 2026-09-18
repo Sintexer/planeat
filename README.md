@@ -90,4 +90,4 @@ Run format, lint, typecheck, and test before considering any change complete —
 
 ## Next Work
 
-Sprints 1–31 are shipped (Lane A, Lane C, hard generation rules, and preference scoring). Next work is **Sprint 32** (bounded weekly search) — Phase 7 cards in [docs/sprints/generation.md](docs/sprints/generation.md); Status in [docs/sprints/plan.md](docs/sprints/plan.md). Lane B (shopping-section order) remains optional. Do not invent work from older "Next" headings elsewhere or from Cursor plan files.
+Sprints 1–32 are shipped (Lane A, Lane C, hard generation rules, preference scoring, and bounded weekly search). Next work is **Sprint 33** (known multi-component meals) — Phase 7 cards in [docs/sprints/generation.md](docs/sprints/generation.md); Status in [docs/sprints/plan.md](docs/sprints/plan.md). Lane B (shopping-section order) remains optional. Do not invent work from older "Next" headings elsewhere or from Cursor plan files.

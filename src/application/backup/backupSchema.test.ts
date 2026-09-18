@@ -604,4 +604,31 @@ describe('backupFileSchema — saved library views (Sprint 22)', () => {
       'gone-recipe',
     ])
   })
+
+  it('accepts optional generationSearchBudget on settings', () => {
+    const data = emptyData()
+    data.settings = [
+      {
+        ...DEFAULT_SETTINGS,
+        generationSearchBudget: {
+          beamWidth: 4,
+          expansionBudget: 50,
+          perSlotCandidateLimit: 3,
+        },
+      },
+    ]
+    const result = backupFileSchema.safeParse({
+      format: 'family-menu-planner',
+      schemaVersion: CURRENT_BACKUP_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    })
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.data.data.settings[0].generationSearchBudget).toEqual({
+      beamWidth: 4,
+      expansionBudget: 50,
+      perSlotCandidateLimit: 3,
+    })
+  })
 })

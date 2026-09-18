@@ -3,9 +3,18 @@ import type { Recipe } from '../../recipes/Recipe'
 import { scaleQuantity } from '../../shared/scaleQuantity'
 import type { MealSlot } from '../MealSlot'
 import { DEFAULT_GENERATION_HARD_POLICY } from './constraints'
-import { fingerprintFromInput, type GenerationInput } from './proposal'
-import { DEFAULT_GENERATION_SOFT_PREFS } from './scoring'
-import { runGenerationSearch } from './search'
+import {
+  fingerprintFromInput,
+  mergeGenerationSearchBudget,
+  DEFAULT_GENERATION_SEARCH_BUDGET,
+  type GenerationInput,
+} from './proposal'
+import { compareWeekObjectives, DEFAULT_GENERATION_SOFT_PREFS } from './scoring'
+import {
+  runGenerationSearch,
+  runIndependentGreedySearch,
+  weekObjectiveForAssignments,
+} from './search'
 
 function recipe(overrides: Partial<Recipe> = {}): Recipe {
   return {
@@ -122,7 +131,7 @@ describe('runGenerationSearch', () => {
     const b = runGenerationSearch(snapshot, 'req-b', scaleQuantity)
     expect(a.fingerprint).toBe(b.fingerprint)
     expect(a.assignments).toEqual(b.assignments)
-    expect(a.algorithmVersion).toBe('31')
+    expect(a.algorithmVersion).toBe('32')
   })
 
   it('uses a per-slot quantity override', () => {
@@ -227,5 +236,185 @@ describe('fingerprintFromInput', () => {
       ),
     ).not.toBe(base)
     expect(fingerprintFromInput(input({ previousWeekRecipeIds: ['soup'] }))).not.toBe(base)
+  })
+
+  it('changes when the search budget changes', () => {
+    const base = fingerprintFromInput(input())
+    expect(
+      fingerprintFromInput(
+        input({
+          searchBudget: { beamWidth: 2, expansionBudget: 10, perSlotCandidateLimit: 2 },
+        }),
+      ),
+    ).not.toBe(base)
+  })
+})
+
+describe('mergeGenerationSearchBudget', () => {
+  it('clamps invalid values onto defaults and bounds', () => {
+    expect(mergeGenerationSearchBudget(undefined)).toEqual(DEFAULT_GENERATION_SEARCH_BUDGET)
+    expect(
+      mergeGenerationSearchBudget({ beamWidth: 0, expansionBudget: -3, perSlotCandidateLimit: 99 }),
+    ).toEqual({
+      beamWidth: 1,
+      expansionBudget: 1,
+      perSlotCandidateLimit: 32,
+    })
+  })
+})
+
+describe('bounded weekly search', () => {
+  const lunch = slot({ id: 'slot-lunch', mealType: 'lunch', date: '2026-01-05' })
+  const dinner = slot({ id: 'slot-dinner', mealType: 'dinner', date: '2026-01-05' })
+  const oats = recipe({
+    id: 'oats',
+    name: 'Oats',
+    mealTypes: ['lunch', 'dinner'],
+    effort: 'quick',
+  })
+  const pasta = recipe({
+    id: 'pasta',
+    name: 'Pasta',
+    mealTypes: ['lunch'],
+    effort: 'regular',
+  })
+  const lookaheadInput = (): GenerationInput =>
+    input({
+      recipes: [oats, pasta],
+      requestedSlots: [
+        { slot: lunch, componentCount: 0 },
+        { slot: dinner, componentCount: 0 },
+      ],
+      catalogs: { recipeIds: ['oats', 'pasta'], tagIds: [], ingredientIds: [] },
+    })
+
+  it('beats sequential greedy on a lookahead repetition fixture', () => {
+    const snapshot = lookaheadInput()
+    const greedy = runIndependentGreedySearch(snapshot, 'req-g', scaleQuantity)
+    const beam = runGenerationSearch(snapshot, 'req-b', scaleQuantity)
+    expect(greedy.assignments.map((row) => row.recipeId)).toEqual(['oats', 'oats'])
+    expect(beam.assignments.map((row) => `${row.slotId}:${row.recipeId}`)).toEqual([
+      'slot-lunch:pasta',
+      'slot-dinner:oats',
+    ])
+    expect(beam.unfilled).toEqual([])
+    const greedyScore = weekObjectiveForAssignments(snapshot, greedy.assignments)
+    const beamScore = weekObjectiveForAssignments(snapshot, beam.assignments)
+    expect(greedyScore.coverage).toBe(beamScore.coverage)
+    expect(compareWeekObjectives(beamScore, greedyScore)).toBeLessThan(0)
+  })
+
+  it('returns search-incomplete when the expansion budget runs out', () => {
+    const snapshot = lookaheadInput()
+    const proposal = runGenerationSearch(
+      {
+        ...snapshot,
+        searchBudget: { beamWidth: 8, perSlotCandidateLimit: 8, expansionBudget: 1 },
+      },
+      'req-1',
+      scaleQuantity,
+    )
+    expect(proposal.assignments.length).toBeGreaterThanOrEqual(1)
+    expect(proposal.unfilled.some((row) => row.reason === 'search-incomplete')).toBe(true)
+    expect(proposal.unfilled.some((row) => row.reason === 'no-eligible-candidates')).toBe(false)
+    expect(proposal.expansionsUsed).toBe(1)
+    expect(proposal.budgetUsed.expansionBudget).toBe(1)
+  })
+
+  it('does not claim no-eligible-candidates when candidates exist but the budget ends', () => {
+    const extraDinner = slot({ id: 'slot-tue', mealType: 'dinner', date: '2026-01-06' })
+    const proposal = runGenerationSearch(
+      input({
+        recipes: [recipe({ id: 'soup', mealTypes: ['dinner'] })],
+        requestedSlots: [
+          { slot: slot(), componentCount: 0 },
+          { slot: extraDinner, componentCount: 0 },
+        ],
+        searchBudget: { beamWidth: 1, perSlotCandidateLimit: 1, expansionBudget: 1 },
+      }),
+      'req-1',
+      scaleQuantity,
+    )
+    expect(proposal.assignments).toHaveLength(1)
+    expect(proposal.unfilled).toEqual([
+      { slotId: 'slot-tue', mealType: 'dinner', reason: 'search-incomplete' },
+    ])
+  })
+
+  it('can change equal-score truncation when the seed changes and the candidate limit is tight', () => {
+    const twins = ['aa', 'bb', 'cc', 'dd', 'ee'].map((id) =>
+      recipe({ id, name: id, effort: 'regular', mealTypes: ['dinner'] }),
+    )
+    const tight = {
+      beamWidth: 1,
+      perSlotCandidateLimit: 1,
+      expansionBudget: 20,
+    }
+    const picked = ['seed-a', 'seed-b', 'seed-c', 'seed-d', 'seed-e', 'seed-f'].map(
+      (seed) =>
+        runGenerationSearch(
+          input({ recipes: twins, seed, searchBudget: tight }),
+          'req-1',
+          scaleQuantity,
+        ).assignments[0]?.recipeId,
+    )
+    expect(new Set(picked).size).toBeGreaterThan(1)
+  })
+
+  it('never replaces the incumbent with a lexicographically worse week when extra recipes exist', () => {
+    const snapshot = lookaheadInput()
+    const withoutExtra = runGenerationSearch(snapshot, 'req-1', scaleQuantity)
+    const extra = recipe({
+      id: 'zzz-extra',
+      name: 'Extra stew',
+      mealTypes: ['lunch', 'dinner'],
+      effort: 'demanding',
+    })
+    const withExtra = runGenerationSearch(
+      {
+        ...snapshot,
+        recipes: [...snapshot.recipes, extra],
+        catalogs: { recipeIds: ['oats', 'pasta', extra.id], tagIds: [], ingredientIds: [] },
+      },
+      'req-1',
+      scaleQuantity,
+    )
+    expect(
+      compareWeekObjectives(
+        weekObjectiveForAssignments(
+          { ...snapshot, recipes: [...snapshot.recipes, extra] },
+          withExtra.assignments,
+        ),
+        weekObjectiveForAssignments(snapshot, withoutExtra.assignments),
+      ),
+    ).toBeLessThanOrEqual(0)
+  })
+
+  it('still respects hard ingredient exclusions', () => {
+    const peanut = recipe({
+      id: 'peanut-stew',
+      mealTypes: ['dinner'],
+      ingredientLines: [{ displayText: 'peanut', ingredientId: 'peanut', quantity: null }],
+    })
+    const rice = recipe({
+      id: 'rice',
+      name: 'Rice',
+      mealTypes: ['dinner'],
+      ingredientLines: [{ displayText: 'rice', ingredientId: 'rice', quantity: null }],
+    })
+    const proposal = runGenerationSearch(
+      input({
+        recipes: [peanut, rice],
+        policy: { ...DEFAULT_GENERATION_HARD_POLICY, excludeIngredientIds: ['peanut'] },
+        catalogs: {
+          recipeIds: ['peanut-stew', 'rice'],
+          tagIds: [],
+          ingredientIds: ['peanut', 'rice'],
+        },
+      }),
+      'req-1',
+      scaleQuantity,
+    )
+    expect(proposal.assignments[0].recipeId).toBe('rice')
   })
 })

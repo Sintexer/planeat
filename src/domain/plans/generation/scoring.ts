@@ -163,13 +163,44 @@ export function candidateScoreTuple(recipe: Recipe, ctx: ScoringContext): number
   ]
 }
 
-export function compareScoredCandidates(a: Recipe, b: Recipe, ctx: ScoringContext): number {
-  const left = candidateScoreTuple(a, ctx)
-  const right = candidateScoreTuple(b, ctx)
-  for (let i = 0; i < left.length; i++) {
+export function compareScoreTuples(left: readonly number[], right: readonly number[]): number {
+  const n = Math.min(left.length, right.length)
+  for (let i = 0; i < n; i++) {
     if (left[i] !== right[i]) return left[i] - right[i]
   }
+  return left.length - right.length
+}
+
+export function compareScoredCandidates(a: Recipe, b: Recipe, ctx: ScoringContext): number {
+  const tuple = compareScoreTuples(candidateScoreTuple(a, ctx), candidateScoreTuple(b, ctx))
+  if (tuple !== 0) return tuple
   return compareCandidateRecipes(a, b)
+}
+
+export type WeekObjective = {
+  coverage: number
+  penalties: number[]
+}
+
+export function emptyWeekObjective(): WeekObjective {
+  return { coverage: 0, penalties: [] }
+}
+
+export function addAssignmentToObjective(
+  objective: WeekObjective,
+  tuple: readonly number[],
+): WeekObjective {
+  const penalties =
+    objective.penalties.length === 0
+      ? [...tuple]
+      : objective.penalties.map((value, index) => value + (tuple[index] ?? 0))
+  return { coverage: objective.coverage + 1, penalties }
+}
+
+/** Lower is better after coverage (higher coverage wins). */
+export function compareWeekObjectives(a: WeekObjective, b: WeekObjective): number {
+  if (a.coverage !== b.coverage) return b.coverage - a.coverage
+  return compareScoreTuples(a.penalties, b.penalties)
 }
 
 export function scoreReasonsForPick(

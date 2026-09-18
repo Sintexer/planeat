@@ -64,9 +64,19 @@ export function openProposalPreview(args: {
         ))}
         {proposal.unfilled.map((row) => (
           <Text size="sm" c="dimmed" key={row.slotId}>
-            {t('generation.unfilledRow', { meal: mealTypeLabel(t, row.mealType) })}
+            {row.reason === 'search-incomplete'
+              ? t('generation.searchIncompleteRow', { meal: mealTypeLabel(t, row.mealType) })
+              : t('generation.unfilledRow', { meal: mealTypeLabel(t, row.mealType) })}
           </Text>
         ))}
+        {proposal.unfilled.some((row) => row.reason === 'search-incomplete') && (
+          <Text size="sm" c="dimmed">
+            {t('generation.searchBudgetExhausted', {
+              used: proposal.expansionsUsed,
+              budget: proposal.budgetUsed.expansionBudget,
+            })}
+          </Text>
+        )}
         {showDiagnostics && (
           <Stack gap={4}>
             {dropCounts.length > 0 && (

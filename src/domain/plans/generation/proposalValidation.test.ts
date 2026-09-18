@@ -63,7 +63,7 @@ function proposal(
   const target = snapshot.requestedSlots[0]
   return {
     requestId: 'req-1',
-    algorithmVersion: '31',
+    algorithmVersion: '32',
     policyVersion: '31',
     seed: snapshot.seed,
     fingerprint: fingerprintFromInput(snapshot),
@@ -85,6 +85,12 @@ function proposal(
       fixedConflicts: [],
       missingPolicyRefs: { recipeIds: [], tagIds: [], ingredientIds: [] },
     },
+    budgetUsed: {
+      beamWidth: 8,
+      expansionBudget: 400,
+      perSlotCandidateLimit: 8,
+    },
+    expansionsUsed: 0,
     ...overrides,
   }
 }
@@ -134,6 +140,16 @@ describe('validateProposalAgainstLive', () => {
     const original = live()
     const next = live({
       policy: { ...DEFAULT_GENERATION_HARD_POLICY, excludedRecipeIds: ['soup'] },
+    })
+    expect(validateProposalAgainstLive(proposal(original), next)).toBe('stale-proposal')
+  })
+
+  it('rejects a fingerprint after the search budget changes', () => {
+    const original = live({
+      searchBudget: { beamWidth: 8, expansionBudget: 400, perSlotCandidateLimit: 8 },
+    })
+    const next = live({
+      searchBudget: { beamWidth: 2, expansionBudget: 10, perSlotCandidateLimit: 2 },
     })
     expect(validateProposalAgainstLive(proposal(original), next)).toBe('stale-proposal')
   })

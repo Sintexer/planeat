@@ -47,6 +47,10 @@ export const enMessages = {
   'generation.customAmount': 'Custom portions',
   'generation.running': 'Generating…',
   'generation.unfilledRow': 'No complete recipe for {meal}.',
+  'generation.searchIncompleteRow':
+    'Search stopped on the time budget before filling {meal}. That does not mean the week is impossible.',
+  'generation.searchBudgetExhausted':
+    'Search used {used} of {budget} expansions and left some meals unfilled.',
   'generation.weekApplied': 'Meals added',
   'generation.diagnosticsTitle': 'Why some meals stayed empty',
   'generation.dropCount': '{count} recipes blocked for {meal}: {reason}.',
@@ -155,6 +159,11 @@ export const enMessages = {
   'settings.unknownIngredients': 'Recipes with unlinked ingredient lines',
   'settings.unknownExclude': 'Do not suggest',
   'settings.unknownAllow': 'Allow',
+  'settings.searchBudgetHelp':
+    'These cap how much work Generate meals may do, not recipe quality. Lower them to stop sooner; they are not a second set of cooking rules.',
+  'settings.beamWidth': 'Search beam width',
+  'settings.perSlotCandidateLimit': 'Candidates considered per meal',
+  'settings.expansionBudget': 'Maximum search expansions',
   'settings.missingGenerationRefs':
     'Missing from this library — still applied: recipes {recipes}, tags {tags}, ingredients {ingredients}.',
   'settings.backupMissingGenerationRefs':
