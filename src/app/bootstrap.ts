@@ -3,6 +3,7 @@ import { MealFavoriteService } from '../application/favorites/MealFavoriteServic
 import { GroceryService } from '../application/groceries/GroceryService'
 import { PairingService } from '../application/pairings/PairingService'
 import { IngredientService } from '../application/ingredients/IngredientService'
+import { LibraryViewService } from '../application/libraryViews/LibraryViewService'
 import { PlanService } from '../application/plans/PlanService'
 import { QuantityService } from '../application/quantities/QuantityService'
 import { RecipeImportService } from '../application/recipes/RecipeImportService'
@@ -15,6 +16,7 @@ import { SchemaOrgRecipeExtractor } from '../infrastructure/importers/extractRec
 import { DexieBackupRepository } from '../infrastructure/db/repositories/DexieBackupRepository'
 import { DexieGroceryRepository } from '../infrastructure/db/repositories/DexieGroceryRepository'
 import { DexieIngredientRepository } from '../infrastructure/db/repositories/DexieIngredientRepository'
+import { DexieLibraryViewRepository } from '../infrastructure/db/repositories/DexieLibraryViewRepository'
 import { DexieMealFavoriteRepository } from '../infrastructure/db/repositories/DexieMealFavoriteRepository'
 import { DexiePairingRepository } from '../infrastructure/db/repositories/DexiePairingRepository'
 import { DexiePlanRepository } from '../infrastructure/db/repositories/DexiePlanRepository'
@@ -36,6 +38,7 @@ export interface AppServices {
   pairingService: PairingService
   recipeImportService: RecipeImportService
   settingsRepository: SettingsRepository
+  libraryViewService: LibraryViewService
   backupService: BackupService
 }
 
@@ -49,6 +52,7 @@ export function bootstrap(): AppServices {
   const mealFavoriteRepository = new DexieMealFavoriteRepository(db)
   const pairingRepository = new DexiePairingRepository(db)
   const settingsRepository = new DexieSettingsRepository(db)
+  const libraryViewRepository = new DexieLibraryViewRepository(db)
   const backupRepository = new DexieBackupRepository(db)
   const quantityService = new QuantityService()
 
@@ -82,6 +86,7 @@ export function bootstrap(): AppServices {
     pairingService: new PairingService(pairingRepository),
     recipeImportService: new RecipeImportService(new SchemaOrgRecipeExtractor()),
     settingsRepository,
+    libraryViewService: new LibraryViewService(libraryViewRepository),
     backupService: new BackupService(backupRepository),
   }
 }

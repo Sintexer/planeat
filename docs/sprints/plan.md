@@ -2,7 +2,7 @@
 
 No dates. Keep the app releasable after every sprint. Each sprint delivers **one visible improvement**, including its UI, domain changes, persistence, backup support, and tests.
 
-**Current position:** Sprints 1–21 and checkpoints A/B/C are shipped. **Next is Sprint 22** (saved library views). The Status section at the bottom is the log of what landed.
+**Current position:** Sprints 1–22 and checkpoints A/B/C are shipped. Optional follow-up slices remain. The Status section at the bottom is the log of what landed.
 
 Sprints 1–6 had no automated test runner. Vitest arrived in Sprint 8 (tags/backup). Measurement/grocery scenario tests landed in Sprint 13. Localization settings (`uiLocale`, `measurementPreference`) shipped before Phase 1; Sprint 14 applied them consistently to displayed quantities.
 
@@ -612,4 +612,6 @@ Sprint 20 is done: optional `shoppingSection` on catalog ingredients and grocery
 
 Sprint 21 is done: tag lifecycle on `TagService`/`TagRepository` — archive (assignments kept), merge A→B (live `tagIds` rewritten and de-duplicated, source row deleted), delete (unassign from recipes/simple foods then drop the tag). Operations are transactional in Dexie and never delete food items or rewrite cooking-event snapshot label strings. `/recipes/tags` gained usage counts plus archive/restore, merge picker, and a delete confirmation that states affected recipe and simple-food counts. Autocomplete and default filter facets omit archived tags; assigned chips and applied filters still resolve archived or missing ids. Additive optional `Tag.archived` in backups — no Dexie or backup-format bump. Tests: `Tag.test.ts`, `TagService.test.ts`, `catalogModel.test.ts`, `backupSchema.test.ts`.
 
-**Next:** Sprint 22 (saved library views).
+Sprint 22 is done: named saved library views (`LibraryView` + Dexie `libraryViews` table) store query, filters, sort, and grouping. Recipes library can pick, rename, and delete a view; a dirty indicator appears when browse differs from the loaded view; **Update view** writes explicitly and **Save as new** keeps the previous view. Restoring a view re-runs criteria against the live catalog. Archived tag filters still apply; deleted tag/ingredient ids stay visible to clear and are skipped while matching so the library is not emptied. Dexie schema v7 and backup format version 7. Tests: `LibraryView.test.ts`, `LibraryViewService.test.ts`, `catalogModel.test.ts`, `backupSchema.test.ts`.
+
+**Next:** optional follow-up slices (see the table above). No further sequenced sprint is committed.

@@ -20,6 +20,7 @@ function emptyData(): BackupFile['data'] {
     mealFavorites: [],
     recipePairings: [],
     tags: [],
+    libraryViews: [],
   }
 }
 
@@ -51,6 +52,42 @@ describe('BackupService.restoreBackup', () => {
 
     expect(repo.replaceAllCalls).toHaveLength(1)
     expect(repo.replaceAllCalls[0]?.tags).toEqual(data.tags)
+  })
+
+  it('restores saved library views', async () => {
+    const repo = new FakeBackupRepository()
+    const service = new BackupService(repo)
+    const data = emptyData()
+    data.libraryViews = [
+      {
+        id: 'view-1',
+        name: 'Kids lunch',
+        criteria: {
+          query: 'kids',
+          kind: 'all',
+          mealTypes: ['lunch'],
+          roles: [],
+          effort: 'all',
+          tagIds: ['tag-1'],
+          maxTotalTimeMinutes: '',
+          containsIngredientIds: [],
+          excludeIngredientIds: [],
+          sort: 'name',
+          group: 'none',
+        },
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ]
+
+    await service.restoreBackup({
+      format: 'family-menu-planner',
+      schemaVersion: CURRENT_BACKUP_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    })
+
+    expect(repo.replaceAllCalls[0]?.libraryViews).toEqual(data.libraryViews)
   })
 
   it('rejects a backup from an older schema version (no migration chain exists)', async () => {

@@ -21,6 +21,7 @@ function emptyData(): BackupFile['data'] {
     mealFavorites: [],
     recipePairings: [],
     tags: [],
+    libraryViews: [],
   }
 }
 
@@ -384,5 +385,76 @@ describe('backupFileSchema — shopping sections (Sprint 20)', () => {
       data,
     })
     expect(result.success).toBe(true)
+  })
+})
+
+describe('backupFileSchema — saved library views (Sprint 22)', () => {
+  it('round-trips a named view with query, tag filters, sort, and grouping', () => {
+    const data = emptyData()
+    data.libraryViews = [
+      {
+        id: 'view-1',
+        name: 'Kids lunch',
+        criteria: {
+          query: 'kids',
+          kind: 'recipe',
+          mealTypes: ['lunch'],
+          roles: [],
+          effort: 'all',
+          tagIds: ['tag-kids'],
+          maxTotalTimeMinutes: 30,
+          containsIngredientIds: [],
+          excludeIngredientIds: [],
+          sort: 'name',
+          group: 'kind',
+        },
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ]
+
+    const file = {
+      format: 'family-menu-planner',
+      schemaVersion: CURRENT_BACKUP_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    }
+    const result = backupFileSchema.safeParse(JSON.parse(JSON.stringify(file)))
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.data.data.libraryViews[0]?.name).toBe('Kids lunch')
+    expect(result.data.data.libraryViews[0]?.criteria.tagIds).toEqual(['tag-kids'])
+  })
+
+  it('rejects duplicate library-view ids', () => {
+    const data = emptyData()
+    const view = {
+      id: 'view-1',
+      name: 'A',
+      criteria: {
+        query: '',
+        kind: 'all' as const,
+        mealTypes: [],
+        roles: [],
+        effort: 'all' as const,
+        tagIds: [],
+        maxTotalTimeMinutes: '' as const,
+        containsIngredientIds: [],
+        excludeIngredientIds: [],
+        sort: 'relevance' as const,
+        group: 'none' as const,
+      },
+      createdAt: 0,
+      updatedAt: 0,
+    }
+    data.libraryViews = [view, { ...view, name: 'B' }]
+
+    const result = backupFileSchema.safeParse({
+      format: 'family-menu-planner',
+      schemaVersion: CURRENT_BACKUP_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    })
+    expect(result.success).toBe(false)
   })
 })

@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped through **Sprint 21**. Next implementation card: **Sprint 22**. Full cards and Status log: [`docs/sprints/plan.md`](sprints/plan.md).
+Shipped through **Sprint 22**. Optional Phase 4 follow-ups remain. Full cards and Status log: [`docs/sprints/plan.md`](sprints/plan.md).
 
 ## Done — project initialization
 
@@ -84,8 +84,12 @@ Shipped through **Sprint 21**. Next implementation card: **Sprint 22**. Full car
 
 - Archive, merge (live `tagIds` de-duplicated), and delete with affected-item confirmation. Snapshots keep historical label strings. Additive optional `archived` on tags in backups.
 
-## Later (optional Phase 4)
+## Done — Sprint 22 (saved library views)
 
-- **Sprint 22** — Saved library views.
+- Named views for Recipes query, filters, sort, and grouping; pick / rename / delete; unsaved indicator; explicit Update vs Save as new.
+- Live catalog matching; stale archived/deleted tag (and missing ingredient) refs stay visible and do not crash or blank the library.
+- Dexie schema v7 (`libraryViews`), backup format 7.
+
+## Later (optional Phase 4 follow-ups)
 
 Still out of scope unless separately backlogged: automatic weekly generation, backends, nutrition/barcode databases, food ontologies, pantry accounting, full second-language UI, local photo uploads.

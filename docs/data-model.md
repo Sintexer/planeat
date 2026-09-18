@@ -35,7 +35,7 @@ Schema changes must be added as new `.version(n)` blocks in `src/infrastructure/
 
 **Dexie schema version and backup format version are separate contracts.** A model change needs a Dexie bump only when indexes, tables, or stored-row transforms require it. Backup format versions are bumped when the export/restore payload shape changes. Use the same upgrade logic for legacy backup restores where practical; validate the full upgraded backup before replacing local data.
 
-Backup file format is independent: `CURRENT_BACKUP_FORMAT_VERSION` is **6**. Historical notes: version **3** first included plans/slots/components/cooking events; version **4** added grocery tables; version **5** added prep sessions, favorites, and pairings.
+Backup file format is independent: `CURRENT_BACKUP_FORMAT_VERSION` is **7**. Historical notes: version **3** first included plans/slots/components/cooking events; version **4** added grocery tables; version **5** added prep sessions, favorites, and pairings; version **6** added tags.
 
 ## Version 4
 
@@ -78,6 +78,16 @@ Backup format version **6** includes the tag catalog, live `tagIds`, and a separ
 
 Later additive fields (no Dexie bump): `dishType`, `catalogSort`/`catalogGroup`, `UnitRegistry` keys on quantities as plain strings, `quantityText` / `sourceText` on lines, optional `ingredientId`, ingredient `preferredLabels`/`localizedAliases`, optional `shoppingSection` on ingredients and grocery items, optional `archived` on tags.
 
+## Version 7
+
+Saved library views (Sprint 22). Each row is a named snapshot of Recipes browse criteria (query, filters, sort, grouping). Restoring a view applies those criteria to the live catalog.
+
+| Table          | Primary key | Indexes | Notes                           |
+| -------------- | ----------- | ------- | ------------------------------- |
+| `libraryViews` | `id`        | `name`  | Named views; update is explicit |
+
+Backup format version **7** adds `libraryViews`.
+
 ## Shipped model rules (keep)
 
 - Ingredient identity is the ID. Do not invent a locale on existing `aliases`.
@@ -88,7 +98,7 @@ Later additive fields (no Dexie bump): `dishType`, `catalogSort`/`catalogGroup`,
 
 ## Still planned (not shipped)
 
-See [`docs/sprints/plan.md`](sprints/plan.md). Next product work is saved library views (Sprint 22). Optional later: `externalRefs` on ingredients, `defaultRecipeMeasurementConvention`.
+See [`docs/sprints/plan.md`](sprints/plan.md). Core sprints through 22 are shipped. Optional later: `externalRefs` on ingredients, `defaultRecipeMeasurementConvention`.
 
 ## Starter library
 

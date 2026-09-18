@@ -10,6 +10,7 @@ import {
   type MealType,
   type RecipeRole,
 } from '../../domain/shared/MealEnums'
+import type { LibraryViewCriteria } from '../../domain/libraryViews/LibraryView'
 import type { Quantity } from '../../domain/shared/Quantity'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
 import type { TagId } from '../../domain/tags/Tag'
@@ -173,7 +174,16 @@ export function leftoverToCatalogItem(
   }
 }
 
-export function itemMatchesFilters(item: DishCatalogItem, filters: DishCatalogFilters): boolean {
+export type FilterMatchOptions = {
+  skipTagIds?: ReadonlySet<TagId>
+  skipIngredientIds?: ReadonlySet<string>
+}
+
+export function itemMatchesFilters(
+  item: DishCatalogItem,
+  filters: DishCatalogFilters,
+  options?: FilterMatchOptions,
+): boolean {
   if (item.kind === 'leftover') return true
   if (filters.kind !== 'all' && item.kind !== filters.kind) return false
   if (
@@ -186,7 +196,10 @@ export function itemMatchesFilters(item: DishCatalogItem, filters: DishCatalogFi
     return false
   }
   if (filters.effort !== 'all' && item.effort !== filters.effort) return false
-  if (filters.tagIds.length > 0 && !filters.tagIds.some((id) => item.tagIds.includes(id))) {
+  const tagIds = options?.skipTagIds
+    ? filters.tagIds.filter((id) => !options.skipTagIds!.has(id))
+    : filters.tagIds
+  if (tagIds.length > 0 && !tagIds.some((id) => item.tagIds.includes(id))) {
     return false
   }
   if (filters.suggestedOnly && !(item.score && item.score > 0)) return false
@@ -194,19 +207,62 @@ export function itemMatchesFilters(item: DishCatalogItem, filters: DishCatalogFi
     if (item.totalTimeMinutes === undefined) return false
     if (item.totalTimeMinutes > filters.maxTotalTimeMinutes) return false
   }
-  if (
-    filters.containsIngredientIds.length > 0 &&
-    !filters.containsIngredientIds.some((id) => item.ingredientIds.includes(id))
-  ) {
+  const containsIds = options?.skipIngredientIds
+    ? filters.containsIngredientIds.filter((id) => !options.skipIngredientIds!.has(id))
+    : filters.containsIngredientIds
+  if (containsIds.length > 0 && !containsIds.some((id) => item.ingredientIds.includes(id))) {
     return false
   }
-  if (
-    filters.excludeIngredientIds.length > 0 &&
-    filters.excludeIngredientIds.some((id) => item.ingredientIds.includes(id))
-  ) {
+  const excludeIds = options?.skipIngredientIds
+    ? filters.excludeIngredientIds.filter((id) => !options.skipIngredientIds!.has(id))
+    : filters.excludeIngredientIds
+  if (excludeIds.length > 0 && excludeIds.some((id) => item.ingredientIds.includes(id))) {
     return false
   }
   return true
+}
+
+export function criteriaFromCatalogBrowse(
+  filters: DishCatalogFilters,
+  sort: CatalogSort,
+  group: CatalogGroup,
+): LibraryViewCriteria {
+  return {
+    query: filters.query,
+    kind: filters.kind,
+    mealTypes: [...filters.mealTypes],
+    roles: [...filters.roles],
+    effort: filters.effort,
+    tagIds: [...filters.tagIds],
+    maxTotalTimeMinutes: filters.maxTotalTimeMinutes,
+    containsIngredientIds: [...filters.containsIngredientIds],
+    excludeIngredientIds: [...filters.excludeIngredientIds],
+    sort,
+    group,
+  }
+}
+
+export function catalogBrowseFromCriteria(criteria: LibraryViewCriteria): {
+  filters: DishCatalogFilters
+  sort: CatalogSort
+  group: CatalogGroup
+} {
+  return {
+    filters: {
+      ...defaultDishCatalogFilters('all'),
+      query: criteria.query,
+      kind: criteria.kind,
+      mealTypes: [...criteria.mealTypes],
+      roles: [...criteria.roles],
+      effort: criteria.effort,
+      tagIds: [...criteria.tagIds],
+      maxTotalTimeMinutes: criteria.maxTotalTimeMinutes,
+      containsIngredientIds: [...criteria.containsIngredientIds],
+      excludeIngredientIds: [...criteria.excludeIngredientIds],
+    },
+    sort: criteria.sort,
+    group: criteria.group,
+  }
 }
 
 function compareForSort(a: DishCatalogItem, b: DishCatalogItem, sort: CatalogSort): number {

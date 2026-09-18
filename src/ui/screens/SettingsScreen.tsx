@@ -147,7 +147,8 @@ export function SettingsScreen() {
         children: (
           <Text>
             This replaces all local recipes, ingredients, simple foods, meal plans, grocery lists,
-            favorites, pairings, and settings with the contents of this file. Continue?
+            favorites, pairings, tags, saved library views, and settings with the contents of this
+            file. Continue?
           </Text>
         ),
         labels: { confirm: 'Replace local data', cancel: 'Cancel' },

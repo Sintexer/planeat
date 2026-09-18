@@ -12,6 +12,7 @@ import {
   itemMatchesFilters,
   type DishCatalogFilters,
   type DishCatalogItem,
+  type FilterMatchOptions,
   type IngredientFilterOption,
   type TagFacet,
 } from './catalogModel'
@@ -55,6 +56,8 @@ interface FilterDrawerProps {
   tagFacets: TagFacet[]
   showKindFilter?: boolean
   ingredientOptions?: IngredientFilterOption[]
+  skipTagIds?: ReadonlySet<string>
+  skipIngredientIds?: ReadonlySet<string>
 }
 
 export function FilterDrawer({
@@ -66,6 +69,8 @@ export function FilterDrawer({
   tagFacets,
   showKindFilter = true,
   ingredientOptions = [],
+  skipTagIds,
+  skipIngredientIds,
 }: FilterDrawerProps) {
   const [draft, setDraft] = useState<DishCatalogFilters>(appliedFilters)
   const [wasOpened, setWasOpened] = useState(opened)
@@ -78,7 +83,8 @@ export function FilterDrawer({
     setDraft((current) => ({ ...current, ...patch }))
   }
 
-  const matchCount = items.filter((item) => itemMatchesFilters(item, draft)).length
+  const matchOptions: FilterMatchOptions = { skipTagIds, skipIngredientIds }
+  const matchCount = items.filter((item) => itemMatchesFilters(item, draft, matchOptions)).length
 
   const clearDraft = () => {
     setDraft((current) => ({
@@ -94,10 +100,20 @@ export function FilterDrawer({
     }))
   }
 
-  const ingredientSelectData = ingredientOptions.map((option) => ({
-    value: option.id,
-    label: option.label,
-  }))
+  const knownIngredientIds = new Set(ingredientOptions.map((option) => option.id))
+  const extraIngredientIds = [...draft.containsIngredientIds, ...draft.excludeIngredientIds].filter(
+    (id) => !knownIngredientIds.has(id),
+  )
+  const ingredientSelectData = [
+    ...ingredientOptions.map((option) => ({
+      value: option.id,
+      label: option.label,
+    })),
+    ...[...new Set(extraIngredientIds)].map((id) => ({
+      value: id,
+      label: 'Unavailable ingredient',
+    })),
+  ]
 
   return (
     <Drawer opened={opened} onClose={onClose} position="bottom" size="80%" title="Filters">
