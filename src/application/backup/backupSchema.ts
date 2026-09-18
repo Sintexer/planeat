@@ -242,6 +242,23 @@ const groceryItemSchema = z.object({
   origin: z.enum(['generated', 'manual']),
   quantityManuallyEdited: z.boolean(),
   shoppingSection: z.string().optional(),
+  sources: z
+    .array(
+      z.object({
+        kind: z.enum(['cooking-event', 'simple-food']),
+        dishName: z.string(),
+        quantity: quantitySchema.nullable(),
+        meals: z.array(
+          z.object({
+            slotId: z.string(),
+            date: z.string(),
+            // Lenient so an unrecognized meal-type key round-trips.
+            mealType: z.string(),
+          }),
+        ),
+      }),
+    )
+    .optional(),
 })
 
 const libraryViewCriteriaSchema = z.object({

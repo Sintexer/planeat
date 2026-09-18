@@ -33,11 +33,10 @@ export const UNIT_REGISTRY: readonly UnitDefinition[] = [
   },
   {
     key: 'tbsp',
-    label: 'Tablespoon (legacy — unspecified convention)',
+    label: 'Tablespoon (tbsp)',
     shortLabel: 'tbsp',
     family: 'volume',
     convertUnit: 'Tbs',
-    legacy: true,
   },
   {
     key: 'cup',

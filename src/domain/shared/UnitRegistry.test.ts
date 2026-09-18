@@ -20,9 +20,9 @@ describe('findUnitDefinition', () => {
     expect(findUnitDefinition('bogus-unit')).toBeUndefined()
   })
 
-  it('marks legacy cup and tablespoon as legacy', () => {
+  it('marks legacy cup as legacy; tablespoon is a selectable culinary unit', () => {
     expect(findUnitDefinition('cup')?.legacy).toBe(true)
-    expect(findUnitDefinition('tbsp')?.legacy).toBe(true)
+    expect(findUnitDefinition('tbsp')?.legacy).toBeUndefined()
   })
 })
 
@@ -52,7 +52,8 @@ describe('selectableUnitDefinitions', () => {
   it('excludes legacy units', () => {
     const keys = selectableUnitDefinitions().map((d) => d.key)
     expect(keys).not.toContain('cup')
-    expect(keys).not.toContain('tbsp')
+    expect(keys).toContain('tbsp')
+    expect(keys).toContain('tsp')
   })
 
   it('includes every non-legacy key exactly once', () => {

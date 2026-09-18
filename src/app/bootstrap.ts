@@ -80,6 +80,7 @@ export function bootstrap(): AppServices {
       ingredientRepository,
       simpleFoodRepository,
       quantityService,
+      recipeRepository,
     ),
     quantityService,
     mealFavoriteService: new MealFavoriteService(mealFavoriteRepository),

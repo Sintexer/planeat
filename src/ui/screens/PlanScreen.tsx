@@ -21,7 +21,7 @@ import {
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { useServices } from '../../app/servicesContext'
 import type { Recipe } from '../../domain/recipes/Recipe'
 import type { MealSlot } from '../../domain/plans/MealSlot'
@@ -81,6 +81,8 @@ function monthFromDate(date: LocalDate): { year: number; month: number } {
 export function PlanScreen() {
   const { planId: routePlanId } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const dateQuery = searchParams.get('date')
   const settings = useSettings()
   const { planService, groceryService } = useServices()
   const simpleFoods = useSimpleFoods()
@@ -153,8 +155,9 @@ export function PlanScreen() {
   const activeDay = useMemo(() => {
     if (!graph) return today
     if (dayOverride && weekDates.includes(dayOverride)) return dayOverride
+    if (dateQuery && weekDates.includes(dateQuery)) return dateQuery
     return defaultSelectedDay(graph.plan.startDate, today)
-  }, [graph, dayOverride, weekDates, today])
+  }, [graph, dayOverride, weekDates, today, dateQuery])
 
   const dayDisplays = useMemo(
     () => (graph ? buildSlotDisplays(graph, simpleFoodsById, activeDay, recipesById) : []),

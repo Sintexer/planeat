@@ -1,4 +1,8 @@
-import type { GroceryItem, GroceryItemId } from '../../domain/groceries/GroceryItem'
+import type {
+  GroceryItem,
+  GroceryItemId,
+  GroceryItemSource,
+} from '../../domain/groceries/GroceryItem'
 import type { GroceryList, GroceryListId } from '../../domain/groceries/GroceryList'
 import type { Quantity } from '../../domain/shared/Quantity'
 import type { PlanId } from '../../domain/plans/Plan'
@@ -18,6 +22,7 @@ export type CreateGroceryItemInput = {
   origin: 'generated' | 'manual'
   quantityManuallyEdited?: boolean
   shoppingSection?: string
+  sources?: GroceryItemSource[]
 }
 
 export type UpdateGroceryItemInput = Partial<

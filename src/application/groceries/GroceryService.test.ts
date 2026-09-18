@@ -10,6 +10,7 @@ import type {
 } from '../ports/GroceryRepository'
 import type { IngredientRepository } from '../ports/IngredientRepository'
 import type { PlanRepository } from '../ports/PlanRepository'
+import type { RecipeRepository } from '../ports/RecipeRepository'
 import type { SimpleFoodRepository } from '../ports/SimpleFoodRepository'
 import type { Ingredient, IngredientId } from '../../domain/ingredients/Ingredient'
 import type { GroceryItem, GroceryItemId } from '../../domain/groceries/GroceryItem'
@@ -21,6 +22,7 @@ import type { MealComponent } from '../../domain/plans/MealComponent'
 import type { MealSlot } from '../../domain/plans/MealSlot'
 import type { Recipe, RecipeIngredientLine } from '../../domain/recipes/Recipe'
 import type { Quantity } from '../../domain/shared/Quantity'
+import type { SimpleFood, SimpleFoodId } from '../../domain/simpleFoods/SimpleFood'
 
 /** In-memory GroceryRepository test double — no Dexie/IndexedDB needed. */
 class FakeGroceryRepository implements GroceryRepository {
@@ -90,6 +92,7 @@ class FakeGroceryRepository implements GroceryRepository {
       origin: input.origin,
       quantityManuallyEdited: input.quantityManuallyEdited ?? false,
       shoppingSection: input.shoppingSection,
+      sources: input.sources,
     }
     this.items.set(item.id, item)
     return item
@@ -225,19 +228,53 @@ class FakeIngredientRepository implements IngredientRepository {
   }
 }
 
-/** In-memory SimpleFoodRepository test double — unused by these scenarios. */
+/** In-memory SimpleFoodRepository test double — `getById` used for simple-food grocery lines. */
 class FakeSimpleFoodRepository implements SimpleFoodRepository {
+  private rows: Map<SimpleFoodId, SimpleFood>
+
+  constructor(rows: Map<SimpleFoodId, SimpleFood> = new Map()) {
+    this.rows = rows
+  }
+
+  async getById(id: SimpleFoodId): Promise<SimpleFood | undefined> {
+    return this.rows.get(id)
+  }
+
   create: SimpleFoodRepository['create'] = () => {
     throw new Error('not implemented')
   }
   getAll: SimpleFoodRepository['getAll'] = () => {
     throw new Error('not implemented')
   }
-  getById: SimpleFoodRepository['getById'] = () => Promise.resolve(undefined)
   update: SimpleFoodRepository['update'] = () => {
     throw new Error('not implemented')
   }
   remove: SimpleFoodRepository['remove'] = () => {
+    throw new Error('not implemented')
+  }
+}
+
+class FakeRecipeRepository implements RecipeRepository {
+  private rows: Map<string, Recipe>
+
+  constructor(rows: Map<string, Recipe> = new Map()) {
+    this.rows = rows
+  }
+
+  async getById(id: string): Promise<Recipe | undefined> {
+    return this.rows.get(id)
+  }
+
+  create: RecipeRepository['create'] = () => {
+    throw new Error('not implemented')
+  }
+  getAll: RecipeRepository['getAll'] = () => {
+    throw new Error('not implemented')
+  }
+  update: RecipeRepository['update'] = () => {
+    throw new Error('not implemented')
+  }
+  remove: RecipeRepository['remove'] = () => {
     throw new Error('not implemented')
   }
 }
@@ -278,6 +315,7 @@ function buildCookingEvent(overrides: {
   ingredientLines: RecipeIngredientLine[]
   yieldQty: Quantity
   outputQuantity: Quantity
+  name?: string
 }): CookingEvent {
   return {
     id: overrides.id,
@@ -285,7 +323,11 @@ function buildCookingEvent(overrides: {
     sessionId: 'session-1',
     recipeId: 'recipe-1',
     recipeSnapshot: toSnapshot(
-      baseRecipe({ yield: overrides.yieldQty, ingredientLines: overrides.ingredientLines }),
+      baseRecipe({
+        name: overrides.name ?? 'Soup',
+        yield: overrides.yieldQty,
+        ingredientLines: overrides.ingredientLines,
+      }),
     ),
     outputQuantity: overrides.outputQuantity,
     scheduledDate: '2026-01-01',
@@ -301,8 +343,13 @@ function buildComponent(slotId: string, cookingEventId: string): MealComponent {
   }
 }
 
-function buildSlot(id: string, excluded = false): MealSlot {
-  return { id, planId: 'plan-1', date: '2026-01-01', mealType: 'dinner', excluded }
+function buildSlot(
+  id: string,
+  excluded = false,
+  date = '2026-01-01',
+  mealType: MealSlot['mealType'] = 'dinner',
+): MealSlot {
+  return { id, planId: 'plan-1', date, mealType, excluded }
 }
 
 function buildGraph(overrides: {
@@ -328,13 +375,26 @@ function buildGraph(overrides: {
   }
 }
 
-function makeService(graph: PlanGraph, ingredients: Map<IngredientId, Ingredient> = new Map()) {
+function makeService(
+  graph: PlanGraph,
+  ingredients: Map<IngredientId, Ingredient> = new Map(),
+  foods: Map<SimpleFoodId, SimpleFood> = new Map(),
+  recipes: Map<string, Recipe> = new Map(),
+) {
   const groceries = new FakeGroceryRepository()
   const plans = new FakePlanRepository(graph)
   const ingredientRepo = new FakeIngredientRepository(ingredients)
-  const simpleFoods = new FakeSimpleFoodRepository()
+  const simpleFoods = new FakeSimpleFoodRepository(foods)
   const quantities = new QuantityService()
-  const service = new GroceryService(groceries, plans, ingredientRepo, simpleFoods, quantities)
+  const recipeRepo = new FakeRecipeRepository(recipes)
+  const service = new GroceryService(
+    groceries,
+    plans,
+    ingredientRepo,
+    simpleFoods,
+    quantities,
+    recipeRepo,
+  )
   return { service, groceries, plans }
 }
 
@@ -345,19 +405,25 @@ describe('GroceryService.generateFromPlan aggregation', () => {
         buildCookingEvent({
           id: 'event-1',
           planId: 'plan-1',
-          ingredientLines: [baseIngredientLine('flour', { value: 500, unit: 'g' })],
+          name: 'Curry',
+          ingredientLines: [baseIngredientLine('rice', { value: 500, unit: 'g' })],
           yieldQty: { value: 1, unit: 'serving' },
           outputQuantity: { value: 1, unit: 'serving' },
         }),
         buildCookingEvent({
           id: 'event-2',
           planId: 'plan-1',
-          ingredientLines: [baseIngredientLine('flour', { value: 1, unit: 'kg' })],
+          name: 'Rice bake',
+          ingredientLines: [baseIngredientLine('rice', { value: 1, unit: 'kg' })],
           yieldQty: { value: 1, unit: 'serving' },
           outputQuantity: { value: 1, unit: 'serving' },
         }),
       ],
-      components: [buildComponent('slot-1', 'event-1'), buildComponent('slot-1', 'event-2')],
+      components: [buildComponent('slot-1', 'event-1'), buildComponent('slot-2', 'event-2')],
+      slots: [
+        buildSlot('slot-1', false, '2026-01-06', 'dinner'),
+        buildSlot('slot-2', false, '2026-01-09', 'dinner'),
+      ],
     })
     const { service, groceries } = makeService(graph)
 
@@ -365,10 +431,24 @@ describe('GroceryService.generateFromPlan aggregation', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
     const items = await groceries.getItemsForList(result.list.id)
-    const flourItems = items.filter((item) => item.ingredientId === 'flour')
-    expect(flourItems).toHaveLength(1)
+    const riceItems = items.filter((item) => item.ingredientId === 'rice')
+    expect(riceItems).toHaveLength(1)
     // The first-seen line's unit wins the bucket (500 g arrives before 1 kg).
-    expect(flourItems[0]?.quantity).toEqual({ value: 1500, unit: 'g' })
+    expect(riceItems[0]?.quantity).toEqual({ value: 1500, unit: 'g' })
+    expect(riceItems[0]?.sources).toEqual([
+      {
+        kind: 'cooking-event',
+        dishName: 'Curry',
+        quantity: { value: 500, unit: 'g' },
+        meals: [{ slotId: 'slot-1', date: '2026-01-06', mealType: 'dinner' }],
+      },
+      {
+        kind: 'cooking-event',
+        dishName: 'Rice bake',
+        quantity: { value: 1, unit: 'kg' },
+        meals: [{ slotId: 'slot-2', date: '2026-01-09', mealType: 'dinner' }],
+      },
+    ])
   })
 
   it('200 g flour and 1 cup flour remain two separate lines', async () => {
@@ -401,6 +481,20 @@ describe('GroceryService.generateFromPlan aggregation', () => {
     expect(flourItems).toHaveLength(2)
     const units = flourItems.map((item) => item.quantity?.unit).sort()
     expect(units).toEqual(['cup', 'g'])
+    expect(flourItems.map((item) => item.sources)).toEqual([
+      [
+        expect.objectContaining({
+          kind: 'cooking-event',
+          quantity: { value: 200, unit: 'g' },
+        }),
+      ],
+      [
+        expect.objectContaining({
+          kind: 'cooking-event',
+          quantity: { value: 1, unit: 'cup' },
+        }),
+      ],
+    ])
   })
 
   it('an unspecified cup stays unspecified when combined with ml', async () => {
@@ -532,6 +626,9 @@ describe('GroceryService.generateFromPlan leftover reuse', () => {
     expect(chickenItems).toHaveLength(1)
     // factor = output(4) / yield(4) = 1, applied once — not once per referencing component.
     expect(chickenItems[0]?.quantity).toEqual({ value: 1, unit: 'kg' })
+    expect(chickenItems[0]?.sources).toHaveLength(1)
+    expect(chickenItems[0]?.sources?.[0]?.meals).toHaveLength(2)
+    expect(chickenItems[0]?.sources?.[0]?.quantity).toEqual({ value: 1, unit: 'kg' })
   })
 })
 
@@ -589,6 +686,7 @@ describe('GroceryService.updateFromPlan manual-item preservation', () => {
     const flourItem = allItems.find((item) => item.ingredientId === 'flour')
     expect(flourItem?.quantity).toEqual({ value: 1, unit: 'cup-us' })
     expect(allItems.some((item) => item.id === manual.item.id)).toBe(true)
+    expect(manualAfter?.sources).toBeUndefined()
   })
 
   it('preserves checked state for a generated item whose ingredient still appears', async () => {
@@ -749,5 +847,152 @@ describe('GroceryService shopping sections', () => {
     if (!result.ok) return
     expect(result.item.shoppingSection).toBe('pantry')
     expect(result.item.origin).toBe('manual')
+  })
+})
+
+describe('GroceryService.generateFromPlan simple-food sources', () => {
+  it('records a simple-food allocation as its own source', async () => {
+    const foods = new Map<SimpleFoodId, SimpleFood>([
+      [
+        'yogurt-food',
+        {
+          id: 'yogurt-food',
+          ingredientId: 'yogurt',
+          name: 'Yogurt',
+          defaultPortion: { value: 1, unit: 'serving' },
+          roles: ['breakfast-component'],
+          mealTypes: ['breakfast'],
+          tagIds: [],
+          enabledInSuggestions: true,
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      ],
+    ])
+    const graph = buildGraph({
+      cookingEvents: [],
+      components: [
+        {
+          id: 'comp-yogurt',
+          slotId: 'slot-1',
+          source: { type: 'simple-food', simpleFoodId: 'yogurt-food' },
+          allocatedQuantity: { value: 2, unit: 'serving' },
+        },
+      ],
+      slots: [buildSlot('slot-1', false, '2026-01-06', 'breakfast')],
+    })
+    const { service, groceries } = makeService(graph, new Map(), foods)
+
+    const result = await service.generateFromPlan('plan-1')
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const items = await groceries.getItemsForList(result.list.id)
+    expect(items).toHaveLength(1)
+    expect(items[0]?.ingredientId).toBe('yogurt')
+    expect(items[0]?.quantity).toEqual({ value: 2, unit: 'serving' })
+    expect(items[0]?.sources).toEqual([
+      {
+        kind: 'simple-food',
+        dishName: 'Yogurt',
+        quantity: { value: 2, unit: 'serving' },
+        meals: [{ slotId: 'slot-1', date: '2026-01-06', mealType: 'breakfast' }],
+      },
+    ])
+  })
+})
+
+describe('GroceryService cooking oil and live recipes', () => {
+  it('stacks tablespoons of the same ingredient as tablespoons', async () => {
+    const graph = buildGraph({
+      cookingEvents: [
+        buildCookingEvent({
+          id: 'event-1',
+          planId: 'plan-1',
+          ingredientLines: [baseIngredientLine('oil', { value: 2, unit: 'tbsp' })],
+          yieldQty: { value: 1, unit: 'serving' },
+          outputQuantity: { value: 1, unit: 'serving' },
+        }),
+        buildCookingEvent({
+          id: 'event-2',
+          planId: 'plan-1',
+          ingredientLines: [baseIngredientLine('oil', { value: 1, unit: 'tbsp' })],
+          yieldQty: { value: 1, unit: 'serving' },
+          outputQuantity: { value: 1, unit: 'serving' },
+        }),
+      ],
+      components: [buildComponent('slot-1', 'event-1'), buildComponent('slot-1', 'event-2')],
+    })
+    const { service, groceries } = makeService(graph)
+    const result = await service.generateFromPlan('plan-1')
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const oil = (await groceries.getItemsForList(result.list.id)).filter(
+      (item) => item.ingredientId === 'oil',
+    )
+    expect(oil).toHaveLength(1)
+    expect(oil[0]?.quantity).toEqual({ value: 3, unit: 'tbsp' })
+  })
+
+  it('converts mixed spoon and teaspoon oil to milliliters', async () => {
+    const graph = buildGraph({
+      cookingEvents: [
+        buildCookingEvent({
+          id: 'event-1',
+          planId: 'plan-1',
+          ingredientLines: [baseIngredientLine('oil', { value: 1, unit: 'tbsp' })],
+          yieldQty: { value: 1, unit: 'serving' },
+          outputQuantity: { value: 1, unit: 'serving' },
+        }),
+        buildCookingEvent({
+          id: 'event-2',
+          planId: 'plan-1',
+          ingredientLines: [baseIngredientLine('oil', { value: 1, unit: 'tsp' })],
+          yieldQty: { value: 1, unit: 'serving' },
+          outputQuantity: { value: 1, unit: 'serving' },
+        }),
+      ],
+      components: [buildComponent('slot-1', 'event-1'), buildComponent('slot-1', 'event-2')],
+    })
+    const { service, groceries } = makeService(graph)
+    const result = await service.generateFromPlan('plan-1')
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const oil = (await groceries.getItemsForList(result.list.id)).find(
+      (item) => item.ingredientId === 'oil',
+    )
+    expect(oil?.quantity?.unit).toBe('ml')
+  })
+
+  it('uses the live library recipe amounts instead of the cooking-event snapshot', async () => {
+    const graph = buildGraph({
+      cookingEvents: [
+        buildCookingEvent({
+          id: 'event-1',
+          planId: 'plan-1',
+          ingredientLines: [baseIngredientLine('oil', { value: 1, unit: 'tbsp' })],
+          yieldQty: { value: 1, unit: 'serving' },
+          outputQuantity: { value: 1, unit: 'serving' },
+        }),
+      ],
+      components: [buildComponent('slot-1', 'event-1')],
+    })
+    const live = baseRecipe({
+      id: 'recipe-1',
+      ingredientLines: [baseIngredientLine('oil', { value: 3, unit: 'tbsp' })],
+      yield: { value: 1, unit: 'serving' },
+    })
+    const { service, groceries } = makeService(
+      graph,
+      new Map(),
+      new Map(),
+      new Map([['recipe-1', live]]),
+    )
+    const result = await service.generateFromPlan('plan-1')
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const oil = (await groceries.getItemsForList(result.list.id)).find(
+      (item) => item.ingredientId === 'oil',
+    )
+    expect(oil?.quantity).toEqual({ value: 3, unit: 'tbsp' })
   })
 })

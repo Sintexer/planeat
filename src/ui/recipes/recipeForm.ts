@@ -175,7 +175,6 @@ export function buildPartialWriteFromForm(values: RecipeFormValues): {
 
 export function measurementStatusForUnit(unit: string): MeasurementStatus {
   if (unit === 'cup') return 'ambiguous-cup'
-  if (unit === 'tbsp') return 'ambiguous-tbsp'
   if (unit === 'oz') return 'ambiguous-oz'
   return 'known'
 }

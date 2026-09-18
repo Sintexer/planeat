@@ -14,13 +14,13 @@ describe('parseIngredientLine', () => {
     })
   })
 
-  it('keeps tablespoon as unspecified legacy tbsp', () => {
+  it('treats tablespoon as a known culinary unit', () => {
     const parsed = parseIngredientLine('1 tbsp oil')
     expect(parsed).toMatchObject({
       name: 'oil',
       quantityValue: 1,
       quantityUnit: 'tbsp',
-      measurementStatus: 'ambiguous-tbsp',
+      measurementStatus: 'known',
       originalText: '1 tbsp oil',
     })
   })

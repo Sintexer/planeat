@@ -78,6 +78,7 @@ export class DexieGroceryRepository implements GroceryRepository {
       origin: input.origin,
       quantityManuallyEdited: input.quantityManuallyEdited ?? false,
       shoppingSection: input.shoppingSection,
+      sources: input.sources,
     }
     await this.db.groceryItems.add(item)
     await this.db.groceryLists.update(input.listId, { updatedAt: Date.now() })
@@ -96,6 +97,7 @@ export class DexieGroceryRepository implements GroceryRepository {
       origin: input.origin,
       quantityManuallyEdited: input.quantityManuallyEdited ?? false,
       shoppingSection: input.shoppingSection,
+      sources: input.sources,
     }))
     const listId = inputs[0]!.listId
     await this.db.transaction('rw', this.db.groceryItems, this.db.groceryLists, async () => {

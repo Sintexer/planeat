@@ -598,7 +598,7 @@ Store enough information to distinguish:
 
 This is necessary for safe list updates.
 
-Historical cooking-event snapshots must stay self-contained. Do not reinterpret their units from current household settings or regenerate their ingredient lines from the live library recipe.
+Historical cooking-event snapshots must stay self-contained for the plan (what was cooked). Grocery generate/update uses the **live library recipe** when it still exists, scaled to the cooking event's output; fall back to the snapshot if the recipe is gone.
 
 ### Backup format
 

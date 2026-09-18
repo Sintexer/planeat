@@ -9,12 +9,10 @@ import { findUnitDefinition } from '../../domain/shared/UnitRegistry'
 
 /**
  * Map app quantity units onto convert-units abbreviations, via the explicit
- * unit registry. `legacy` units (bare `cup`/`tbsp`, pre-Sprint-12) are
- * deliberately excluded here — an unspecified cup must stay unspecified, so
- * it only ever matches another exact-string `cup` via the same-unit fast
- * path in `add`/`subtract`/`compare`/`canConvert` below, never cross-converts
- * with `ml`/`l`/`cup-us`/etc. `piece` / `serving` / `cup-metric` have no
- * `convertUnit` in the registry and are likewise never cross-converted.
+ * unit registry. `legacy` units (bare `cup`, pre-Sprint-12) are excluded from
+ * cross-unit resolution — an unspecified cup stays unspecified. Culinary spoons
+ * (`tsp`, `tbsp`) do convert with other known volumes. `piece` / `serving` /
+ * `cup-metric` have no `convertUnit` and stay self-only.
  */
 function toConvertUnit(unit: string): string | null {
   const definition = findUnitDefinition(unit)
@@ -22,10 +20,15 @@ function toConvertUnit(unit: string): string | null {
   return definition.convertUnit ?? null
 }
 
+function isCulinarySpoon(unit: string): boolean {
+  return unit === 'tsp' || unit === 'tbsp'
+}
+
 /** The canonical unit to convert into for display under a given preference, or null if this unit's family isn't converted (count units, or units with no known conversion at all). */
 function canonicalUnitFor(unit: string, preference: MeasurementPreference): string | null {
   const definition = findUnitDefinition(unit)
   if (!definition || definition.legacy || preference === 'as-entered') return null
+  if (isCulinarySpoon(unit)) return null
   if (definition.family === 'mass') return preference === 'metric' ? 'g' : 'oz-mass'
   if (definition.family === 'volume') return preference === 'metric' ? 'ml' : 'oz-fl'
   return null
@@ -97,6 +100,38 @@ export class QuantityService {
   }
 
   /**
+   * Grocery totals: keep a shared unit when both sides use it; mixed convertible
+   * volumes become milliliters (spoons stay spoons until mixed with cups/ml).
+   */
+  addForGrocery(a: Quantity | null, b: Quantity | null): Quantity | null {
+    if (a === null || b === null) return null
+    if (a.unit === b.unit) return this.add(a, b)
+    const familyA = findUnitDefinition(a.unit)?.family
+    const familyB = findUnitDefinition(b.unit)?.family
+    if (familyA === 'volume' && familyB === 'volume' && this.canConvert(a, b)) {
+      const aMl = this.convert(a, 'ml')
+      const bMl = this.convert(b, 'ml')
+      return this.add(aMl, bMl)
+    }
+    return this.add(a, b)
+  }
+
+  convert(quantity: Quantity, targetUnit: string): Quantity | null {
+    if (quantity.unit === targetUnit) return { ...quantity }
+    const from = toConvertUnit(quantity.unit)
+    const to = toConvertUnit(targetUnit)
+    if (!from || !to) return null
+    try {
+      const value = convert(quantity.value)
+        .from(from as convert.Unit)
+        .to(to as convert.Unit)
+      return { value, unit: targetUnit }
+    } catch {
+      return null
+    }
+  }
+
+  /**
    * Subtract `b` from `a` when units are compatible.
    * Result uses `a.unit`. Returns null when either side is null or units cannot convert.
    */
@@ -155,9 +190,9 @@ export class QuantityService {
   /**
    * Converts a quantity into the unit most appropriate for `preference`,
    * for display only — never mutates or reinterprets the stored quantity.
-   * Legacy units (`cup`/`tbsp`), `cup-metric`, `piece`/`serving`, and any
-   * unrecognized unit have no known conversion and pass through unchanged
-   * under every preference, matching "an unspecified cup stays unspecified."
+   * Legacy units (`cup`), culinary spoons (`tsp`/`tbsp`), `cup-metric`,
+   * `piece`/`serving`, and any unrecognized unit pass through unchanged
+   * under every preference. Mixed grocery totals may already be stored in `ml`.
    */
   presentForDisplay(quantity: Quantity | null, preference: MeasurementPreference): Quantity | null {
     if (quantity === null) return null

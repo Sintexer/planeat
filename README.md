@@ -87,4 +87,4 @@ Run format, lint, typecheck, and test before considering any change complete —
 
 ## Next Work
 
-Sprints 1–23 are shipped. Next is Sprint 24 (explain generated grocery quantities) — see "Phase 5 — Reliability and household validation" in [docs/sprints/plan.md](docs/sprints/plan.md), and the Status section at the bottom for the full log of what landed. Do not invent work from older "Next" headings elsewhere or from Cursor plan files.
+Sprints 1–24 are shipped. Next is Sprint 25 (preview grocery updates from the plan) — see "Phase 5 — Reliability and household validation" in [docs/sprints/plan.md](docs/sprints/plan.md), and the Status section at the bottom for the full log of what landed. Do not invent work from older "Next" headings elsewhere or from Cursor plan files.

@@ -38,7 +38,6 @@ export function ImportLineMeasurement({ line, onChange }: ImportLineMeasurementP
     line.quantityUnit === 'cup-us' ||
     line.quantityUnit === 'cup-metric' ||
     line.measurementStatus === 'ambiguous-cup'
-  const showTbsp = line.quantityUnit === 'tbsp' || line.measurementStatus === 'ambiguous-tbsp'
   const showOz =
     line.measurementStatus === 'ambiguous-oz' ||
     line.quantityUnit === 'oz' ||
@@ -70,11 +69,6 @@ export function ImportLineMeasurement({ line, onChange }: ImportLineMeasurementP
             })
           }
         />
-      ) : null}
-      {showTbsp && line.quantityMode === 'amount' ? (
-        <Text size="xs" c="dimmed">
-          Tablespoon convention is unspecified. Keep as-is, or pick a known unit.
-        </Text>
       ) : null}
       {showOz ? (
         <SegmentedControl

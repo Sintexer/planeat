@@ -145,13 +145,9 @@ function extractTrailingNotes(text: string): { remainder: string; notes: string[
 
 function statusForUnit(unit: string): MeasurementStatus {
   if (unit === 'cup') return 'ambiguous-cup'
-  if (unit === 'tbsp') return 'ambiguous-tbsp'
   if (unit === 'oz') return 'ambiguous-oz'
   const definition = findUnitDefinition(unit)
-  if (definition?.legacy) {
-    if (definition.key === 'cup') return 'ambiguous-cup'
-    if (definition.key === 'tbsp') return 'ambiguous-tbsp'
-  }
+  if (definition?.legacy && definition.key === 'cup') return 'ambiguous-cup'
   return 'known'
 }
 
@@ -193,7 +189,7 @@ function unresolvedLine(input: {
 
 /**
  * Parse a free-text recipeIngredient line into name + qty/unit/note.
- * Always keeps `originalText`. Does not invent a cup/tbsp convention, oz family, or range endpoint.
+ * Always keeps `originalText`. Does not invent a cup convention, oz family, or range endpoint.
  */
 export function parseIngredientLine(line: string): ImportedIngredientLine {
   const decoded = decodeHtmlEntities(line).trim()

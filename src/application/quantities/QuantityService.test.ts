@@ -23,8 +23,9 @@ describe('canConvert', () => {
     expect(service.canConvert({ value: 1, unit: 'cup' }, { value: 2, unit: 'cup' })).toBe(true)
   })
 
-  it('legacy tbsp behaves the same as legacy cup', () => {
-    expect(service.canConvert({ value: 1, unit: 'tbsp' }, { value: 15, unit: 'ml' })).toBe(false)
+  it('tbsp converts with ml and tsp, and still matches itself', () => {
+    expect(service.canConvert({ value: 1, unit: 'tbsp' }, { value: 15, unit: 'ml' })).toBe(true)
+    expect(service.canConvert({ value: 1, unit: 'tbsp' }, { value: 3, unit: 'tsp' })).toBe(true)
     expect(service.canConvert({ value: 1, unit: 'tbsp' }, { value: 2, unit: 'tbsp' })).toBe(true)
   })
 
@@ -100,6 +101,21 @@ describe('add', () => {
   it('returns null whenever either operand is null', () => {
     expect(service.add(null, { value: 1, unit: 'g' })).toBeNull()
     expect(service.add({ value: 1, unit: 'g' }, null)).toBeNull()
+  })
+})
+
+describe('addForGrocery', () => {
+  it('keeps tablespoons when every contribution is a tablespoon', () => {
+    expect(service.addForGrocery({ value: 2, unit: 'tbsp' }, { value: 1, unit: 'tbsp' })).toEqual({
+      value: 3,
+      unit: 'tbsp',
+    })
+  })
+
+  it('converts mixed volume types to milliliters', () => {
+    const mixed = service.addForGrocery({ value: 1, unit: 'tbsp' }, { value: 1, unit: 'tsp' })
+    expect(mixed?.unit).toBe('ml')
+    expect(mixed?.value).toBeCloseTo(19.72, 1)
   })
 })
 
@@ -222,7 +238,7 @@ describe('presentForDisplay', () => {
     expect(result?.value).toBeCloseTo(3.53, 1)
   })
 
-  it('never converts legacy cup or tbsp under any preference', () => {
+  it('never converts culinary spoons or a legacy cup under any preference', () => {
     for (const preference of ['metric', 'us-customary'] as const) {
       expect(service.presentForDisplay({ value: 1, unit: 'cup' }, preference)).toEqual({
         value: 1,
@@ -231,6 +247,10 @@ describe('presentForDisplay', () => {
       expect(service.presentForDisplay({ value: 1, unit: 'tbsp' }, preference)).toEqual({
         value: 1,
         unit: 'tbsp',
+      })
+      expect(service.presentForDisplay({ value: 1, unit: 'tsp' }, preference)).toEqual({
+        value: 1,
+        unit: 'tsp',
       })
     }
   })

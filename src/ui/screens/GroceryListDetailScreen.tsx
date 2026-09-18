@@ -1,8 +1,10 @@
 import {
   ActionIcon,
+  Anchor,
   Badge,
   Button,
   Checkbox,
+  Collapse,
   Group,
   Stack,
   Text,
@@ -11,22 +13,27 @@ import {
   SegmentedControl,
   Switch,
   Title,
+  UnstyledButton,
 } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
-import { IconPencil, IconTrash } from '@tabler/icons-react'
+import { IconChevronDown, IconChevronUp, IconPencil, IconTrash } from '@tabler/icons-react'
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 import { useServices } from '../../app/servicesContext'
-import type { GroceryItem } from '../../domain/groceries/GroceryItem'
+import type { GroceryItem, GroceryItemSource } from '../../domain/groceries/GroceryItem'
 import { groceryListView, shoppingSectionLabel } from '../../domain/groceries/shoppingSections'
+import type { PlanGraph } from '../../domain/plans/PlanGraph'
 import type { Quantity } from '../../domain/shared/Quantity'
+import { MEAL_TYPE_LABELS, type MealType } from '../../domain/shared/MealEnums'
 import { QuantityFields } from '../components/QuantityFields'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { ShoppingSectionSelect } from '../components/ShoppingSectionSelect'
 import { useGroceryList } from '../hooks/useGroceryList'
+import { usePlan } from '../hooks/usePlan'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
+import { useLocalization } from '../localization/LocalizationContext'
 
 interface ManualItemForm {
   label: string
@@ -42,9 +49,81 @@ interface EditItemForm {
   shoppingSection: string
 }
 
+function mealTypeLabel(mealType: string): string {
+  if (mealType in MEAL_TYPE_LABELS) {
+    return MEAL_TYPE_LABELS[mealType as MealType].toLowerCase()
+  }
+  return mealType
+}
+
+function weekdayLong(date: string, locale: string): string {
+  const [year, month, day] = date.split('-').map(Number)
+  if (!year || !month || !day) return date
+  return new Date(year, month - 1, day).toLocaleDateString(locale, { weekday: 'long' })
+}
+
+function sourceHeading(source: GroceryItemSource, locale: string): string {
+  const meals = source.meals
+    .map((meal) => `${weekdayLong(meal.date, locale)} ${mealTypeLabel(meal.mealType)}`)
+    .join(', ')
+  if (!meals) return source.dishName
+  return `${meals} — ${source.dishName}`
+}
+
 function quantityFromForm(value: number | '', unit: string): Quantity | null {
   if (value === '' || !Number.isFinite(value)) return null
   return { value, unit }
+}
+
+function GrocerySourceRow({
+  source,
+  planId,
+  liveSlotIds,
+  planGraph,
+  locale,
+  formatQty,
+}: {
+  source: GroceryItemSource
+  planId?: string
+  liveSlotIds: Set<string>
+  planGraph: PlanGraph | undefined
+  locale: string
+  formatQty: (quantity: Quantity | null) => string
+}) {
+  const heading = sourceHeading(source, locale)
+  const liveMeal = source.meals.find((meal) => liveSlotIds.has(meal.slotId))
+  const missingMeal =
+    Boolean(planId && planGraph) && source.meals.some((meal) => !liveSlotIds.has(meal.slotId))
+  const canLink = Boolean(planId && liveMeal)
+
+  return (
+    <Stack gap={0}>
+      <Group justify="space-between" wrap="nowrap" gap="sm">
+        {canLink && liveMeal ? (
+          <Anchor
+            component={Link}
+            to={`/plan/${planId}?date=${liveMeal.date}`}
+            size="sm"
+            style={{ minWidth: 0 }}
+          >
+            {heading}
+          </Anchor>
+        ) : (
+          <Text size="sm" style={{ minWidth: 0 }}>
+            {heading}
+          </Text>
+        )}
+        <Text size="sm" c="dimmed" style={{ flexShrink: 0 }}>
+          {formatQty(source.quantity)}
+        </Text>
+      </Group>
+      {missingMeal ? (
+        <Text size="xs" c="dimmed">
+          This meal is no longer on the plan.
+        </Text>
+      ) : null}
+    </Stack>
+  )
 }
 
 export function GroceryListDetailScreen() {
@@ -52,8 +131,11 @@ export function GroceryListDetailScreen() {
   const navigate = useNavigate()
   const { groceryService } = useServices()
   const detail = useGroceryList(listId)
+  const sourcePlan = usePlan(detail?.list.sourcePlanId)
   const formatQty = useFormatQuantity()
+  const { bcp47 } = useLocalization()
   const [editingId, setEditingId] = useState<string | undefined>(undefined)
+  const [expandedSourceId, setExpandedSourceId] = useState<string | undefined>(undefined)
   const [grouped, setGrouped] = useState(true)
   const [hideChecked, setHideChecked] = useState(false)
 
@@ -89,6 +171,7 @@ export function GroceryListDetailScreen() {
   const { list, items } = detail
   const closed = list.status === 'closed'
   const view = groceryListView(items, { hideChecked, grouped })
+  const liveSlotIds = new Set(sourcePlan?.slots.map((slot) => slot.id) ?? [])
 
   const handleToggle = async (item: GroceryItem) => {
     const result = await groceryService.toggleChecked(item.id)
@@ -251,6 +334,48 @@ export function GroceryListDetailScreen() {
               {formatQty(item.quantity)}
               {item.origin === 'manual' ? ' · manual' : ''}
             </Text>
+            {item.origin === 'generated' && !item.sources?.length ? (
+              <Text size="xs" c="dimmed">
+                Update this list from the plan to see which meals need this item.
+              </Text>
+            ) : null}
+            {item.origin === 'generated' && item.sources && item.sources.length > 0 ? (
+              <>
+                <UnstyledButton
+                  onClick={() =>
+                    setExpandedSourceId(expandedSourceId === item.id ? undefined : item.id)
+                  }
+                  aria-expanded={expandedSourceId === item.id}
+                  aria-label={`Used by ${item.label}`}
+                >
+                  <Group gap={4}>
+                    <Text size="xs" c="dimmed">
+                      Used by
+                    </Text>
+                    {expandedSourceId === item.id ? (
+                      <IconChevronUp size={14} />
+                    ) : (
+                      <IconChevronDown size={14} />
+                    )}
+                  </Group>
+                </UnstyledButton>
+                <Collapse expanded={expandedSourceId === item.id}>
+                  <Stack gap={4} mt={4}>
+                    {item.sources.map((source, index) => (
+                      <GrocerySourceRow
+                        key={`${item.id}-source-${index}`}
+                        source={source}
+                        planId={list.sourcePlanId}
+                        liveSlotIds={liveSlotIds}
+                        planGraph={sourcePlan}
+                        locale={bcp47}
+                        formatQty={formatQty}
+                      />
+                    ))}
+                  </Stack>
+                </Collapse>
+              </>
+            ) : null}
           </Stack>
           {!closed && (
             <Group gap={4} wrap="nowrap">

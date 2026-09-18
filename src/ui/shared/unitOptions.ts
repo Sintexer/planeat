@@ -23,7 +23,7 @@ const unitSelectGroups = (['volume', 'mass', 'count'] as const).map((family) => 
 
 /**
  * Grouped unit Select data for `currentUnit`. If the stored unit isn't in the
- * selectable list (a legacy `cup`/`tbsp`, or any unrecognized string), a one-off
+ * selectable list (a legacy `cup`, or any unrecognized string), a one-off
  * option is prepended so it displays and stays selected faithfully — never
  * coerced to another unit, and never offered to a row that doesn't already have it.
  */

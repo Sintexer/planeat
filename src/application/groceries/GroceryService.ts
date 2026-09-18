@@ -5,9 +5,14 @@ import type {
 } from '../ports/GroceryRepository'
 import type { IngredientRepository } from '../ports/IngredientRepository'
 import type { PlanRepository } from '../ports/PlanRepository'
+import type { RecipeRepository } from '../ports/RecipeRepository'
 import type { SimpleFoodRepository } from '../ports/SimpleFoodRepository'
 import type { QuantityService } from '../quantities/QuantityService'
-import type { GroceryItem, GroceryItemId } from '../../domain/groceries/GroceryItem'
+import type {
+  GroceryItem,
+  GroceryItemId,
+  GroceryItemSource,
+} from '../../domain/groceries/GroceryItem'
 import type { GroceryList, GroceryListId } from '../../domain/groceries/GroceryList'
 import { normalizeShoppingSection } from '../../domain/groceries/shoppingSections'
 import type { PlanId } from '../../domain/plans/Plan'
@@ -36,6 +41,7 @@ type RequirementLine = {
   ingredientId?: IngredientId
   label: string
   quantity: Quantity | null
+  sources: GroceryItemSource[]
 }
 
 export class GroceryService {
@@ -44,6 +50,7 @@ export class GroceryService {
   private readonly ingredients: IngredientRepository
   private readonly simpleFoods: SimpleFoodRepository
   private readonly quantities: QuantityService
+  private readonly recipes: RecipeRepository
 
   constructor(
     groceries: GroceryRepository,
@@ -51,12 +58,14 @@ export class GroceryService {
     ingredients: IngredientRepository,
     simpleFoods: SimpleFoodRepository,
     quantities: QuantityService,
+    recipes: RecipeRepository,
   ) {
     this.groceries = groceries
     this.plans = plans
     this.ingredients = ingredients
     this.simpleFoods = simpleFoods
     this.quantities = quantities
+    this.recipes = recipes
   }
 
   listLists(): Promise<GroceryList[]> {
@@ -333,6 +342,7 @@ export class GroceryService {
     const activeComponents = graph.components.filter(
       (component) => !excludedSlotIds.has(component.slotId),
     )
+    const slotsById = new Map(graph.slots.map((slot) => [slot.id, slot]))
 
     const cookingEventIds = new Set<string>()
     for (const component of activeComponents) {
@@ -341,34 +351,51 @@ export class GroceryService {
       }
     }
 
+    const mealsForCookingEvent = (eventId: string): GroceryItemSource['meals'] => {
+      const meals: GroceryItemSource['meals'] = []
+      for (const component of activeComponents) {
+        if (component.source.type !== 'cooking-event') continue
+        if (component.source.cookingEventId !== eventId) continue
+        const slot = slotsById.get(component.slotId)
+        if (!slot) continue
+        meals.push({ slotId: slot.id, date: slot.date, mealType: slot.mealType })
+      }
+      return meals
+    }
+
     const lines: RequirementLine[] = []
 
     for (const event of graph.cookingEvents) {
       if (!cookingEventIds.has(event.id)) continue
       const snapshot = event.recipeSnapshot
-      const yieldQty = snapshot.yield
+      const live = await this.recipes.getById(event.recipeId)
+      const yieldQty = live?.yield ?? snapshot.yield
+      const ingredientLines = live?.ingredientLines ?? snapshot.ingredientLines
+      const dishName = live?.name ?? snapshot.name
       const output = event.outputQuantity
       const unitsMatch = yieldQty.unit === output.unit && yieldQty.value > 0
       const factor = unitsMatch ? output.value / yieldQty.value : null
+      const meals = mealsForCookingEvent(event.id)
 
-      for (const recipeLine of snapshot.ingredientLines) {
+      for (const recipeLine of ingredientLines) {
         const ingredient = recipeLine.ingredientId
           ? await this.ingredients.getById(recipeLine.ingredientId)
           : undefined
         const label = ingredient?.name ?? recipeLine.displayText
-        if (factor === null) {
-          lines.push({
-            ingredientId: recipeLine.ingredientId,
-            label,
-            quantity: null,
-          })
-        } else {
-          lines.push({
-            ingredientId: recipeLine.ingredientId,
-            label,
-            quantity: this.quantities.scale(recipeLine.quantity, factor),
-          })
-        }
+        const quantity = factor === null ? null : this.quantities.scale(recipeLine.quantity, factor)
+        lines.push({
+          ingredientId: recipeLine.ingredientId,
+          label,
+          quantity,
+          sources: [
+            {
+              kind: 'cooking-event',
+              dishName,
+              quantity,
+              meals,
+            },
+          ],
+        })
       }
     }
 
@@ -377,10 +404,19 @@ export class GroceryService {
       const food = await this.simpleFoods.getById(component.source.simpleFoodId)
       if (!food) continue
       const ingredient = await this.ingredients.getById(food.ingredientId)
+      const slot = slotsById.get(component.slotId)
       lines.push({
         ingredientId: food.ingredientId,
         label: ingredient?.name ?? food.name,
         quantity: component.allocatedQuantity,
+        sources: [
+          {
+            kind: 'simple-food',
+            dishName: food.name,
+            quantity: component.allocatedQuantity,
+            meals: slot ? [{ slotId: slot.id, date: slot.date, mealType: slot.mealType }] : [],
+          },
+        ],
       })
     }
 
@@ -409,6 +445,7 @@ export class GroceryService {
         let merged = false
         for (const bucket of buckets) {
           if (line.quantity === null && bucket.quantity === null) {
+            bucket.sources = [...bucket.sources, ...line.sources]
             merged = true
             break
           }
@@ -417,16 +454,17 @@ export class GroceryService {
             bucket.quantity !== null &&
             this.quantities.canConvert(bucket.quantity, line.quantity)
           ) {
-            const sum = this.quantities.add(bucket.quantity, line.quantity)
+            const sum = this.quantities.addForGrocery(bucket.quantity, line.quantity)
             if (sum) {
               bucket.quantity = sum
+              bucket.sources = [...bucket.sources, ...line.sources]
               merged = true
               break
             }
           }
         }
         if (!merged) {
-          buckets.push({ ...line })
+          buckets.push({ ...line, sources: [...line.sources] })
         }
       }
       aggregated.push(...buckets)
@@ -462,6 +500,7 @@ export class GroceryService {
         origin: 'generated',
         quantityManuallyEdited: false,
         shoppingSection,
+        sources: line.sources.length > 0 ? line.sources : undefined,
       })
     }
     await this.groceries.createItems(inputs)

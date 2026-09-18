@@ -16,4 +16,21 @@ export interface GroceryItem {
   quantityManuallyEdited: boolean
   /** Optional shopping-section key copied at generate time, or set on a manual line. */
   shoppingSection?: string
+  /** Plan contributions captured when the line was generated. Absent on manual lines and older lists. */
+  sources?: GroceryItemSource[]
+}
+
+export type GroceryItemSourceKind = 'cooking-event' | 'simple-food'
+
+export interface GroceryItemSourceMeal {
+  slotId: string
+  date: string
+  mealType: string
+}
+
+export interface GroceryItemSource {
+  kind: GroceryItemSourceKind
+  dishName: string
+  quantity: Quantity | null
+  meals: GroceryItemSourceMeal[]
 }

@@ -92,7 +92,7 @@ Backup format version **7** adds `libraryViews`.
 
 - Ingredient identity is the ID. Do not invent a locale on existing `aliases`.
 - `ingredientId` on a recipe line may be unset (unlinked import).
-- Units live in `UnitRegistry` (`cup-us`, `cup-metric`, `oz-mass`, `oz-fl`; legacy `cup`/`tbsp` stay self-only). Not a Dexie table of household units.
+- Units live in `UnitRegistry` (`cup-us`, `cup-metric`, `oz-mass`, `oz-fl`, `tsp`, `tbsp`; legacy `cup` stays self-only). Not a Dexie table of household units.
 - Snapshots stay self-contained: never reinterpret units from current settings; never regenerate from the live library recipe.
 - Settings presentation fields (`uiLocale`, `measurementPreference`, catalog sort/group) merge via `mergeSettingsDefaults`.
 

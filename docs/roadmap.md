@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped through **Sprint 23**. Optional Phase 4 follow-ups remain. Full cards and Status log: [`docs/sprints/plan.md`](sprints/plan.md).
+Shipped through **Sprint 24**. Optional Phase 4 follow-ups remain. Full cards and Status log: [`docs/sprints/plan.md`](sprints/plan.md).
 
 ## Done — project initialization
 
@@ -94,6 +94,11 @@ Shipped through **Sprint 23**. Optional Phase 4 follow-ups remain. Full cards an
 
 - Restore preflight: validate the file first, show recipe / simple-food / plan / grocery-list counts, optional reliable export date, export current data before replace.
 - Invalid or unsupported backups leave local data untouched. Success repeats the same counts. No schema or backup-format bump.
+
+## Done — Sprint 24 (explain grocery quantities)
+
+- Generated lines store meal contributions (cooking event once, including leftover slots; simple-food allocations). Expand **Used by** on the list; incompatible units stay separate; leftover reuse does not double a requirement.
+- Link to the planned day when the slot still exists. Additive backup field only.
 
 ## Later (optional Phase 4 follow-ups)
 

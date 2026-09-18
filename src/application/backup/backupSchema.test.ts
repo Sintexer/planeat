@@ -388,6 +388,51 @@ describe('backupFileSchema — shopping sections (Sprint 20)', () => {
   })
 })
 
+describe('backupFileSchema — grocery item sources (Sprint 24)', () => {
+  it('round-trips contribution sources, including an unrecognized meal type', () => {
+    const data = emptyData()
+    data.groceryLists = [
+      { id: 'list-1', title: 'Shop', status: 'open', createdAt: 0, updatedAt: 0 },
+    ]
+    data.groceryItems = [
+      {
+        id: 'item-1',
+        listId: 'list-1',
+        label: 'Rice',
+        ingredientId: 'rice',
+        quantity: { value: 1500, unit: 'g' },
+        checked: false,
+        origin: 'generated',
+        quantityManuallyEdited: false,
+        sources: [
+          {
+            kind: 'cooking-event',
+            dishName: 'Curry',
+            quantity: { value: 500, unit: 'g' },
+            meals: [{ slotId: 'slot-1', date: '2026-01-06', mealType: 'dinner' }],
+          },
+          {
+            kind: 'simple-food',
+            dishName: 'Yogurt',
+            quantity: { value: 1, unit: 'serving' },
+            meals: [{ slotId: 'slot-2', date: '2026-01-07', mealType: 'elevenses' }],
+          },
+        ],
+      },
+    ]
+
+    const result = backupFileSchema.safeParse({
+      format: 'family-menu-planner',
+      schemaVersion: CURRENT_BACKUP_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    })
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.data.data.groceryItems[0]?.sources?.[1]?.meals[0]?.mealType).toBe('elevenses')
+  })
+})
+
 describe('backupFileSchema — saved library views (Sprint 22)', () => {
   it('round-trips a named view with query, tag filters, sort, and grouping', () => {
     const data = emptyData()
