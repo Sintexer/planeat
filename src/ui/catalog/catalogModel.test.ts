@@ -84,7 +84,7 @@ describe('groupCatalogItems', () => {
   it('collapses to a single Results bucket while searching, regardless of mode', () => {
     const items = [makeItem({ key: 'a' }), makeItem({ key: 'b' })]
     const groups = groupCatalogItems(items, { searching: true, mode: 'kind' })
-    expect(groups).toEqual([{ id: 'results', title: 'Results', items }])
+    expect(groups).toEqual([{ id: 'results', title: '', items }])
   })
 
   it('peels off suggested items first and includes every item exactly once', () => {
@@ -95,7 +95,7 @@ describe('groupCatalogItems', () => {
       searching: false,
       suggestedFirst: true,
     })
-    expect(groups[0]).toEqual({ id: 'suggested', title: 'Suggested', items: [suggested] })
+    expect(groups[0]).toEqual({ id: 'suggested', title: '', items: [suggested] })
     const allItems = groups.flatMap((group) => group.items)
     expect(allItems.map((item) => item.key).sort()).toEqual(['food', 'recipe', 'suggested'])
   })
@@ -104,7 +104,7 @@ describe('groupCatalogItems', () => {
     const recipe = makeItem({ key: 'recipe', kind: 'recipe' })
     const food = makeItem({ key: 'food', kind: 'simple-food' })
     const groups = groupCatalogItems([recipe, food], { searching: false, mode: 'kind' })
-    expect(groups.map((group) => group.title)).toEqual(['Recipes', 'Simple foods'])
+    expect(groups.map((group) => group.id)).toEqual(['recipes', 'foods'])
   })
 
   it('groups by primary dish type, with an unclassified bucket last', () => {
@@ -112,8 +112,12 @@ describe('groupCatalogItems', () => {
     const custom = makeItem({ key: 'custom', dishType: 'grandmas-secret' })
     const plain = makeItem({ key: 'plain' })
     const groups = groupCatalogItems([soup, custom, plain], { searching: false, mode: 'dish-type' })
-    expect(groups.map((group) => group.title)).toEqual(['grandmas-secret', 'Soup', 'Unclassified'])
-    expect(groups.at(-1)).toEqual({ id: 'unclassified', title: 'Unclassified', items: [plain] })
+    expect(groups.map((group) => group.id)).toEqual([
+      'dish-type:grandmas-secret',
+      'dish-type:soup',
+      'unclassified',
+    ])
+    expect(groups.at(-1)).toEqual({ id: 'unclassified', title: '', items: [plain] })
   })
 
   it('groups picker sections without dropping unmatched items from All items', () => {
@@ -179,6 +183,34 @@ describe('itemMatchesFilters', () => {
     expect(itemMatchesFilters(item, { ...base, query: 'zzzz-no-match' })).toBe(true)
   })
 
+  it('applies cleanup views without treating gaps as hard filter errors elsewhere', () => {
+    const complete = makeItem({
+      key: 'complete',
+      mealTypes: ['dinner'],
+      dishType: 'soup',
+      totalTimeMinutes: 20,
+    })
+    const noOccasion = makeItem({ key: 'plain', mealTypes: [] })
+    const noType = makeItem({ key: 'no-type', mealTypes: ['dinner'] })
+    const unlinked = makeItem({
+      key: 'import',
+      mealTypes: ['dinner'],
+      dishType: 'soup',
+      totalTimeMinutes: 10,
+      hasUnlinkedIngredients: true,
+    })
+    const food = makeItem({ key: 'yogurt', kind: 'simple-food', mealTypes: [] })
+    expect(itemMatchesFilters(noOccasion, { ...base, cleanup: 'missing-occasion' })).toBe(true)
+    expect(itemMatchesFilters(complete, { ...base, cleanup: 'missing-occasion' })).toBe(false)
+    expect(itemMatchesFilters(food, { ...base, cleanup: 'missing-occasion' })).toBe(true)
+    expect(itemMatchesFilters(noType, { ...base, cleanup: 'missing-dish-type' })).toBe(true)
+    expect(itemMatchesFilters(food, { ...base, cleanup: 'missing-dish-type' })).toBe(false)
+    expect(itemMatchesFilters(noType, { ...base, cleanup: 'missing-time' })).toBe(true)
+    expect(itemMatchesFilters(complete, { ...base, cleanup: 'missing-time' })).toBe(false)
+    expect(itemMatchesFilters(unlinked, { ...base, cleanup: 'unlinked-ingredients' })).toBe(true)
+    expect(itemMatchesFilters(complete, { ...base, cleanup: 'unlinked-ingredients' })).toBe(false)
+  })
+
   it('still matches a tag filter when the live item keeps an archived or dangling tagId', () => {
     const item = makeItem({ key: 'soup', tagIds: ['archived-or-gone'] })
     expect(itemMatchesFilters(item, { ...base, tagIds: ['archived-or-gone'] })).toBe(true)
@@ -218,7 +250,7 @@ describe('uniqueTagFacets', () => {
     ).toEqual([
       { id: 'live', name: 'soup' },
       { id: 'archived', name: 'batch' },
-      { id: 'missing', name: 'Unavailable tag' },
+      { id: 'missing', name: '' },
     ])
   })
 })

@@ -27,8 +27,12 @@ import {
   DEFAULT_UI_LOCALE,
   parseMeasurementPreference,
   parseUiLocale,
+  UI_LOCALES,
+  UI_LOCALE_ENDONYMS,
 } from '../../domain/shared/Locale'
-import { WEEKDAY_LABELS, type WeekStartDay } from '../../domain/shared/LocalDate'
+import { type WeekStartDay } from '../../domain/shared/LocalDate'
+import { formatWeekday } from '../localization/formatDate'
+import { restoreErrorCopy } from '../localization/errors'
 import { PageTitle } from '../components/ScreenHeader'
 import { useSettings } from '../hooks/useSettings'
 import { useLocalization } from '../localization/LocalizationContext'
@@ -45,14 +49,10 @@ interface SettingsForm {
   measurementPreference: string
 }
 
-const weekStartOptions = ([0, 1, 2, 3, 4, 5, 6] as const).map((day) => ({
-  value: String(day),
-  label: WEEKDAY_LABELS[day],
-}))
-
-const weekdayMultiOptions = weekStartOptions
-
-async function downloadCurrentBackup(backupService: BackupService): Promise<void> {
+async function downloadCurrentBackup(
+  backupService: BackupService,
+  exportedMessage: string,
+): Promise<void> {
   const backup = await backupService.createBackup()
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -61,30 +61,20 @@ async function downloadCurrentBackup(backupService: BackupService): Promise<void
   link.download = `planeat-backup-${dayjs().format('YYYY-MM-DD')}.json`
   link.click()
   URL.revokeObjectURL(url)
-  notifications.show({ message: 'Backup exported', color: 'green' })
-}
-
-function restoreErrorMessage(error: BackupRestoreError, foundVersion?: number): string {
-  if (error === 'unsupported-version') {
-    const found = foundVersion === undefined ? 'unknown' : String(foundVersion)
-    return `This backup uses format version ${found}. This app supports version ${CURRENT_BACKUP_FORMAT_VERSION}. The household data on this device was not changed.`
-  }
-  if (error === 'write-failed') {
-    return 'Could not restore backup: local data was not modified.'
-  }
-  return 'This file is not a valid PlanEat backup. The household data on this device was not changed.'
+  notifications.show({ message: exportedMessage, color: 'green' })
 }
 
 function BackupCounts({ summary }: { summary: BackupRestoreSummary }) {
+  const { t } = useLocalization()
   return (
     <Stack gap={4}>
-      <Text size="sm">Backup format: supported</Text>
-      <Text size="sm">Recipes: {summary.recipeCount}</Text>
-      <Text size="sm">Simple foods: {summary.simpleFoodCount}</Text>
-      <Text size="sm">Meal plans: {summary.planCount}</Text>
-      <Text size="sm">Grocery lists: {summary.groceryListCount}</Text>
+      <Text size="sm">{t('settings.backupFormatOk')}</Text>
+      <Text size="sm">{t('settings.backupRecipes', { count: summary.recipeCount })}</Text>
+      <Text size="sm">{t('settings.backupFoods', { count: summary.simpleFoodCount })}</Text>
+      <Text size="sm">{t('settings.backupPlans', { count: summary.planCount })}</Text>
+      <Text size="sm">{t('settings.backupLists', { count: summary.groceryListCount })}</Text>
       {summary.exportedAtDisplay ? (
-        <Text size="sm">Exported: {summary.exportedAtDisplay}</Text>
+        <Text size="sm">{t('settings.backupExportedAt', { when: summary.exportedAtDisplay })}</Text>
       ) : null}
     </Stack>
   )
@@ -109,7 +99,12 @@ function SectionLabel({ children }: { children: string }) {
 export function SettingsScreen() {
   const { settingsRepository, backupService } = useServices()
   const settings = useSettings()
-  const { t } = useLocalization()
+  const { t, bcp47 } = useLocalization()
+
+  const weekStartOptions = ([0, 1, 2, 3, 4, 5, 6] as const).map((day) => ({
+    value: String(day),
+    label: formatWeekday(day, bcp47, 'long'),
+  }))
 
   const form = useForm<SettingsForm>({
     initialValues: {
@@ -155,29 +150,32 @@ export function SettingsScreen() {
       uiLocale: parseUiLocale(values.uiLocale),
       measurementPreference: parseMeasurementPreference(values.measurementPreference),
     })
-    notifications.show({ message: 'Settings saved', color: 'green' })
+    notifications.show({ message: t('settings.saved'), color: 'green' })
   })
 
-  const handleExport = () => downloadCurrentBackup(backupService)
+  const handleExport = () => void downloadCurrentBackup(backupService, t('settings.backupExported'))
+
+  const restoreMessage = (error: BackupRestoreError, found?: number) =>
+    restoreErrorCopy(t, error, found, CURRENT_BACKUP_FORMAT_VERSION)
 
   const showRestoreSuccess = (summary: BackupRestoreSummary) => {
     modals.open({
-      title: 'Backup restored',
+      title: t('settings.restoredTitle'),
       children: (
         <Stack gap="sm">
-          <Text size="sm">This device now has the household data from the backup.</Text>
+          <Text size="sm">{t('settings.restoredBody')}</Text>
           <BackupCounts summary={summary} />
-          <Button onClick={() => modals.closeAll()}>OK</Button>
+          <Button onClick={() => modals.closeAll()}>{t('action.ok')}</Button>
         </Stack>
       ),
     })
   }
 
   const restoreBackup = async (parsed: unknown) => {
-    const result = await backupService.restoreBackup(parsed)
+    const result = await backupService.restoreBackup(parsed, bcp47)
     if (!result.ok) {
       notifications.show({
-        message: restoreErrorMessage(result.error, result.foundVersion),
+        message: restoreMessage(result.error, result.foundVersion),
         color: 'red',
       })
       return
@@ -192,34 +190,37 @@ export function SettingsScreen() {
     try {
       parsed = JSON.parse(await file.text())
     } catch {
-      notifications.show({ message: 'That file is not valid JSON', color: 'red' })
+      notifications.show({ message: t('settings.invalidJson'), color: 'red' })
       return
     }
 
-    const inspected = backupService.inspectBackup(parsed)
+    const inspected = backupService.inspectBackup(parsed, bcp47)
     if (!inspected.ok) {
       notifications.show({
-        message: restoreErrorMessage(inspected.error, inspected.foundVersion),
+        message: restoreMessage(inspected.error, inspected.foundVersion),
         color: 'red',
       })
       return
     }
 
     modals.open({
-      title: 'Restore this backup?',
+      title: t('settings.restoreTitle'),
       children: (
         <Stack gap="sm">
           <BackupCounts summary={inspected.summary} />
-          <Text size="sm">This will replace the household data on this device.</Text>
-          <Button variant="default" onClick={() => void downloadCurrentBackup(backupService)}>
-            Export current data
+          <Text size="sm">{t('settings.restoreReplaceHelp')}</Text>
+          <Button
+            variant="default"
+            onClick={() => void downloadCurrentBackup(backupService, t('settings.backupExported'))}
+          >
+            {t('settings.exportCurrent')}
           </Button>
           <Group justify="space-between">
             <Button variant="default" onClick={() => modals.closeAll()}>
-              Cancel
+              {t('action.cancel')}
             </Button>
             <Button color="red" onClick={() => void restoreBackup(parsed)}>
-              Replace and restore
+              {t('settings.replaceRestore')}
             </Button>
           </Group>
         </Stack>
@@ -229,17 +230,20 @@ export function SettingsScreen() {
 
   return (
     <Stack gap="lg">
-      <PageTitle>Settings</PageTitle>
+      <PageTitle>{t('settings.title')}</PageTitle>
 
       <form onSubmit={handleSubmit}>
         <Stack gap={24}>
           <div>
-            <SectionLabel>Display</SectionLabel>
+            <SectionLabel>{t('settings.sectionDisplay')}</SectionLabel>
             <Paper withBorder p={12} radius="md">
               <Stack gap="sm">
                 <Select
                   label={t('settings.language')}
-                  data={[{ value: 'en', label: 'English' }]}
+                  data={UI_LOCALES.map((locale) => ({
+                    value: locale,
+                    label: UI_LOCALE_ENDONYMS[locale],
+                  }))}
                   disabled={!settings}
                   allowDeselect={false}
                   {...form.getInputProps('uiLocale')}
@@ -261,17 +265,17 @@ export function SettingsScreen() {
           </div>
 
           <div>
-            <SectionLabel>Household</SectionLabel>
+            <SectionLabel>{t('settings.sectionHousehold')}</SectionLabel>
             <Paper withBorder p={12} radius="md">
               <Stack gap="sm">
                 <NumberInput
-                  label="Household size"
+                  label={t('settings.householdSize')}
                   min={1}
                   disabled={!settings}
                   {...form.getInputProps('householdSize')}
                 />
                 <Select
-                  label="Week starts on"
+                  label={t('settings.weekStartsOn')}
                   data={weekStartOptions}
                   disabled={!settings}
                   {...form.getInputProps('weekStartDay')}
@@ -281,12 +285,12 @@ export function SettingsScreen() {
           </div>
 
           <div>
-            <SectionLabel>Meal preferences</SectionLabel>
+            <SectionLabel>{t('settings.sectionPrefs')}</SectionLabel>
             <Paper withBorder p={12} radius="md">
               <Stack gap="sm">
                 <NumberInput
-                  label="Maximum batch-prep units"
-                  description="Half-unit steps. Two dishes in one session count as 1.5."
+                  label={t('settings.maxBatchPrep')}
+                  description={t('settings.maxBatchPrepHelp')}
                   min={0.5}
                   step={0.5}
                   decimalScale={1}
@@ -294,24 +298,24 @@ export function SettingsScreen() {
                   {...form.getInputProps('maxBatchPrepUnits')}
                 />
                 <MultiSelect
-                  label="Preferred batch-prep days"
-                  data={weekdayMultiOptions}
+                  label={t('settings.preferredPrepDays')}
+                  data={weekStartOptions}
                   disabled={!settings}
                   {...form.getInputProps('preferredBatchPrepDays')}
                 />
                 <MultiSelect
-                  label="Quick-meals-only days"
-                  data={weekdayMultiOptions}
+                  label={t('settings.quickMealsDays')}
+                  data={weekStartOptions}
                   disabled={!settings}
                   {...form.getInputProps('quickMealsOnlyDays')}
                 />
                 <Switch
-                  label="Avoid multiple demanding preparations on one day"
+                  label={t('settings.avoidDemanding')}
                   disabled={!settings}
                   {...form.getInputProps('avoidMultipleDemandingPreps', { type: 'checkbox' })}
                 />
                 <Switch
-                  label="Favor vegetables daily"
+                  label={t('settings.favorVegetables')}
                   disabled={!settings}
                   {...form.getInputProps('favorVegetablesDaily', { type: 'checkbox' })}
                 />
@@ -320,30 +324,29 @@ export function SettingsScreen() {
           </div>
 
           <Button type="submit" disabled={!settings} w="fit-content">
-            Save
+            {t('action.save')}
           </Button>
         </Stack>
       </form>
 
       <div>
-        <SectionLabel>Backup</SectionLabel>
+        <SectionLabel>{t('settings.sectionBackup')}</SectionLabel>
         <Paper withBorder p={12} radius="md">
           <Stack gap="sm">
             <Text c="dimmed" size="sm">
-              Export a backup file, or restore one. Restore shows what the file contains first and
-              replaces all local data only after you confirm.
+              {t('settings.backupHelp')}
             </Text>
             <Text c="dimmed" size="sm">
               {t('settings.backupPhotos')}
             </Text>
             <Group>
               <Button variant="default" onClick={handleExport}>
-                Export backup
+                {t('settings.exportBackup')}
               </Button>
               <FileButton onChange={handleFilePicked} accept="application/json">
                 {(props) => (
                   <Button variant="default" {...props}>
-                    Restore from backup
+                    {t('settings.restoreBackup')}
                   </Button>
                 )}
               </FileButton>

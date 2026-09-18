@@ -4,8 +4,10 @@ import type { MealComponent } from '../../domain/plans/MealComponent'
 import type { MealSlot } from '../../domain/plans/MealSlot'
 import type { Recipe } from '../../domain/recipes/Recipe'
 import type { LocalDate } from '../../domain/shared/LocalDate'
-import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
 import { MEAL_TYPES } from '../../domain/shared/MealEnums'
+import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
+
+export { formatPlanDayHeading } from '../localization/formatDate'
 
 export interface SlotComponentDisplay {
   component: MealComponent
@@ -66,16 +68,10 @@ export function groupDisplaysByDate(displays: SlotDisplay[]): Map<LocalDate, Slo
   return map
 }
 
-export function formatPlanDayHeading(date: LocalDate): string {
-  const [y, m, d] = date.split('-').map(Number)
-  const weekday = new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'short' })
-  return `${weekday} ${date}`
-}
-
-export function componentLabel(item: SlotComponentDisplay): string {
+export function componentLabel(item: SlotComponentDisplay, unknownLabel = ''): string {
   if (item.cookingEvent) return item.cookingEvent.recipeSnapshot.name
   if (item.simpleFood) return item.simpleFood.name
-  return 'Unknown item'
+  return unknownLabel
 }
 
 export type { MealType } from '../../domain/shared/MealEnums'

@@ -5,6 +5,7 @@ import {
   ingredientMatchesAnyIdentifier,
   type Ingredient,
 } from '../../domain/ingredients/Ingredient'
+import type { Translate } from '../localization/t'
 
 export type IngredientCandidateChoice =
   | { action: 'select'; ingredient: Ingredient }
@@ -23,17 +24,15 @@ export function resolveIngredientCandidate(
   candidates: Ingredient[],
   rawName: string,
   labelFor: (ingredient: Ingredient) => string,
+  t: Translate,
 ): Promise<IngredientCandidateChoice> {
   return new Promise((resolve) => {
     const id = modals.open({
-      title: 'Which ingredient did you mean?',
+      title: t('candidate.title'),
       onClose: () => resolve({ action: 'cancel' }),
       children: (
         <Stack gap="sm">
-          <Text size="sm">
-            “{rawName}” matches more than one ingredient. Choose one, create a new ingredient, or
-            leave this line unlinked.
-          </Text>
+          <Text size="sm">{t('candidate.body', { name: rawName })}</Text>
           <Stack gap={6}>
             {candidates.map((candidate) => (
               <Button
@@ -57,7 +56,7 @@ export function resolveIngredientCandidate(
               resolve({ action: 'create' })
             }}
           >
-            Create new ingredient “{rawName}”
+            {t('candidate.create', { name: rawName })}
           </Button>
           <Button
             variant="default"
@@ -67,7 +66,7 @@ export function resolveIngredientCandidate(
               resolve({ action: 'leave-unlinked' })
             }}
           >
-            Leave unlinked
+            {t('candidate.leaveUnlinked')}
           </Button>
         </Stack>
       ),
@@ -78,18 +77,15 @@ export function resolveIngredientCandidate(
 export function confirmImportedAlias(
   phrase: string,
   catalogLabel: string,
+  t: Translate,
 ): Promise<ImportedAliasChoice> {
   return new Promise((resolve) => {
     const id = modals.open({
-      title: 'Add this name to the catalog?',
+      title: t('alias.title'),
       onClose: () => resolve('cancel'),
       children: (
         <Stack gap="sm">
-          <Text size="sm">
-            “{phrase}” is not yet a name or alias of {catalogLabel}. Adding it as an alias will make
-            future imports match automatically. Linking this recipe only will not change the
-            catalog.
-          </Text>
+          <Text size="sm">{t('alias.body', { phrase, label: catalogLabel })}</Text>
           <Button
             fullWidth
             onClick={() => {
@@ -97,7 +93,7 @@ export function confirmImportedAlias(
               resolve('alias')
             }}
           >
-            Add “{phrase}” as an alias
+            {t('alias.add', { phrase })}
           </Button>
           <Button
             variant="light"
@@ -107,7 +103,7 @@ export function confirmImportedAlias(
               resolve('link-only')
             }}
           >
-            Link this recipe only
+            {t('alias.linkOnly')}
           </Button>
           <Button
             variant="default"
@@ -117,7 +113,7 @@ export function confirmImportedAlias(
               resolve('cancel')
             }}
           >
-            Cancel
+            {t('action.cancel')}
           </Button>
         </Stack>
       ),
@@ -134,11 +130,12 @@ export async function linkOrCreateIngredient(
   ingredientService: IngredientService,
   rawName: string,
   labelFor: (ingredient: Ingredient) => string,
+  t: Translate,
 ): Promise<Ingredient | null> {
   const linked = await ingredientService.createOrLinkByName(rawName)
   if (!linked.ok) return null
   if ('ambiguous' in linked) {
-    const choice = await resolveIngredientCandidate(linked.candidates, rawName, labelFor)
+    const choice = await resolveIngredientCandidate(linked.candidates, rawName, labelFor, t)
     if (choice.action === 'select') return choice.ingredient
     if (choice.action === 'create') {
       const created = await ingredientService.createIngredientForName(rawName)
@@ -154,9 +151,10 @@ export async function confirmLinkImportedIngredient(
   ingredient: Ingredient,
   phrase: string,
   labelFor: (candidate: Ingredient) => string,
+  t: Translate,
 ): Promise<Ingredient | null> {
   if (ingredientMatchesAnyIdentifier(ingredient, phrase)) return ingredient
-  const decision = await confirmImportedAlias(phrase, labelFor(ingredient))
+  const decision = await confirmImportedAlias(phrase, labelFor(ingredient), t)
   if (decision === 'cancel') return null
   if (decision === 'alias') {
     const result = await ingredientService.addLegacyAlias(ingredient.id, phrase)

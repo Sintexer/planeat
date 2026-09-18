@@ -27,20 +27,17 @@ import type { GroceryUpdateChoices } from '../../application/groceries/GrocerySe
 import type { Recipe } from '../../domain/recipes/Recipe'
 import type { MealSlot } from '../../domain/plans/MealSlot'
 import { hasUnallocatedRemainder, isCarryoverRisk } from '../../domain/plans/CookingEventAllocation'
-import {
-  cookingEventsOnDate,
-  effortUnitsForDate,
-  formatPrepLabel,
-} from '../../domain/plans/prepDaySummary'
+import { effortUnitsForDate, cookingEventsOnDate } from '../../domain/plans/prepDaySummary'
+import { formatEffortUnits } from '../../domain/plans/prepEffort'
 import { evaluatePlanSoftPrompts, previousWeekStart } from '../../domain/plans/softPrompts'
 import { isDayPlanned } from '../../domain/plans/weekOverview'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
 import { useLocalization } from '../localization/LocalizationContext'
+import { formatPlanWeekLabel, planWeekRelation } from '../localization/formatDate'
 import {
   addDays,
   enumeratePlanDates,
-  planWeekLabel,
   startOfWeek,
   todayLocalDate,
   type LocalDate,
@@ -102,10 +99,10 @@ export function PlanScreen() {
     if (routePlanId || !weekStartFromSettings || fromStartDate !== null) return
     void planService.getOrCreatePlanForWeek(weekStartFromSettings).then((result) => {
       if (!result.ok) {
-        notifications.show({ message: 'Could not create week plan', color: 'red' })
+        notifications.show({ message: t('plan.createFailed'), color: 'red' })
       }
     })
-  }, [routePlanId, weekStartFromSettings, fromStartDate, planService])
+  }, [routePlanId, weekStartFromSettings, fromStartDate, planService, t])
 
   const graph = routePlanId ? fromRoute : (fromStartDate ?? undefined)
   const loading = routePlanId
@@ -185,7 +182,7 @@ export function PlanScreen() {
   const openWeek = async (weekStart: LocalDate) => {
     const result = await planService.getOrCreatePlanForWeek(weekStart)
     if (!result.ok) {
-      notifications.show({ message: 'Could not open that week', color: 'red' })
+      notifications.show({ message: t('plan.openFailed'), color: 'red' })
       return
     }
     setCalendarOpen(false)
@@ -210,7 +207,7 @@ export function PlanScreen() {
   const handleUnexclude = async (slotId: string) => {
     const result = await planService.setSlotExcluded(slotId, false)
     if (!result.ok) {
-      notifications.show({ message: 'Could not update slot', color: 'red' })
+      notifications.show({ message: t('plan.unexcludeFailed'), color: 'red' })
     }
   }
 
@@ -218,20 +215,26 @@ export function PlanScreen() {
     if (!graph) return
     const result = await groceryService.generateFromPlan(graph.plan.id)
     if (!result.ok) {
-      notifications.show({ message: `Could not generate list (${result.error})`, color: 'red' })
+      notifications.show({
+        message: t('grocery.generateFailed', { error: result.error }),
+        color: 'red',
+      })
       return
     }
-    notifications.show({ message: 'Grocery list created', color: 'green' })
+    notifications.show({ message: t('grocery.created'), color: 'green' })
     navigate(`/lists/${result.list.id}`)
   }
 
   const updateGroceryList = async (listId: string, choices?: GroceryUpdateChoices) => {
     const result = await groceryService.updateFromPlan(listId, choices)
     if (!result.ok) {
-      notifications.show({ message: `Could not update list (${result.error})`, color: 'red' })
+      notifications.show({
+        message: t('grocery.updateFailed', { error: result.error }),
+        color: 'red',
+      })
       return
     }
-    notifications.show({ message: 'Grocery list updated', color: 'green' })
+    notifications.show({ message: t('grocery.updated'), color: 'green' })
     navigate(`/lists/${result.list.id}`)
   }
 
@@ -276,7 +279,7 @@ export function PlanScreen() {
     return (
       <Stack gap="md" align="center" py="xl">
         <Loader size="sm" />
-        <Text c="dimmed">Loading plan…</Text>
+        <Text c="dimmed">{t('plan.loading')}</Text>
       </Stack>
     )
   }
@@ -284,8 +287,8 @@ export function PlanScreen() {
   if (!graph || !settings) {
     return (
       <Stack gap="md">
-        <PageTitle>Plan</PageTitle>
-        <Text c="dimmed">Could not load this week plan.</Text>
+        <PageTitle>{t('plan.title')}</PageTitle>
+        <Text c="dimmed">{t('plan.loadFailed')}</Text>
       </Stack>
     )
   }
@@ -294,11 +297,16 @@ export function PlanScreen() {
   const thisWeekStart = startOfWeek(today, settings.weekStartDay)
   const isHistoryWeek = graph.plan.startDate < thisWeekStart
   const accent = isHistoryWeek ? 'gray' : 'green'
-  const prepLabel = formatPrepLabel(effortUnitsForDate(graph, activeDay))
+  const units = effortUnitsForDate(graph, activeDay)
+  const prepLabel = units > 0 ? t('plan.prepUnits', { units: formatEffortUnits(units) }) : null
   const dayEvents = cookingEventsOnDate(graph, activeDay)
   const dayPrompts = softPrompts.filter((p) => p.date === activeDay)
   const weekPrompts = softPrompts.filter((p) => !p.date)
-  const label = planWeekLabel(graph.plan.startDate, today, settings.weekStartDay)
+  const label = formatPlanWeekLabel(
+    planWeekRelation(graph.plan.startDate, today, settings.weekStartDay),
+    bcp47,
+    t,
+  )
   const remainingThisWeek = graph.cookingEvents
     .map((event) => ({
       id: event.id,
@@ -320,7 +328,7 @@ export function PlanScreen() {
         actions={
           isHistoryWeek ? (
             <Badge color="gray" variant="light" radius="xl">
-              Past week
+              {t('week.history')}
             </Badge>
           ) : undefined
         }
@@ -333,7 +341,7 @@ export function PlanScreen() {
           variant="default"
           radius="xl"
           size={32}
-          aria-label="Previous week"
+          aria-label={t('week.prev')}
           onClick={() => void goToAdjacentWeek(-1)}
         >
           <IconChevronLeft size={18} />
@@ -344,7 +352,7 @@ export function PlanScreen() {
           py={6}
           style={{ borderRadius: 999 }}
           aria-expanded={calendarOpen}
-          aria-label="Toggle week calendar"
+          aria-label={t('week.calendar')}
         >
           <Group gap={6} justify="center">
             <IconCalendar size={15} style={isHistoryWeek ? { opacity: 0.55 } : undefined} />
@@ -363,7 +371,7 @@ export function PlanScreen() {
           variant="default"
           radius="xl"
           size={32}
-          aria-label="Next week"
+          aria-label={t('week.nextNav')}
           onClick={() => void goToAdjacentWeek(1)}
         >
           <IconChevronRight size={18} />
@@ -393,7 +401,7 @@ export function PlanScreen() {
               key={date}
               onClick={() => setDayOverride(date)}
               style={{ flex: 1, minWidth: 0 }}
-              aria-label={`${shortWeekday(date, bcp47)} ${dayNumber(date)}, ${planned ? 'planned' : 'empty'}`}
+              aria-label={`${shortWeekday(date, bcp47)} ${dayNumber(date)}, ${planned ? t('plan.dayPlanned') : t('plan.dayEmpty')}`}
             >
               <Stack gap={6} align="center">
                 <Text
@@ -454,12 +462,7 @@ export function PlanScreen() {
         <Group gap={6} wrap="wrap">
           {remainingThisWeek.map((row) =>
             row.carryoverRisk ? (
-              <Tooltip
-                key={row.id}
-                label="This recipe must be eaten the day it's cooked. Unused portions can't be moved to another day."
-                multiline
-                w={240}
-              >
+              <Tooltip key={row.id} label={t('plan.sameDayTooltip')} multiline w={240}>
                 <Badge
                   variant="light"
                   color="red"
@@ -467,12 +470,13 @@ export function PlanScreen() {
                   size="sm"
                   leftSection={<IconAlertTriangle size={12} />}
                 >
-                  {row.name} · {formatQty(row.remaining)} left · same-day only
+                  {row.name} · {formatQty(row.remaining)} {t('quantity.left')} ·{' '}
+                  {t('plan.sameDayOnly')}
                 </Badge>
               </Tooltip>
             ) : (
               <Badge key={row.id} variant="light" color={accent} radius="xl" size="sm">
-                {row.name} · {formatQty(row.remaining)} remaining
+                {row.name} · {formatQty(row.remaining)} {t('quantity.remaining')}
               </Badge>
             ),
           )}
@@ -511,7 +515,7 @@ export function PlanScreen() {
             if (meals.length === 0) {
               return (
                 <Text key={mealType} size="sm" c="dimmed">
-                  No slot
+                  {t('slot.noSlot')}
                 </Text>
               )
             }
@@ -521,8 +525,8 @@ export function PlanScreen() {
                 display={display}
                 wontCarryOverEventIds={wontCarryOverEventIds}
                 onOpen={() => setEditorSlot(display.slot)}
-                onClear={() => void confirmClearSlot(planService, display.slot.id)}
-                onExclude={() => void confirmExcludeSlot(planService, display.slot.id)}
+                onClear={() => void confirmClearSlot(planService, display.slot.id, t)}
+                onExclude={() => void confirmExcludeSlot(planService, display.slot.id, t)}
                 onUnexclude={() => void handleUnexclude(display.slot.id)}
               />
             ))
@@ -534,7 +538,7 @@ export function PlanScreen() {
           variant={isHistoryWeek ? 'default' : 'light'}
           color={isHistoryWeek ? 'gray' : undefined}
         >
-          Generate groceries
+          {t('grocery.generate')}
         </Button>
       </Stack>
 

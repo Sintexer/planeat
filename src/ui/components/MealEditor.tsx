@@ -10,13 +10,16 @@ import type { MealComponentId } from '../../domain/plans/MealComponent'
 import type { MealSlot } from '../../domain/plans/MealSlot'
 import type { PlanGraph } from '../../domain/plans/PlanGraph'
 import type { Quantity } from '../../domain/shared/Quantity'
-import { MEAL_TYPE_LABELS } from '../../domain/shared/MealEnums'
 import { hasUnallocatedRemainder } from '../../domain/plans/CookingEventAllocation'
 import { useMealFavorites } from '../hooks/useMealFavorites'
 import { componentLabel, type SlotComponentDisplay } from '../plans/slotDisplay'
 import { AddComponentFlow } from './AddComponentFlow'
 import { QuantityFields } from './QuantityFields'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
+import { useLocalization } from '../localization/LocalizationContext'
+import { mealTypeLabel } from '../localization/labels'
+import { planErrorMessage } from '../localization/errors'
+import type { Translate } from '../localization/t'
 
 interface MealEditorProps {
   opened: boolean
@@ -26,51 +29,30 @@ interface MealEditorProps {
   components: SlotComponentDisplay[]
 }
 
-function planErrorMessage(error: string): string {
-  switch (error) {
-    case 'over-allocated':
-      return 'That uses more than the planned prep output.'
-    case 'reuse-forbidden':
-      return 'This recipe cannot be reused on that day.'
-    case 'before-prep':
-      return 'A meal cannot use prep before its scheduled day.'
-    case 'incompatible-quantity':
-      return 'Quantities use incompatible units.'
-    case 'invalid-quantity':
-      return 'Enter a valid positive quantity.'
-    case 'favorite-missing-ref':
-      return 'Favorite references a missing recipe or simple food.'
-    default:
-      return `Could not update (${error})`
-  }
-}
-
-function formatDependentLine(date: string, mealType: string): string {
-  const label =
-    mealType in MEAL_TYPE_LABELS
-      ? MEAL_TYPE_LABELS[mealType as keyof typeof MEAL_TYPE_LABELS]
-      : mealType
-  return `${date} ${label}`
+function formatDependentLine(t: Translate, date: string, mealType: string): string {
+  return `${date} ${mealTypeLabel(t, mealType)}`
 }
 
 function openOverAllocationChoices(args: {
+  t: Translate
   title?: string
   onIncrease: () => void
   onReduce: () => void
   onCreateAnother?: () => void
 }) {
+  const { t } = args
   modals.open({
-    title: args.title ?? 'Not enough prep output',
+    title: args.title ?? t('meal.overAllocTitle'),
     children: (
       <Stack gap="sm">
-        <Text size="sm">This allocation exceeds the planned prep. Choose how to continue:</Text>
+        <Text size="sm">{t('meal.overAllocBody')}</Text>
         <Button
           onClick={() => {
             modals.closeAll()
             args.onIncrease()
           }}
         >
-          Increase cooking quantity
+          {t('meal.increaseOutput')}
         </Button>
         <Button
           variant="light"
@@ -79,7 +61,7 @@ function openOverAllocationChoices(args: {
             args.onReduce()
           }}
         >
-          Reduce this allocation
+          {t('meal.reduceAlloc')}
         </Button>
         {args.onCreateAnother && (
           <Button
@@ -89,11 +71,11 @@ function openOverAllocationChoices(args: {
               args.onCreateAnother?.()
             }}
           >
-            Create another cooking event
+            {t('meal.createAnother')}
           </Button>
         )}
         <Button variant="default" onClick={() => modals.closeAll()}>
-          Cancel
+          {t('action.cancel')}
         </Button>
       </Stack>
     ),
@@ -104,6 +86,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
   const { planService, mealFavoriteService } = useServices()
   const favorites = useMealFavorites()
   const formatQty = useFormatQuantity()
+  const { t } = useLocalization()
   const [addOpen, setAddOpen] = useState(false)
   const [insertFavoriteOpen, setInsertFavoriteOpen] = useState(false)
   const [editComponentId, setEditComponentId] = useState<MealComponentId | undefined>()
@@ -139,11 +122,11 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
   const saveAsFavorite = () => {
     const favoriteComponents = toFavoriteComponents()
     if (favoriteComponents.length === 0) {
-      notifications.show({ message: 'Add components before saving a favorite', color: 'yellow' })
+      notifications.show({ message: t('meal.favoriteNeedComponents'), color: 'yellow' })
       return
     }
     modals.open({
-      title: 'Save as favorite',
+      title: t('meal.saveFavorite'),
       children: (
         <FavoriteNameForm
           onSave={async (name) => {
@@ -151,15 +134,15 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
             if (!result.ok) {
               const message =
                 result.error === 'duplicate-name'
-                  ? 'A favorite with that name already exists'
+                  ? t('meal.duplicateName')
                   : result.error === 'empty-name'
-                    ? 'Enter a name'
-                    : 'Could not save favorite'
+                    ? t('meal.emptyName')
+                    : t('meal.saveFavoriteFailed')
               notifications.show({ message, color: 'red' })
               return
             }
             modals.closeAll()
-            notifications.show({ message: 'Favorite saved', color: 'green' })
+            notifications.show({ message: t('meal.favoriteSaved'), color: 'green' })
           }}
         />
       ),
@@ -174,26 +157,30 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
       notifications.show({
         message:
           result.error === 'favorite-missing-ref'
-            ? `Favorite references a missing item (${result.missingLabel ?? 'unknown'})`
-            : planErrorMessage(result.error),
+            ? t('meal.missingRef', { label: result.missingLabel ?? t('common.unknownItem') })
+            : planErrorMessage(t, result.error),
         color: 'red',
       })
       return
     }
     setInsertFavoriteOpen(false)
-    notifications.show({ message: `Inserted “${favorite.name}”`, color: 'green' })
+    notifications.show({ message: t('meal.inserted', { name: favorite.name }), color: 'green' })
   }
 
   const deleteFavorite = async (favoriteId: string, name: string) => {
     modals.openConfirmModal({
-      title: 'Delete favorite',
-      children: <Text size="sm">Delete “{name}”? This cannot be undone.</Text>,
-      labels: { confirm: 'Delete', cancel: 'Cancel' },
+      title: t('meal.deleteFavorite'),
+      children: (
+        <Text size="sm">
+          {t('meal.deleteFavoriteBody', { name })} {t('meal.cannotUndo')}
+        </Text>
+      ),
+      labels: { confirm: t('action.delete'), cancel: t('action.cancel') },
       confirmProps: { color: 'red' },
       onConfirm: () => {
         void mealFavoriteService.delete(favoriteId).then((result) => {
           if (!result.ok) {
-            notifications.show({ message: 'Could not delete favorite', color: 'red' })
+            notifications.show({ message: t('meal.deleteFavoriteFailed'), color: 'red' })
           }
         })
       },
@@ -210,11 +197,16 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
       seen.add(id)
       const remaining = planService.remainingForCookingEvent(graph, id)
       if (hasUnallocatedRemainder(remaining) && remaining) {
-        lines.push(`${item.cookingEvent.recipeSnapshot.name}: ${formatQty(remaining)} unallocated`)
+        lines.push(
+          t('meal.unallocatedLine', {
+            name: item.cookingEvent.recipeSnapshot.name,
+            quantity: formatQty(remaining),
+          }),
+        )
       }
     }
     return lines
-  }, [components, graph, planService, formatQty])
+  }, [components, graph, planService, formatQty, t])
 
   const openEditAllocation = (item: SlotComponentDisplay) => {
     setEditEventId(undefined)
@@ -241,6 +233,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
         const item = components.find((c) => c.component.id === editComponentId)
         const event = item?.cookingEvent
         openOverAllocationChoices({
+          t,
           onIncrease: () => {
             if (!event) return
             void (async () => {
@@ -251,7 +244,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                 },
               })
               if (!bump.ok) {
-                notifications.show({ message: planErrorMessage(bump.error), color: 'red' })
+                notifications.show({ message: planErrorMessage(t, bump.error), color: 'red' })
                 return
               }
               // Raise output enough for all other allocations + this one
@@ -275,7 +268,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                 allocatedQuantity,
               )
               if (!alloc.ok) {
-                notifications.show({ message: planErrorMessage(alloc.error), color: 'red' })
+                notifications.show({ message: planErrorMessage(t, alloc.error), color: 'red' })
                 return
               }
               setEditComponentId(undefined)
@@ -304,7 +297,10 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                     },
                   )
                   if (!created.ok) {
-                    notifications.show({ message: planErrorMessage(created.error), color: 'red' })
+                    notifications.show({
+                      message: planErrorMessage(t, created.error),
+                      color: 'red',
+                    })
                     return
                   }
                   await planService.removeComponent(editComponentId)
@@ -315,7 +311,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
         })
         return
       }
-      notifications.show({ message: planErrorMessage(result.error), color: 'red' })
+      notifications.show({ message: planErrorMessage(t, result.error), color: 'red' })
       return
     }
     setEditComponentId(undefined)
@@ -328,7 +324,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
       scheduledDate: prepDate,
     })
     if (!result.ok) {
-      notifications.show({ message: planErrorMessage(result.error), color: 'red' })
+      notifications.show({ message: planErrorMessage(t, result.error), color: 'red' })
       return
     }
     setEditEventId(undefined)
@@ -343,6 +339,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
     scheduledDate?: string
   }) => {
     openOverAllocationChoices({
+      t,
       onIncrease: () => {
         void (async () => {
           if (args.kind === 'cook-new' && args.recipeId) {
@@ -352,7 +349,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
               scheduledDate: args.scheduledDate ?? slot.date,
             })
             if (!result.ok) {
-              notifications.show({ message: planErrorMessage(result.error), color: 'red' })
+              notifications.show({ message: planErrorMessage(t, result.error), color: 'red' })
               return
             }
             setAddOpen(false)
@@ -374,14 +371,14 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
               outputQuantity: { value: needed, unit: event.outputQuantity.unit },
             })
             if (!bump.ok) {
-              notifications.show({ message: planErrorMessage(bump.error), color: 'red' })
+              notifications.show({ message: planErrorMessage(t, bump.error), color: 'red' })
               return
             }
             const linked = await planService.linkExistingCookingEvent(slot.id, event.id, {
               allocatedQuantity: args.allocatedQuantity,
             })
             if (!linked.ok) {
-              notifications.show({ message: planErrorMessage(linked.error), color: 'red' })
+              notifications.show({ message: planErrorMessage(t, linked.error), color: 'red' })
               return
             }
             setAddOpen(false)
@@ -407,7 +404,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                   },
                 )
                 if (!created.ok) {
-                  notifications.show({ message: planErrorMessage(created.error), color: 'red' })
+                  notifications.show({ message: planErrorMessage(t, created.error), color: 'red' })
                   return
                 }
                 setAddOpen(false)
@@ -421,14 +418,16 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
     void (async () => {
       if (item.component.source.type !== 'cooking-event') {
         modals.openConfirmModal({
-          title: 'Remove component',
-          children: <Text size="sm">Remove {componentLabel(item)} from this meal?</Text>,
-          labels: { confirm: 'Remove', cancel: 'Cancel' },
+          title: t('meal.removeComponent'),
+          children: (
+            <Text size="sm">{t('meal.removeNamedBody', { name: componentLabel(item) })}</Text>
+          ),
+          labels: { confirm: t('action.remove'), cancel: t('action.cancel') },
           confirmProps: { color: 'red' },
           onConfirm: () => {
             void planService.removeComponent(item.component.id).then((result) => {
               if (!result.ok) {
-                notifications.show({ message: planErrorMessage(result.error), color: 'red' })
+                notifications.show({ message: planErrorMessage(t, result.error), color: 'red' })
               }
             })
           },
@@ -439,20 +438,22 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
       const eventId = item.component.source.cookingEventId
       const depsResult = await planService.listCookingEventDependents(eventId)
       if (!depsResult.ok) {
-        notifications.show({ message: planErrorMessage(depsResult.error), color: 'red' })
+        notifications.show({ message: planErrorMessage(t, depsResult.error), color: 'red' })
         return
       }
       const others = depsResult.dependents.filter((d) => d.componentId !== item.component.id)
       if (others.length === 0) {
         modals.openConfirmModal({
-          title: 'Remove component',
-          children: <Text size="sm">Remove {componentLabel(item)} from this meal?</Text>,
-          labels: { confirm: 'Remove', cancel: 'Cancel' },
+          title: t('meal.removeComponent'),
+          children: (
+            <Text size="sm">{t('meal.removeNamedBody', { name: componentLabel(item) })}</Text>
+          ),
+          labels: { confirm: t('action.remove'), cancel: t('action.cancel') },
           confirmProps: { color: 'red' },
           onConfirm: () => {
             void planService.removeComponent(item.component.id).then((result) => {
               if (!result.ok) {
-                notifications.show({ message: planErrorMessage(result.error), color: 'red' })
+                notifications.show({ message: planErrorMessage(t, result.error), color: 'red' })
               }
             })
           },
@@ -461,14 +462,14 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
       }
 
       modals.open({
-        title: 'Shared preparation',
+        title: t('meal.sharedPrep'),
         children: (
           <Stack gap="sm">
-            <Text size="sm">This preparation also supplies:</Text>
+            <Text size="sm">{t('meal.alsoSupplies')}</Text>
             <Stack gap={2}>
               {depsResult.dependents.map((d) => (
                 <Text key={d.componentId} size="sm">
-                  • {formatDependentLine(d.date, d.mealType)}
+                  • {formatDependentLine(t, d.date, d.mealType)}
                 </Text>
               ))}
             </Stack>
@@ -477,12 +478,12 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                 modals.closeAll()
                 void planService.removeComponent(item.component.id).then((result) => {
                   if (!result.ok) {
-                    notifications.show({ message: planErrorMessage(result.error), color: 'red' })
+                    notifications.show({ message: planErrorMessage(t, result.error), color: 'red' })
                   }
                 })
               }}
             >
-              Remove from this meal only
+              {t('meal.removeThisOnly')}
             </Button>
             <Button
               color="red"
@@ -491,15 +492,15 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                 modals.closeAll()
                 void planService.removeCookingEventEverywhere(eventId).then((result) => {
                   if (!result.ok) {
-                    notifications.show({ message: planErrorMessage(result.error), color: 'red' })
+                    notifications.show({ message: planErrorMessage(t, result.error), color: 'red' })
                   }
                 })
               }}
             >
-              Remove from all affected meals
+              {t('meal.removeAllAffected')}
             </Button>
             <Button variant="default" onClick={() => modals.closeAll()}>
-              Cancel
+              {t('action.cancel')}
             </Button>
           </Stack>
         ),
@@ -512,13 +513,13 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
       <Modal
         opened={opened}
         onClose={onClose}
-        title={`${MEAL_TYPE_LABELS[slot.mealType]} · ${slot.date}`}
+        title={t('meal.slotTitle', { meal: mealTypeLabel(t, slot.mealType), date: slot.date })}
         centered
         size="md"
       >
         <Stack gap="sm">
           {unusedWarnings.length > 0 && (
-            <Alert color="yellow" title="Unallocated prep">
+            <Alert color="yellow" title={t('meal.unallocatedPrep')}>
               {unusedWarnings.map((line) => (
                 <Text key={line} size="sm">
                   {line}
@@ -529,7 +530,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
 
           {components.length === 0 && (
             <Text size="sm" c="dimmed">
-              No components yet. Add a recipe or simple food.
+              {t('meal.noComponents')}
             </Text>
           )}
 
@@ -548,14 +549,17 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                   <Text size="xs" c="dimmed">
                     {formatQty(item.component.allocatedQuantity)}
                     {item.cookingEvent
-                      ? ` · prep ${item.cookingEvent.scheduledDate} (${formatQty(item.cookingEvent.outputQuantity)} total)`
+                      ? t('meal.prepLine', {
+                          date: item.cookingEvent.scheduledDate,
+                          quantity: formatQty(item.cookingEvent.outputQuantity),
+                        })
                       : ''}
                   </Text>
                 </Stack>
                 <Group gap={4} wrap="nowrap">
                   <ActionIcon
                     variant="subtle"
-                    aria-label="Edit allocation"
+                    aria-label={t('meal.editAllocation')}
                     onClick={() => openEditAllocation(item)}
                   >
                     <IconPencil size={16} />
@@ -563,7 +567,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                   {item.cookingEvent && (
                     <ActionIcon
                       variant="subtle"
-                      aria-label="Edit prep"
+                      aria-label={t('meal.editPrep')}
                       onClick={() => openEditPrep(item)}
                     >
                       <IconCalendar size={16} />
@@ -572,7 +576,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                   <ActionIcon
                     variant="subtle"
                     color="red"
-                    aria-label="Remove component"
+                    aria-label={t('meal.removeComponentAria')}
                     onClick={() => confirmRemoveComponent(item)}
                   >
                     <IconTrash size={16} />
@@ -585,7 +589,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
           {editComponentId && (
             <Stack gap="xs" p="sm" bg="gray.0" style={{ borderRadius: 8 }}>
               <Text size="sm" fw={600}>
-                Edit allocation
+                {t('meal.editAllocation')}
               </Text>
               <QuantityFields
                 value={allocValue}
@@ -596,10 +600,10 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
               />
               <Group>
                 <Button size="xs" onClick={() => void saveAllocation()}>
-                  Save
+                  {t('action.save')}
                 </Button>
                 <Button size="xs" variant="default" onClick={() => setEditComponentId(undefined)}>
-                  Cancel
+                  {t('action.cancel')}
                 </Button>
               </Group>
             </Stack>
@@ -608,10 +612,10 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
           {editEventId && (
             <Stack gap="xs" p="sm" bg="gray.0" style={{ borderRadius: 8 }}>
               <Text size="sm" fw={600}>
-                Edit preparation
+                {t('meal.editPreparation')}
               </Text>
               <QuantityFields
-                valueLabel="Total output"
+                valueLabel={t('picker.totalOutput')}
                 value={outputValue}
                 unit={outputUnit}
                 onValueChange={setOutputValue}
@@ -619,33 +623,33 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                 min={0.001}
               />
               <TextInput
-                label="Prep date"
+                label={t('picker.prepDate')}
                 type="date"
                 value={prepDate}
                 onChange={(e) => setPrepDate(e.currentTarget.value)}
               />
               <Group>
                 <Button size="xs" onClick={() => void savePrep()}>
-                  Save
+                  {t('action.save')}
                 </Button>
                 <Button size="xs" variant="default" onClick={() => setEditEventId(undefined)}>
-                  Cancel
+                  {t('action.cancel')}
                 </Button>
               </Group>
             </Stack>
           )}
 
-          <Button onClick={() => setAddOpen(true)}>+ Component</Button>
+          <Button onClick={() => setAddOpen(true)}>{t('meal.addComponent')}</Button>
           {components.length > 0 && (
             <Button variant="light" onClick={saveAsFavorite}>
-              Save as favorite
+              {t('meal.saveFavorite')}
             </Button>
           )}
           <Button variant="light" onClick={() => setInsertFavoriteOpen(true)}>
-            Insert favorite
+            {t('meal.insertFavorite')}
           </Button>
           <Button variant="default" onClick={onClose}>
-            Done
+            {t('recipes.done')}
           </Button>
         </Stack>
       </Modal>
@@ -653,13 +657,13 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
       <Modal
         opened={insertFavoriteOpen}
         onClose={() => setInsertFavoriteOpen(false)}
-        title="Insert favorite"
+        title={t('meal.insertFavorite')}
         centered
       >
         <Stack gap="xs">
           {(favorites?.length ?? 0) === 0 && (
             <Text size="sm" c="dimmed">
-              No saved favorites yet.
+              {t('meal.noFavorites')}
             </Text>
           )}
           {favorites?.map((favorite) => (
@@ -675,7 +679,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
               <ActionIcon
                 variant="subtle"
                 color="red"
-                aria-label={`Delete ${favorite.name}`}
+                aria-label={t('meal.deleteFavoriteAria', { name: favorite.name })}
                 onClick={() => void deleteFavorite(favorite.id, favorite.name)}
               >
                 <IconTrash size={16} />
@@ -698,12 +702,13 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
 }
 
 function FavoriteNameForm({ onSave }: { onSave: (name: string) => Promise<void> }) {
+  const { t } = useLocalization()
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   return (
     <Stack gap="sm">
       <TextInput
-        label="Name"
+        label={t('common.name')}
         value={name}
         onChange={(e) => setName(e.currentTarget.value)}
         data-autofocus
@@ -716,10 +721,10 @@ function FavoriteNameForm({ onSave }: { onSave: (name: string) => Promise<void> 
             void onSave(name).finally(() => setBusy(false))
           }}
         >
-          Save
+          {t('action.save')}
         </Button>
         <Button variant="default" onClick={() => modals.closeAll()}>
-          Cancel
+          {t('action.cancel')}
         </Button>
       </Group>
     </Stack>

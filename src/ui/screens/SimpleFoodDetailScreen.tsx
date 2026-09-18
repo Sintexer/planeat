@@ -28,7 +28,7 @@ import { useTags } from '../hooks/useTags'
 import { tagCreateAutocompleteNames } from '../../domain/tags/Tag'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
 import { useLocalization } from '../localization/LocalizationContext'
-import { mealTypeOptions, roleOptions } from '../shared/mealEnumOptions'
+import { mealTypeOptions, roleOptions } from '../localization/labels'
 
 function SimpleFoodEditableFields({
   food,
@@ -45,6 +45,7 @@ function SimpleFoodEditableFields({
 }) {
   // Keyed by food.id from the parent, so these initial values are only read once
   // per loaded item — no effect needed to resync when the async load completes.
+  const { t } = useLocalization()
   const [name, setName] = useState(food.name)
   const [portionValue, setPortionValue] = useState<number | ''>(food.defaultPortion.value)
   const [portionUnit, setPortionUnit] = useState(food.defaultPortion.unit)
@@ -93,13 +94,13 @@ function SimpleFoodEditableFields({
   return (
     <>
       <TextInput
-        label="Name"
+        label={t('common.name')}
         value={name}
         onChange={(event) => handleNameChange(event.currentTarget.value)}
       />
 
       <QuantityFields
-        valueLabel="Default portion"
+        valueLabel={t('foods.defaultPortion')}
         value={portionValue}
         unit={portionUnit}
         min={0.001}
@@ -108,8 +109,8 @@ function SimpleFoodEditableFields({
       />
 
       <MultiSelect
-        label="Roles"
-        data={roleOptions}
+        label={t('editor.roles')}
+        data={roleOptions(t)}
         value={food.roles}
         onChange={(value) =>
           void simpleFoodService.updateSimpleFood(food.id, { roles: value as RecipeRole[] })
@@ -117,8 +118,8 @@ function SimpleFoodEditableFields({
       />
 
       <MultiSelect
-        label="Meal types"
-        data={mealTypeOptions}
+        label={t('editor.mealTypes')}
+        data={mealTypeOptions(t)}
         value={food.mealTypes}
         onChange={(value) =>
           void simpleFoodService.updateSimpleFood(food.id, { mealTypes: value as MealType[] })
@@ -126,15 +127,15 @@ function SimpleFoodEditableFields({
       />
 
       <TagsInput
-        label="Tags"
-        description="Pick an existing tag or type a new one. Archived tags stay assigned but are not suggested."
+        label={t('editor.tags')}
+        description={t('editor.tagsHelp')}
         data={tagCreateAutocompleteNames(tags)}
         value={food.tagIds.map((id) => tagsById.get(id)).filter((name) => name !== undefined)}
         onChange={(names) => void handleTagNamesChange(names)}
       />
 
       <Switch
-        label="Include in meal suggestions"
+        label={t('foods.includeSuggestions')}
         checked={food.enabledInSuggestions}
         onChange={(event) =>
           void simpleFoodService.setEnabledInSuggestions(food.id, event.currentTarget.checked)
@@ -152,7 +153,7 @@ export function SimpleFoodDetailScreen() {
   const tags = useTags()
   const { simpleFoodService, tagService } = useServices()
   const formatQty = useFormatQuantity()
-  const { locale } = useLocalization()
+  const { locale, t } = useLocalization()
 
   const ingredientNames = useMemo(() => {
     const map = new Map<string, string>()
@@ -169,36 +170,31 @@ export function SimpleFoodDetailScreen() {
   }, [tags])
 
   if (food === undefined) {
-    return <Text c="dimmed">Loading…</Text>
+    return <Text c="dimmed">{t('common.loading')}</Text>
   }
 
   if (food === null) {
     return (
       <Stack gap="md">
-        <ScreenHeader title="Simple food not found" fallbackTo="/recipes" />
-        <Text c="dimmed">This simple food could not be found.</Text>
+        <ScreenHeader title={t('foods.notFoundTitle')} fallbackTo="/recipes" />
+        <Text c="dimmed">{t('detail.foodNotFound')}</Text>
       </Stack>
     )
   }
 
   const handleDelete = () => {
     modals.openConfirmModal({
-      title: 'Delete simple food',
-      children: (
-        <Text>
-          Delete “{food.name}” as a standalone suggestion? The underlying ingredient stays in the
-          catalog.
-        </Text>
-      ),
-      labels: { confirm: 'Delete', cancel: 'Cancel' },
+      title: t('foods.deleteTitle'),
+      children: <Text>{t('foods.deleteBodyLong', { name: food.name })}</Text>,
+      labels: { confirm: t('action.delete'), cancel: t('action.cancel') },
       confirmProps: { color: 'red' },
       onConfirm: async () => {
         const result = await simpleFoodService.deleteSimpleFood(food.id)
         if (!result.ok) {
-          notifications.show({ message: 'Simple food not found', color: 'red' })
+          notifications.show({ message: t('foods.notFound'), color: 'red' })
           return
         }
-        notifications.show({ message: 'Simple food deleted', color: 'green' })
+        notifications.show({ message: t('foods.deleted'), color: 'green' })
         navigate('/recipes')
       },
     })
@@ -211,16 +207,18 @@ export function SimpleFoodDetailScreen() {
         fallbackTo="/recipes"
         actions={
           <Button color="red" variant="subtle" onClick={handleDelete}>
-            Delete
+            {t('action.delete')}
           </Button>
         }
       />
 
       <Group gap={4}>
-        <Badge variant="light">Simple food</Badge>
+        <Badge variant="light">{t('foods.badge')}</Badge>
         <Text size="sm" c="dimmed">
-          Ingredient: {ingredientNames.get(food.ingredientId) ?? 'Unknown'} · Default{' '}
-          {formatQty(food.defaultPortion)}
+          {t('foods.ingredientLine', {
+            name: ingredientNames.get(food.ingredientId) ?? t('common.unknownItem'),
+            quantity: formatQty(food.defaultPortion),
+          })}
         </Text>
       </Group>
 

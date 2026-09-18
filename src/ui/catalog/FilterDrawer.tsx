@@ -1,13 +1,8 @@
 import { Button, Chip, Drawer, Group, MultiSelect, NumberInput, Stack, Text } from '@mantine/core'
 import { useState, type ReactNode } from 'react'
-import {
-  EFFORT_LABELS,
-  EFFORT_LEVELS,
-  MEAL_TYPE_LABELS,
-  MEAL_TYPES,
-  RECIPE_ROLES,
-  type RecipeRole,
-} from '../../domain/shared/MealEnums'
+import { EFFORT_LEVELS, MEAL_TYPES, RECIPE_ROLES } from '../../domain/shared/MealEnums'
+import { useLocalization } from '../localization/LocalizationContext'
+import { effortLabel, mealTypeLabel, roleChipLabel } from '../localization/labels'
 import {
   itemMatchesFilters,
   type DishCatalogFilters,
@@ -16,14 +11,6 @@ import {
   type IngredientFilterOption,
   type TagFacet,
 } from './catalogModel'
-
-const ROLE_CHIP_LABELS: Record<RecipeRole, string> = {
-  complete: 'Complete',
-  main: 'Main',
-  side: 'Side',
-  vegetable: 'Veg',
-  'breakfast-component': 'Breakfast bit',
-}
 
 function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -72,6 +59,7 @@ export function FilterDrawer({
   skipTagIds,
   skipIngredientIds,
 }: FilterDrawerProps) {
+  const { t, tPlural } = useLocalization()
   const [draft, setDraft] = useState<DishCatalogFilters>(appliedFilters)
   const [wasOpened, setWasOpened] = useState(opened)
   if (opened !== wasOpened) {
@@ -111,23 +99,29 @@ export function FilterDrawer({
     })),
     ...[...new Set(extraIngredientIds)].map((id) => ({
       value: id,
-      label: 'Unavailable ingredient',
+      label: t('common.unavailableIngredient'),
     })),
   ]
 
   return (
-    <Drawer opened={opened} onClose={onClose} position="bottom" size="80%" title="Filters">
+    <Drawer
+      opened={opened}
+      onClose={onClose}
+      position="bottom"
+      size="80%"
+      title={t('catalog.filters')}
+    >
       <Stack gap="md" justify="space-between" h="100%">
         <Stack gap="sm" style={{ overflowY: 'auto' }}>
           {showKindFilter && (
-            <FilterGroup label="Type">
+            <FilterGroup label={t('filter.type')}>
               <Chip
                 size="xs"
                 radius="sm"
                 checked={draft.kind === 'recipe'}
                 onChange={() => setDraftPatch({ kind: draft.kind === 'recipe' ? 'all' : 'recipe' })}
               >
-                Recipes
+                {t('kind.recipes')}
               </Chip>
               <Chip
                 size="xs"
@@ -137,12 +131,12 @@ export function FilterDrawer({
                   setDraftPatch({ kind: draft.kind === 'simple-food' ? 'all' : 'simple-food' })
                 }
               >
-                Simple foods
+                {t('kind.simpleFoods')}
               </Chip>
             </FilterGroup>
           )}
 
-          <FilterGroup label="Meal occasion">
+          <FilterGroup label={t('filter.occasion')}>
             <Chip.Group
               multiple
               value={draft.mealTypes}
@@ -150,13 +144,13 @@ export function FilterDrawer({
             >
               {MEAL_TYPES.map((meal) => (
                 <Chip key={meal} size="xs" radius="sm" value={meal}>
-                  {MEAL_TYPE_LABELS[meal]}
+                  {mealTypeLabel(t, meal)}
                 </Chip>
               ))}
             </Chip.Group>
           </FilterGroup>
 
-          <FilterGroup label="Meal role">
+          <FilterGroup label={t('filter.role')}>
             <Chip.Group
               multiple
               value={draft.roles}
@@ -164,13 +158,13 @@ export function FilterDrawer({
             >
               {RECIPE_ROLES.map((role) => (
                 <Chip key={role} size="xs" radius="sm" value={role}>
-                  {ROLE_CHIP_LABELS[role]}
+                  {roleChipLabel(t, role)}
                 </Chip>
               ))}
             </Chip.Group>
           </FilterGroup>
 
-          <FilterGroup label="Effort">
+          <FilterGroup label={t('filter.effort')}>
             {EFFORT_LEVELS.map((effort) => (
               <Chip
                 key={effort}
@@ -179,14 +173,14 @@ export function FilterDrawer({
                 checked={draft.effort === effort}
                 onChange={() => setDraftPatch({ effort: draft.effort === effort ? 'all' : effort })}
               >
-                {EFFORT_LABELS[effort]}
+                {effortLabel(t, effort)}
               </Chip>
             ))}
           </FilterGroup>
 
           <NumberInput
-            label="Maximum total time (minutes)"
-            description="Only recipes with a recorded total time. Missing time is not treated as zero."
+            label={t('filter.maxTime')}
+            description={t('filter.maxTimeHelp')}
             min={1}
             value={draft.maxTotalTimeMinutes}
             onChange={(next) =>
@@ -197,8 +191,8 @@ export function FilterDrawer({
           {ingredientOptions.length > 0 && (
             <Stack gap="sm">
               <MultiSelect
-                label="Contains ingredient"
-                placeholder="Pick from catalog"
+                label={t('filter.containsIngredient')}
+                placeholder={t('filter.pickCatalog')}
                 searchable
                 data={ingredientSelectData}
                 value={draft.containsIngredientIds}
@@ -211,8 +205,8 @@ export function FilterDrawer({
                 }}
               />
               <MultiSelect
-                label="Exclude ingredient"
-                placeholder="Pick from catalog"
+                label={t('filter.excludeIngredient')}
+                placeholder={t('filter.pickCatalog')}
                 searchable
                 data={ingredientSelectData}
                 value={draft.excludeIngredientIds}
@@ -225,14 +219,13 @@ export function FilterDrawer({
                 }}
               />
               <Text size="xs" c="dimmed">
-                These filters use recorded catalog ingredients only. Unlinked imported lines are
-                ignored. This is not an allergy-safety guarantee.
+                {t('filter.ingredientDisclaimer')}
               </Text>
             </Stack>
           )}
 
           {tagFacets.length > 0 && (
-            <FilterGroup label="Household tags">
+            <FilterGroup label={t('filter.tags')}>
               <Chip.Group
                 multiple
                 value={draft.tagIds}
@@ -250,7 +243,7 @@ export function FilterDrawer({
 
         <Group gap="sm" grow>
           <Button variant="subtle" onClick={clearDraft}>
-            Clear filters
+            {t('catalog.clearFilters')}
           </Button>
           <Button
             onClick={() => {
@@ -258,7 +251,7 @@ export function FilterDrawer({
               onClose()
             }}
           >
-            Show {matchCount} items
+            {tPlural('filter.showItems', matchCount)}
           </Button>
         </Group>
       </Stack>

@@ -34,7 +34,7 @@ export function SimpleFoodsScreen() {
   const { simpleFoodService, ingredientService } = useServices()
   const simpleFoods = useSimpleFoods()
   const formatQty = useFormatQuantity()
-  const { locale } = useLocalization()
+  const { locale, t } = useLocalization()
 
   const form = useForm<NewSimpleFoodForm>({
     initialValues: {
@@ -44,17 +44,21 @@ export function SimpleFoodsScreen() {
       enabledInSuggestions: true,
     },
     validate: {
-      name: (value) => (value.trim().length === 0 ? 'Name is required' : null),
-      portionValue: (value) => (value === '' || value <= 0 ? 'Portion must be positive' : null),
+      name: (value) => (value.trim().length === 0 ? t('validation.nameRequired') : null),
+      portionValue: (value) =>
+        value === '' || value <= 0 ? t('validation.portionPositive') : null,
     },
   })
 
   const handleCreate = form.onSubmit(async (values) => {
-    const ingredient = await linkOrCreateIngredient(ingredientService, values.name, (candidate) =>
-      resolveIngredientLabel(candidate, locale),
+    const ingredient = await linkOrCreateIngredient(
+      ingredientService,
+      values.name,
+      (candidate) => resolveIngredientLabel(candidate, locale),
+      t,
     )
     if (!ingredient) {
-      notifications.show({ message: 'Could not resolve ingredient name', color: 'red' })
+      notifications.show({ message: t('editor.resolveNameFailed'), color: 'red' })
       return
     }
 
@@ -72,57 +76,51 @@ export function SimpleFoodsScreen() {
 
     if (!result.ok) {
       notifications.show({
-        message: `Could not create simple food (${result.error})`,
+        message: t('foods.createFailed', { error: result.error }),
         color: 'red',
       })
       return
     }
 
     form.reset()
-    notifications.show({ message: 'Simple food added', color: 'green' })
+    notifications.show({ message: t('foods.added'), color: 'green' })
   })
 
   const handleDelete = (simpleFood: SimpleFood) => {
     modals.openConfirmModal({
-      title: 'Delete simple food',
-      children: (
-        <Text>
-          Delete “{simpleFood.name}” as a standalone suggestion? The underlying ingredient stays in
-          the catalog.
-        </Text>
-      ),
-      labels: { confirm: 'Delete', cancel: 'Cancel' },
+      title: t('foods.deleteTitle'),
+      children: <Text>{t('foods.deleteBodyLong', { name: simpleFood.name })}</Text>,
+      labels: { confirm: t('action.delete'), cancel: t('action.cancel') },
       confirmProps: { color: 'red' },
       onConfirm: async () => {
         const result = await simpleFoodService.deleteSimpleFood(simpleFood.id)
         if (!result.ok) {
-          notifications.show({ message: 'Simple food not found', color: 'red' })
+          notifications.show({ message: t('foods.notFound'), color: 'red' })
           return
         }
-        notifications.show({ message: 'Simple food deleted', color: 'green' })
+        notifications.show({ message: t('foods.deleted'), color: 'green' })
       },
     })
   }
 
   return (
     <Stack gap="md">
-      <ScreenHeader title="Simple foods" fallbackTo="/recipes" />
+      <ScreenHeader title={t('foods.title')} fallbackTo="/recipes" />
 
       <Text size="sm" c="dimmed">
-        Foods served without a recipe (bread, yogurt, banana). Disable to stop suggesting them on
-        their own — they remain available as recipe ingredients.
+        {t('foods.helpLong')}
       </Text>
 
       <form onSubmit={handleCreate}>
         <Stack gap="sm">
           <TextInput
-            label="Name"
-            placeholder="e.g. yogurt"
+            label={t('common.name')}
+            placeholder={t('foods.namePlaceholder')}
             required
             {...form.getInputProps('name')}
           />
           <QuantityFields
-            valueLabel="Default portion"
+            valueLabel={t('foods.defaultPortion')}
             value={form.values.portionValue}
             unit={form.values.portionUnit}
             min={0.001}
@@ -130,17 +128,17 @@ export function SimpleFoodsScreen() {
             onUnitChange={(unit) => form.setFieldValue('portionUnit', unit)}
           />
           <Switch
-            label="Include in meal suggestions"
+            label={t('foods.includeSuggestions')}
             {...form.getInputProps('enabledInSuggestions', { type: 'checkbox' })}
           />
-          <Button type="submit">Add simple food</Button>
+          <Button type="submit">{t('foods.add')}</Button>
         </Stack>
       </form>
 
-      <Title order={4}>Include in meal suggestions</Title>
+      <Title order={4}>{t('foods.includeSuggestions')}</Title>
 
-      {simpleFoods === undefined && <Text c="dimmed">Loading…</Text>}
-      {simpleFoods?.length === 0 && <Text c="dimmed">No simple foods yet.</Text>}
+      {simpleFoods === undefined && <Text c="dimmed">{t('common.loading')}</Text>}
+      {simpleFoods?.length === 0 && <Text c="dimmed">{t('foods.empty')}</Text>}
 
       <Stack gap="xs">
         {simpleFoods?.map((simpleFood) => (
@@ -149,11 +147,11 @@ export function SimpleFoodsScreen() {
               <div>
                 <Text fw={500}>{simpleFood.name}</Text>
                 <Text size="sm" c="dimmed">
-                  Default {formatQty(simpleFood.defaultPortion)}
+                  {t('foods.defaultQty', { quantity: formatQty(simpleFood.defaultPortion) })}
                 </Text>
                 <Switch
                   mt="xs"
-                  label="Include in suggestions"
+                  label={t('foods.includeInSuggestions')}
                   checked={simpleFood.enabledInSuggestions}
                   onChange={(event) => {
                     void simpleFoodService.setEnabledInSuggestions(
@@ -166,7 +164,7 @@ export function SimpleFoodsScreen() {
               <ActionIcon
                 variant="subtle"
                 color="red"
-                aria-label={`Delete ${simpleFood.name}`}
+                aria-label={t('foods.deleteNamed', { name: simpleFood.name })}
                 onClick={() => handleDelete(simpleFood)}
               >
                 <IconTrash size={18} />

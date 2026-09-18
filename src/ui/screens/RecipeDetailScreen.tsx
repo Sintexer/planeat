@@ -18,14 +18,6 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { useServices } from '../../app/servicesContext'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { RecipePhotoThumb } from '../components/RecipePhotoThumb'
-import {
-  DISH_TYPE_LABELS,
-  EFFORT_LABELS,
-  MEAL_TYPE_LABELS,
-  RECIPE_ROLE_LABELS,
-  REUSE_POLICY_LABELS,
-  type DishType,
-} from '../../domain/shared/MealEnums'
 import { scaleFactor } from '../../domain/shared/scaleQuantity'
 import { precisionStep } from '../components/quantityStep'
 import { useIngredients } from '../hooks/useIngredients'
@@ -36,6 +28,14 @@ import { useSimpleFoods } from '../hooks/useSimpleFoods'
 import { useTags } from '../hooks/useTags'
 import { useLocalization } from '../localization/LocalizationContext'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
+import {
+  dishTypeLabel,
+  effortLabel,
+  kindLabel,
+  mealTypeLabel,
+  reuseLabel,
+  roleLabel,
+} from '../localization/labels'
 
 export function RecipeDetailScreen() {
   const { recipeId } = useParams()
@@ -48,7 +48,7 @@ export function RecipeDetailScreen() {
   const tags = useTags()
   const { recipeService, quantityService, pairingService } = useServices()
   const formatQty = useFormatQuantity()
-  const { bcp47 } = useLocalization()
+  const { bcp47, t } = useLocalization()
 
   const [scaleYieldValue, setScaleYieldValue] = useState<number | ''>('')
   const [pairingPick, setPairingPick] = useState<string | null>(null)
@@ -89,15 +89,21 @@ export function RecipeDetailScreen() {
       if (other.id === recipe.id) continue
       const key = `recipe:${other.id}`
       if (linked.has(key)) continue
-      options.push({ value: key, label: `Recipe · ${other.name}` })
+      options.push({
+        value: key,
+        label: t('detail.pairingOption', { kind: kindLabel(t, 'recipe'), name: other.name }),
+      })
     }
     for (const food of simpleFoods) {
       const key = `simple-food:${food.id}`
       if (linked.has(key)) continue
-      options.push({ value: key, label: `Simple food · ${food.name}` })
+      options.push({
+        value: key,
+        label: t('detail.pairingOption', { kind: kindLabel(t, 'simple-food'), name: food.name }),
+      })
     }
     return options
-  }, [recipe, recipes, simpleFoods, recipePairings])
+  }, [recipe, recipes, simpleFoods, recipePairings, t])
 
   const pairingLabel = (pairing: (typeof recipePairings)[number]): string => {
     if (!recipe) return ''
@@ -111,14 +117,14 @@ export function RecipeDetailScreen() {
   }
 
   if (recipe === undefined) {
-    return <Text c="dimmed">Loading…</Text>
+    return <Text c="dimmed">{t('common.loading')}</Text>
   }
 
   if (recipe === null) {
     return (
       <Stack gap="md">
-        <ScreenHeader title="Recipe not found" fallbackTo="/recipes" />
-        <Text c="dimmed">This recipe could not be found.</Text>
+        <ScreenHeader title={t('detail.recipeNotFoundTitle')} fallbackTo="/recipes" />
+        <Text c="dimmed">{t('detail.recipeNotFound')}</Text>
       </Stack>
     )
   }
@@ -129,22 +135,17 @@ export function RecipeDetailScreen() {
 
   const handleDelete = () => {
     modals.openConfirmModal({
-      title: 'Delete recipe',
-      children: (
-        <Text>
-          Delete “{recipe.name}”? This cannot be undone from the app (use a backup if you need it
-          later).
-        </Text>
-      ),
-      labels: { confirm: 'Delete', cancel: 'Cancel' },
+      title: t('detail.deleteRecipe'),
+      children: <Text>{t('detail.deleteRecipeBody', { name: recipe.name })}</Text>,
+      labels: { confirm: t('action.delete'), cancel: t('action.cancel') },
       confirmProps: { color: 'red' },
       onConfirm: async () => {
         const result = await recipeService.deleteRecipe(recipe.id)
         if (!result.ok) {
-          notifications.show({ message: 'Recipe not found', color: 'red' })
+          notifications.show({ message: t('detail.recipeNotFound'), color: 'red' })
           return
         }
-        notifications.show({ message: 'Recipe deleted', color: 'green' })
+        notifications.show({ message: t('detail.recipeDeleted'), color: 'green' })
         navigate('/recipes')
       },
     })
@@ -158,10 +159,10 @@ export function RecipeDetailScreen() {
         actions={
           <Group gap="xs">
             <Button component={Link} to={`/recipes/${recipe.id}/edit`} variant="light">
-              Edit
+              {t('detail.edit')}
             </Button>
             <Button color="red" variant="subtle" onClick={handleDelete}>
-              Delete
+              {t('action.delete')}
             </Button>
           </Group>
         }
@@ -170,35 +171,33 @@ export function RecipeDetailScreen() {
       {recipe.photoUrl && <RecipePhotoThumb url={recipe.photoUrl} label={recipe.name} size={96} />}
 
       <Text size="sm" c="dimmed">
-        Yield {formatQty(recipe.yield)} · portion {formatQty(recipe.defaultPortionPerPerson)} /
-        person
+        {t('detail.yieldPortion', {
+          yield: formatQty(recipe.yield),
+          portion: formatQty(recipe.defaultPortionPerPerson),
+        })}
       </Text>
 
       <Stack gap="xs">
-        <Title order={4}>Organization</Title>
+        <Title order={4}>{t('editor.organization')}</Title>
         <Group gap={4}>
           {recipe.roles.map((role) => (
             <Badge key={role} variant="light">
-              {RECIPE_ROLE_LABELS[role]}
+              {roleLabel(t, role)}
             </Badge>
           ))}
           {recipe.mealTypes.map((mealType) => (
             <Badge key={mealType} variant="outline">
-              {MEAL_TYPE_LABELS[mealType]}
+              {mealTypeLabel(t, mealType)}
             </Badge>
           ))}
-          {recipe.dishType && (
-            <Badge variant="filled">
-              {DISH_TYPE_LABELS[recipe.dishType as DishType] ?? recipe.dishType}
-            </Badge>
-          )}
+          {recipe.dishType && <Badge variant="filled">{dishTypeLabel(t, recipe.dishType)}</Badge>}
           {recipe.cuisine && <Badge variant="outline">{recipe.cuisine}</Badge>}
         </Group>
 
         {recipe.tagIds.length > 0 && (
           <Group gap={4}>
             {recipe.tagIds.map((tagId) => {
-              const name = tagsById.get(tagId) ?? 'Unavailable tag'
+              const name = tagsById.get(tagId) ?? t('common.unavailableTag')
               return (
                 <Badge key={tagId} variant="dot">
                   {name}
@@ -210,27 +209,34 @@ export function RecipeDetailScreen() {
       </Stack>
 
       <Text size="sm">
-        {EFFORT_LABELS[recipe.effort]} · {REUSE_POLICY_LABELS[recipe.reusePolicy]}
-        {recipe.freezerFriendly ? ' · Freezer-friendly' : ''}
+        {t('detail.effortReuse', {
+          effort: effortLabel(t, recipe.effort),
+          reuse: reuseLabel(t, recipe.reusePolicy),
+        })}
+        {recipe.freezerFriendly ? t('detail.freezerSuffix') : ''}
       </Text>
 
       {(recipe.activeTimeMinutes !== undefined || recipe.totalTimeMinutes !== undefined) && (
         <Text size="sm" c="dimmed">
-          {recipe.activeTimeMinutes !== undefined ? `Active ${recipe.activeTimeMinutes} min` : null}
+          {recipe.activeTimeMinutes !== undefined
+            ? t('detail.activeMin', { minutes: recipe.activeTimeMinutes })
+            : null}
           {recipe.activeTimeMinutes !== undefined && recipe.totalTimeMinutes !== undefined
             ? ' · '
             : null}
-          {recipe.totalTimeMinutes !== undefined ? `Total ${recipe.totalTimeMinutes} min` : null}
+          {recipe.totalTimeMinutes !== undefined
+            ? t('detail.totalMin', { minutes: recipe.totalTimeMinutes })
+            : null}
         </Text>
       )}
 
       <Stack gap="xs">
-        <Title order={4}>Scale preview</Title>
+        <Title order={4}>{t('detail.scale')}</Title>
         <Text size="sm" c="dimmed">
-          Preview only — does not change the saved recipe. Unit stays {recipe.yield.unit}.
+          {t('detail.scaleHelp', { unit: recipe.yield.unit })}
         </Text>
         <NumberInput
-          label={`Scale to (${recipe.yield.unit})`}
+          label={t('detail.scaleTo', { unit: recipe.yield.unit })}
           min={0.001}
           step={precisionStep(scaleYieldValue === '' ? recipe.yield.value : scaleYieldValue, 3)}
           decimalScale={3}
@@ -239,15 +245,17 @@ export function RecipeDetailScreen() {
         />
         {factor !== 1 && (
           <Text size="sm">
-            Factor ×{new Intl.NumberFormat(bcp47, { maximumFractionDigits: 3 }).format(factor)}
+            {t('detail.scaleFactor', {
+              factor: new Intl.NumberFormat(bcp47, { maximumFractionDigits: 3 }).format(factor),
+            })}
           </Text>
         )}
       </Stack>
 
-      <Title order={4}>Ingredients</Title>
+      <Title order={4}>{t('editor.ingredients')}</Title>
       {recipe.ingredientLines.length === 0 ? (
         <Text c="dimmed" size="sm">
-          No ingredients listed.
+          {t('detail.noIngredients')}
         </Text>
       ) : (
         <List spacing="xs">
@@ -268,7 +276,7 @@ export function RecipeDetailScreen() {
                 {line.note ? ` (${line.note})` : ''}
                 {line.sourceText ? (
                   <Text size="xs" c="dimmed">
-                    Original: {line.sourceText}
+                    {t('import.original', { text: line.sourceText })}
                   </Text>
                 ) : null}
               </List.Item>
@@ -277,29 +285,29 @@ export function RecipeDetailScreen() {
         </List>
       )}
 
-      <Title order={4}>Instructions</Title>
+      <Title order={4}>{t('editor.instructions')}</Title>
       <Text style={{ whiteSpace: 'pre-wrap' }}>
-        {recipe.instructions.trim() || 'No instructions yet.'}
+        {recipe.instructions.trim() || t('detail.noInstructions')}
       </Text>
 
       {recipe.freezingNotes && (
         <>
-          <Title order={4}>Freezing notes</Title>
+          <Title order={4}>{t('detail.freezingNotes')}</Title>
           <Text style={{ whiteSpace: 'pre-wrap' }}>{recipe.freezingNotes}</Text>
         </>
       )}
 
       {recipe.notes && (
         <>
-          <Title order={4}>Notes</Title>
+          <Title order={4}>{t('editor.notes')}</Title>
           <Text style={{ whiteSpace: 'pre-wrap' }}>{recipe.notes}</Text>
         </>
       )}
 
-      <Title order={4}>Pairs well with</Title>
+      <Title order={4}>{t('detail.pairsWell')}</Title>
       {recipePairings.length === 0 ? (
         <Text c="dimmed" size="sm">
-          No pairings yet.
+          {t('detail.noPairings')}
         </Text>
       ) : (
         <Stack gap={4}>
@@ -309,11 +317,11 @@ export function RecipeDetailScreen() {
               <ActionIcon
                 variant="subtle"
                 color="red"
-                aria-label="Remove pairing"
+                aria-label={t('detail.removePairing')}
                 onClick={() => {
                   void pairingService.remove(pairing.id).then((result) => {
                     if (!result.ok) {
-                      notifications.show({ message: 'Could not remove pairing', color: 'red' })
+                      notifications.show({ message: t('detail.removePairingFailed'), color: 'red' })
                     }
                   })
                 }}
@@ -327,7 +335,7 @@ export function RecipeDetailScreen() {
       <Group align="flex-end" wrap="nowrap">
         <Select
           style={{ flex: 1 }}
-          placeholder="Add pairing…"
+          placeholder={t('detail.addPairing')}
           searchable
           data={pairingOptions}
           value={pairingPick}
@@ -343,26 +351,26 @@ export function RecipeDetailScreen() {
                 notifications.show({
                   message:
                     result.error === 'duplicate'
-                      ? 'Already paired'
+                      ? t('detail.alreadyPaired')
                       : result.error === 'self-pairing'
-                        ? 'Cannot pair a recipe with itself'
-                        : 'Could not add pairing',
+                        ? t('detail.selfPairing')
+                        : t('detail.pairingFailed'),
                   color: 'red',
                 })
                 return
               }
               setPairingPick(null)
-              notifications.show({ message: 'Pairing added', color: 'green' })
+              notifications.show({ message: t('detail.pairingAdded'), color: 'green' })
             })
           }}
         >
-          Add
+          {t('action.add')}
         </Button>
       </Group>
 
       {recipe.sourceUrl && (
         <Text size="sm" c="dimmed">
-          Source: {recipe.sourceUrl}
+          {t('detail.source', { url: recipe.sourceUrl })}
         </Text>
       )}
     </Stack>

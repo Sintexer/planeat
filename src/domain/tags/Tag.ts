@@ -47,3 +47,15 @@ export function rewriteTagIds(tagIds: readonly TagId[], from: TagId, to: TagId):
 export function removeTagId(tagIds: readonly TagId[], remove: TagId): TagId[] {
   return tagIds.filter((id) => id !== remove)
 }
+
+/** Append missing ids, preserving existing order and de-duplicating. */
+export function addTagIds(tagIds: readonly TagId[], toAdd: readonly TagId[]): TagId[] {
+  const next = [...tagIds]
+  const seen = new Set(tagIds)
+  for (const id of toAdd) {
+    if (seen.has(id)) continue
+    seen.add(id)
+    next.push(id)
+  }
+  return next
+}

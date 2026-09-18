@@ -1,6 +1,7 @@
 import { useServices } from '../../app/servicesContext'
 import type { Quantity } from '../../domain/shared/Quantity'
 import { formatQuantityDisplay } from './formatQuantityDisplay'
+import { unitShortDisplay } from './labels'
 import { useLocalization } from './LocalizationContext'
 
 export function useFormatQuantity() {
@@ -11,6 +12,7 @@ export function useFormatQuantity() {
       locale: bcp47,
       measurementPreference,
       unspecifiedLabel: t('quantity.unspecified'),
+      unitShortLabel: (unit) => unitShortDisplay(t, unit),
       presentForDisplay: (q, preference) => quantityService.presentForDisplay(q, preference),
     })
 }

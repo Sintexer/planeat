@@ -2,7 +2,7 @@
 
 No dates. Keep the app releasable after every sprint. Each sprint delivers **one visible improvement**, including its UI, domain changes, persistence, backup support, and tests.
 
-**Current position:** Sprints 1–25 and checkpoints A/B/C are shipped. Phase 5 ends at checkpoint D (trust and transparency). After checkpoint D, choose a Phase 6 lane from evidence rather than by default. The Status section at the bottom is the log of what landed.
+**Current position:** Sprints 1–27A and checkpoints A/B/C are shipped. Lane A is complete. Lanes B and C remain optional.
 
 Sprints 1–6 had no automated test runner. Vitest arrived in Sprint 8 (tags/backup). Measurement/grocery scenario tests landed in Sprint 13. Localization settings (`uiLocale`, `measurementPreference`) shipped before Phase 1; Sprint 14 applied them consistently to displayed quantities.
 
@@ -705,7 +705,7 @@ These need their own bounded backlog if demand appears. Unless household researc
 | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Full second-language UI                       | Requires translation inventory and screen-by-screen review; number formatting is not full localization. Lane C above is the bounded path in if/when it's chosen. |
 | Catalog recipe/food favorites                 | Useful, but separate from existing favorite meals; add if tags and views are insufficient.                                                                       |
-| Bulk tagging                                  | Valuable mainly once catalogs become large; Lane A above is the bounded path in if/when it's chosen.                                                             |
+| Bulk tagging                                  | Shipped in Sprint 26A (library selection mode). Sprint 27A is cleanup views, not more bulk ops.                                                                  |
 | Cuisine normalization                         | Preserve current data until duplicates and filtering needs justify a migration.                                                                                  |
 | Dietary suitability system                    | Needs explicit provenance and uncertainty rules.                                                                                                                 |
 | Local photo uploads and portable image backup | Separate storage, quota, and backup concerns.                                                                                                                    |
@@ -773,4 +773,12 @@ Sprint 24 is done: generated grocery lines store optional `sources` (cooking-eve
 
 Sprint 25 is done: Plan **Generate groceries** on an open linked list shows an Update from plan preview (added / changed / no longer required / quantity you edited / will uncheck). Apply patches matching generated rows in place (`QuantityService.compare` for convert-equal amounts), keeps manual items, defaults overridden quantities to keep-my-quantity, and unchecks a row when the stored amount increases. Cancel and Create new do not mutate the existing list. No Dexie or backup-format bump. Tests: `GroceryService.test.ts`.
 
-**Next:** Release checkpoint D (another planning-and-shopping cycle) before choosing a Phase 6 lane. Sprints 26A/27A, 26B/27B, and 26C/27C are options by evidence, not a queue to work through in order.
+Sprint 26A is done: Recipes library selection mode for bulk tagging (Select / Done, count, Clear, Select visible). Add tags (create-or-link) and remove tags present on the selection apply in one Dexie transaction across recipes and simple foods; missing rows are skipped; cooking-event snapshots are not rewritten. Add-dish picker is unchanged. No Dexie or backup-format bump. Tests: `Tag.test.ts`, `TagService.test.ts`.
+
+Sprint 27A is done: optional Recipes **Cleanup** views for missing meal occasion, missing dish type, missing recorded total time, and unlinked ingredient lines. Gaps are not errors on the main library. Recipe-only views omit simple foods. Cleanup is additive on saved-view criteria (`cleanup: ''` when omitted in backups). No Dexie or backup-format bump. Tests: `LibraryView.test.ts`, `catalogModel.test.ts`, `backupSchema.test.ts`.
+
+Sprint 26C is done: remaining chrome messages go through a hand-rolled `t()` / `tPlural()` catalog with interpolation and `Intl.PluralRules`; dates and week labels use `uiLocale` BCP47; domain/application keep keys and error codes. English stays fully usable. No Dexie bump.
+
+Sprint 27C is done: Russian (`ru`) is a second supported UI language. Settings exposes English / Русский once catalogs are complete. User-authored recipe, tag, grocery, and snapshot strings stay as stored. Backup `uiLocale` accepts `en` | `ru`. PWA manifest name stays English. Tests: `t.test.ts`.
+
+**Next:** Lane A and Lane C are complete. Lane B (shopping-section order) remains an optional alternative, not a queue.

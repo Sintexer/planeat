@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  addTagIds,
   isTagArchived,
   normalizeTagName,
   removeTagId,
@@ -55,5 +56,19 @@ describe('rewriteTagIds', () => {
 describe('removeTagId', () => {
   it('strips the id and keeps the rest', () => {
     expect(removeTagId(['batch', 'soup', 'batch'], 'batch')).toEqual(['soup'])
+  })
+})
+
+describe('addTagIds', () => {
+  it('appends missing ids and skips ones already present', () => {
+    expect(addTagIds(['soup', 'batch'], ['batch', 'kids', 'soup'])).toEqual([
+      'soup',
+      'batch',
+      'kids',
+    ])
+  })
+
+  it('leaves the list unchanged when there is nothing to add', () => {
+    expect(addTagIds(['soup'], [])).toEqual(['soup'])
   })
 })

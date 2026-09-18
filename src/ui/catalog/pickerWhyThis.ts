@@ -1,11 +1,21 @@
+import type { Translate } from '../localization/t'
+import { kindLabel } from '../localization/labels'
 import type { MealFavorite } from '../../domain/favorites/MealFavorite'
 import type { RecipePairing } from '../../domain/pairings/RecipePairing'
 import type { SuggestionCandidate } from '../../domain/plans/componentSuggestions'
 import type { PlanGraph } from '../../domain/plans/PlanGraph'
-import { WEEKDAY_LABELS, weekdayOf, type LocalDate } from '../../domain/shared/LocalDate'
+import type { CookingEvent } from '../../domain/plans/CookingEvent'
+import type { LocalDate } from '../../domain/shared/LocalDate'
+import { weekdayOf, type WeekStartDay } from '../../domain/shared/LocalDate'
 
-export function leftoverBatchSubtitle(scheduledDate: LocalDate): string {
-  return `Uses ${WEEKDAY_LABELS[weekdayOf(scheduledDate)]}'s batch`
+export type WhyThisCopy =
+  | { type: 'pairing'; partner?: string }
+  | { type: 'favorite'; name?: string }
+  | { type: 'planned' }
+  | { type: 'kind'; kind: 'recipe' | 'simple-food' }
+
+export function leftoverBatchWeekday(scheduledDate: LocalDate): WeekStartDay {
+  return weekdayOf(scheduledDate)
 }
 
 export function pickerWhyThisCopy(args: {
@@ -14,19 +24,30 @@ export function pickerWhyThisCopy(args: {
   pairingPartnerName?: string
   favoriteName?: string
   plannedThisWeek?: boolean
-}): string {
+}): WhyThisCopy {
   if (args.reason === 'pairing') {
-    return args.pairingPartnerName
-      ? `Often paired with ${args.pairingPartnerName}`
-      : 'Often paired together'
+    return { type: 'pairing', partner: args.pairingPartnerName }
   }
   if (args.reason === 'favorite') {
-    return args.favoriteName ? `From favorite ${args.favoriteName}` : 'From a favorite'
+    return { type: 'favorite', name: args.favoriteName }
   }
   if (args.plannedThisWeek) {
-    return 'Already planned this week'
+    return { type: 'planned' }
   }
-  return args.kind === 'recipe' ? 'Recipe' : 'Simple food'
+  return { type: 'kind', kind: args.kind }
+}
+
+export function formatWhyThis(t: Translate, copy: WhyThisCopy): string {
+  if (copy.type === 'pairing') {
+    return copy.partner
+      ? t('picker.pairedWith', { name: copy.partner })
+      : t('picker.pairedTogether')
+  }
+  if (copy.type === 'favorite') {
+    return copy.name ? t('picker.fromFavoriteNamed', { name: copy.name }) : t('picker.fromFavorite')
+  }
+  if (copy.type === 'planned') return t('picker.alreadyPlanned')
+  return kindLabel(t, copy.kind)
 }
 
 export function pairingPartnerName(args: {
@@ -35,6 +56,7 @@ export function pairingPartnerName(args: {
   currentRecipeIds: Set<string>
   pairings: RecipePairing[]
   recipeNamesById: Map<string, string>
+  locale?: string
 }): string | undefined {
   const names: string[] = []
   for (const pairing of args.pairings) {
@@ -55,7 +77,7 @@ export function pairingPartnerName(args: {
       if (name) names.push(name)
     }
   }
-  names.sort((a, b) => a.localeCompare(b))
+  names.sort((a, b) => a.localeCompare(b, args.locale))
   return names[0]
 }
 
@@ -86,7 +108,7 @@ export function isPlannedThisWeek(
   graph: PlanGraph,
 ): boolean {
   if (kind === 'recipe') {
-    return graph.cookingEvents.some((event) => event.recipeId === id)
+    return graph.cookingEvents.some((event: CookingEvent) => event.recipeId === id)
   }
   return graph.components.some(
     (component) => component.source.type === 'simple-food' && component.source.simpleFoodId === id,

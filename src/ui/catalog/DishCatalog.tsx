@@ -1,6 +1,7 @@
 import {
   Badge,
   Button,
+  Checkbox,
   Chip,
   CloseButton,
   Group,
@@ -15,12 +16,23 @@ import {
 } from '@mantine/core'
 import { IconAdjustments, IconAlertTriangle } from '@tabler/icons-react'
 import Fuse from 'fuse.js'
-import { useMemo, useState } from 'react'
-import { EFFORT_LABELS, MEAL_TYPE_LABELS, RECIPE_ROLE_LABELS } from '../../domain/shared/MealEnums'
+import { useEffect, useMemo, useState } from 'react'
 import type { TagId } from '../../domain/tags/Tag'
 import { RecipePhotoThumb } from '../components/RecipePhotoThumb'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
-import { catalogGroupOptions, catalogSortOptions } from '../shared/mealEnumOptions'
+import { useLocalization } from '../localization/LocalizationContext'
+import {
+  catalogGroupHeading,
+  catalogGroupOptions,
+  catalogSortOptions,
+  cleanupLabel,
+  effortLabel,
+  kindLabel,
+  mealTypeLabel,
+  roleChipLabel,
+  roleLabel,
+} from '../localization/labels'
+import { formatWeekday } from '../localization/formatDate'
 import { FilterDrawer } from './FilterDrawer'
 import {
   groupCatalogItems,
@@ -33,24 +45,7 @@ import {
   type DishCatalogItem,
   type IngredientFilterOption,
 } from './catalogModel'
-
-const KIND_BADGE_LABELS: Record<'recipe' | 'simple-food', string> = {
-  recipe: 'Recipe',
-  'simple-food': 'Simple food',
-}
-
-const ROLE_CHIP_LABELS: Record<string, string> = {
-  complete: 'Complete',
-  main: 'Main',
-  side: 'Side',
-  vegetable: 'Veg',
-  'breakfast-component': 'Breakfast bit',
-}
-
-const KIND_FILTER_LABELS: Record<'recipe' | 'simple-food', string> = {
-  recipe: 'Recipes',
-  'simple-food': 'Simple foods',
-}
+import { leftoverBatchWeekday } from './pickerWhyThis'
 
 interface DishCatalogProps {
   items: DishCatalogItem[]
@@ -77,6 +72,10 @@ interface DishCatalogProps {
   archivedTagIds?: ReadonlySet<TagId>
   skipTagIds?: ReadonlySet<TagId>
   skipIngredientIds?: ReadonlySet<string>
+  selectionMode?: boolean
+  selectedKeys?: ReadonlySet<string>
+  onToggleSelect?: (item: DishCatalogItem) => void
+  onVisibleItemsChange?: (items: DishCatalogItem[]) => void
 }
 
 function activeFilterCount(filters: DishCatalogFilters, showSuggested: boolean): number {
@@ -98,14 +97,35 @@ function ItemRow({
   onSelect,
   disabled,
   leftover,
+  selectionMode,
+  selected,
 }: {
   item: DishCatalogItem
   onSelect: (item: DishCatalogItem) => void
   disabled?: boolean
   leftover?: boolean
+  selectionMode?: boolean
+  selected?: boolean
 }) {
   const formatQty = useFormatQuantity()
+  const { t, bcp47 } = useLocalization()
   const ineligible = Boolean(item.ineligibleReason)
+  const leftoverSubtitle =
+    leftover && item.cookingEvent
+      ? t('picker.leftoverBatch', {
+          weekday: formatWeekday(
+            leftoverBatchWeekday(item.cookingEvent.scheduledDate),
+            bcp47,
+            'long',
+          ),
+        })
+      : item.subtitle
+  const ineligibleLabel = item.ineligibleReason
+    ? t('picker.sameDayIneligible', { date: item.cookingEvent?.scheduledDate ?? '' })
+    : undefined
+  const remainingText = item.remaining
+    ? ` · ${formatQty(item.remaining)} ${t('quantity.left')}`
+    : ''
   const row = (
     <UnstyledButton
       disabled={disabled || ineligible}
@@ -116,7 +136,7 @@ function ItemRow({
       <Paper
         p={8}
         radius="md"
-        withBorder={leftover}
+        withBorder={leftover || selected}
         style={
           ineligible
             ? { opacity: 0.55 }
@@ -126,14 +146,24 @@ function ItemRow({
         }
       >
         <Group wrap="nowrap" align="flex-start" gap="sm">
+          {selectionMode && (
+            <Checkbox
+              checked={selected}
+              readOnly
+              tabIndex={-1}
+              mt={4}
+              aria-hidden
+              styles={{ input: { pointerEvents: 'none' } }}
+            />
+          )}
           <RecipePhotoThumb url={item.photoUrl} label={item.name} size={44} />
           <Stack gap={4} style={{ minWidth: 0, flex: 1 }}>
             <Text size="sm" fw={600} lineClamp={2}>
               {item.name}
             </Text>
             <Text size="xs" c="dimmed">
-              {item.subtitle}
-              {item.remaining ? ` · ${formatQty(item.remaining)} left` : ''}
+              {leftoverSubtitle}
+              {remainingText}
             </Text>
             <Group gap={4}>
               {(item.kind === 'recipe' || item.kind === 'simple-food') && (
@@ -143,7 +173,7 @@ function ItemRow({
                   variant="dot"
                   radius="sm"
                 >
-                  {KIND_BADGE_LABELS[item.kind]}
+                  {kindLabel(t, item.kind)}
                 </Badge>
               )}
               {ineligible ? (
@@ -154,18 +184,18 @@ function ItemRow({
                   radius="xl"
                   leftSection={<IconAlertTriangle size={10} />}
                 >
-                  {item.ineligibleReason}
+                  {ineligibleLabel}
                 </Badge>
               ) : (
                 leftover && (
                   <Badge size="xs" color="teal" variant="filled" radius="xl">
-                    Remaining
+                    {t('catalog.remainingBadge')}
                   </Badge>
                 )
               )}
               {item.roles.slice(0, 2).map((role) => (
                 <Badge key={role} size="xs" variant="light" radius="sm">
-                  {RECIPE_ROLE_LABELS[role]}
+                  {roleLabel(t, role)}
                 </Badge>
               ))}
               {item.tags.slice(0, 2).map((tag) => (
@@ -182,7 +212,7 @@ function ItemRow({
 
   if (!ineligible) return row
   return (
-    <Tooltip label={item.ineligibleReason} multiline w={220}>
+    <Tooltip label={ineligibleLabel} multiline w={220}>
       <div>{row}</div>
     </Tooltip>
   )
@@ -203,14 +233,19 @@ export function DishCatalog({
   disabled,
   showKindFilter = true,
   showSuggestedFilter = false,
-  emptyMessage = 'No matching dishes.',
+  emptyMessage,
   layout = 'modal',
   ingredientOptions = [],
   pickerSections = false,
   archivedTagIds,
   skipTagIds,
   skipIngredientIds,
+  selectionMode = false,
+  selectedKeys,
+  onToggleSelect,
+  onVisibleItemsChange,
 }: DishCatalogProps) {
+  const { t, bcp47 } = useLocalization()
   const [filterDrawerOpened, setFilterDrawerOpened] = useState(false)
   const tagFacets = useMemo(
     () =>
@@ -236,7 +271,7 @@ export function DishCatalog({
     const q = filters.query.trim()
     if (!q) {
       return [...matched].sort(
-        (a, b) => (b.score ?? 0) - (a.score ?? 0) || a.name.localeCompare(b.name),
+        (a, b) => (b.score ?? 0) - (a.score ?? 0) || a.name.localeCompare(b.name, bcp47),
       )
     }
     const fuse = new Fuse(matched, {
@@ -244,11 +279,14 @@ export function DishCatalog({
       threshold: 0.4,
     })
     return fuse.search(q).map((result) => result.item)
-  }, [items, filters, skipTagIds, skipIngredientIds])
+  }, [items, filters, skipTagIds, skipIngredientIds, bcp47])
 
   const searching = filters.query.trim().length > 0
 
-  const sortedItems = useMemo(() => sortCatalogItems(filtered, sort), [filtered, sort])
+  const sortedItems = useMemo(
+    () => sortCatalogItems(filtered, sort, bcp47),
+    [filtered, sort, bcp47],
+  )
 
   const groups = useMemo(
     () =>
@@ -260,6 +298,10 @@ export function DishCatalog({
       }),
     [sortedItems, searching, showSuggestedFilter, showGroupControl, group, pickerSections],
   )
+
+  useEffect(() => {
+    onVisibleItemsChange?.(sortedItems)
+  }, [sortedItems, onVisibleItemsChange])
 
   const setFilters = (patch: Partial<DishCatalogFilters>) => {
     onFiltersChange({ ...filters, ...patch })
@@ -282,51 +324,51 @@ export function DishCatalog({
   if (filters.kind !== 'all') {
     appliedChips.push({
       key: `kind:${filters.kind}`,
-      label: KIND_FILTER_LABELS[filters.kind],
+      label: filters.kind === 'recipe' ? t('kind.recipes') : t('kind.simpleFoods'),
       onRemove: () => setFilters({ kind: 'all' }),
     })
   }
   for (const mealType of filters.mealTypes) {
     appliedChips.push({
       key: `meal:${mealType}`,
-      label: MEAL_TYPE_LABELS[mealType],
+      label: mealTypeLabel(t, mealType),
       onRemove: () => setFilters({ mealTypes: filters.mealTypes.filter((m) => m !== mealType) }),
     })
   }
   for (const role of filters.roles) {
     appliedChips.push({
       key: `role:${role}`,
-      label: ROLE_CHIP_LABELS[role],
+      label: roleChipLabel(t, role),
       onRemove: () => setFilters({ roles: filters.roles.filter((r) => r !== role) }),
     })
   }
   if (filters.effort !== 'all') {
     appliedChips.push({
       key: `effort:${filters.effort}`,
-      label: EFFORT_LABELS[filters.effort],
+      label: effortLabel(t, filters.effort),
       onRemove: () => setFilters({ effort: 'all' }),
     })
   }
   for (const tagId of filters.tagIds) {
     appliedChips.push({
       key: `tag:${tagId}`,
-      label: tagNamesById.get(tagId) ?? 'Unavailable tag',
+      label: tagNamesById.get(tagId) ?? t('common.unavailableTag'),
       onRemove: () => setFilters({ tagIds: filters.tagIds.filter((id) => id !== tagId) }),
     })
   }
   if (filters.maxTotalTimeMinutes !== '') {
     appliedChips.push({
       key: 'max-time',
-      label: `≤ ${filters.maxTotalTimeMinutes} min`,
+      label: t('catalog.maxTimeChip', { minutes: filters.maxTotalTimeMinutes }),
       onRemove: () => setFilters({ maxTotalTimeMinutes: '' }),
     })
   }
   const ingredientLabel = (id: string) =>
-    ingredientOptions.find((option) => option.id === id)?.label ?? 'Unavailable ingredient'
+    ingredientOptions.find((option) => option.id === id)?.label ?? t('common.unavailableIngredient')
   for (const id of filters.containsIngredientIds) {
     appliedChips.push({
       key: `contains:${id}`,
-      label: `Has ${ingredientLabel(id)}`,
+      label: t('catalog.hasIngredient', { name: ingredientLabel(id) }),
       onRemove: () =>
         setFilters({
           containsIngredientIds: filters.containsIngredientIds.filter((value) => value !== id),
@@ -336,11 +378,19 @@ export function DishCatalog({
   for (const id of filters.excludeIngredientIds) {
     appliedChips.push({
       key: `exclude:${id}`,
-      label: `Without ${ingredientLabel(id)}`,
+      label: t('catalog.withoutIngredient', { name: ingredientLabel(id) }),
       onRemove: () =>
         setFilters({
           excludeIngredientIds: filters.excludeIngredientIds.filter((value) => value !== id),
         }),
+    })
+  }
+
+  if (filters.cleanup) {
+    appliedChips.push({
+      key: `cleanup:${filters.cleanup}`,
+      label: cleanupLabel(t, filters.cleanup),
+      onRemove: () => setFilters({ cleanup: '' }),
     })
   }
 
@@ -349,7 +399,7 @@ export function DishCatalog({
       {visibleLeftovers.length > 0 && (
         <Stack gap={8}>
           <Text size="xs" fw={700} tt="uppercase" c="teal">
-            Remaining this week
+            {t('catalog.leftoversThisWeek')}
           </Text>
           {visibleLeftovers.map((item) => (
             <ItemRow key={item.key} item={item} leftover onSelect={onSelect} disabled={disabled} />
@@ -360,11 +410,15 @@ export function DishCatalog({
       {groups.length === 0 && visibleLeftovers.length === 0 && (
         <Stack gap={4}>
           <Text size="sm" c="dimmed">
-            {extraFilters > 0 ? 'No dishes match your filters.' : emptyMessage}
+            {extraFilters > 0
+              ? t('empty.noFilterMatch')
+              : filters.cleanup
+                ? t('empty.cleanupNone')
+                : (emptyMessage ?? t('empty.noFilterMatch'))}
           </Text>
           {extraFilters > 0 && (
             <Button size="compact-xs" variant="subtle" onClick={clearFilters} w="fit-content">
-              Clear filters
+              {t('catalog.clearFilters')}
             </Button>
           )}
         </Stack>
@@ -372,13 +426,20 @@ export function DishCatalog({
 
       {groups.map((catalogGroup) => (
         <Stack key={catalogGroup.id} gap={8}>
-          {catalogGroup.title !== '' && catalogGroup.title !== 'Results' && (
+          {catalogGroup.id !== 'ungrouped' && catalogGroup.id !== 'results' && (
             <Text size="xs" fw={700} tt="uppercase" c="dimmed">
-              {catalogGroup.title}
+              {catalogGroupHeading(t, catalogGroup.id, catalogGroup.title || undefined)}
             </Text>
           )}
           {catalogGroup.items.map((item) => (
-            <ItemRow key={item.key} item={item} onSelect={onSelect} disabled={disabled} />
+            <ItemRow
+              key={item.key}
+              item={item}
+              onSelect={selectionMode && onToggleSelect ? onToggleSelect : onSelect}
+              disabled={disabled}
+              selectionMode={selectionMode}
+              selected={selectedKeys?.has(item.key)}
+            />
           ))}
         </Stack>
       ))}
@@ -388,7 +449,7 @@ export function DishCatalog({
   return (
     <Stack gap="sm">
       <TextInput
-        placeholder="Search dishes, tags…"
+        placeholder={t('catalog.searchPlaceholder')}
         value={filters.query}
         onChange={(event) => setFilters({ query: event.currentTarget.value })}
         data-autofocus={layout === 'modal'}
@@ -398,20 +459,20 @@ export function DishCatalog({
         <Select
           size="xs"
           w={160}
-          data={catalogSortOptions}
+          data={catalogSortOptions(t)}
           value={sort}
           onChange={(value) => value && onSortChange(value as CatalogSort)}
-          aria-label="Sort by"
+          aria-label={t('catalog.sortBy')}
           allowDeselect={false}
         />
         {showGroupControl && (
           <Select
             size="xs"
             w={160}
-            data={catalogGroupOptions}
+            data={catalogGroupOptions(t)}
             value={group ?? 'none'}
             onChange={(value) => value && onGroupChange?.(value as CatalogGroup)}
-            aria-label="Group by"
+            aria-label={t('catalog.groupBy')}
             allowDeselect={false}
           />
         )}
@@ -426,7 +487,7 @@ export function DishCatalog({
               checked={filters.suggestedOnly}
               onChange={() => setFilters({ suggestedOnly: !filters.suggestedOnly })}
             >
-              Suggested
+              {t('catalog.group.suggested')}
             </Chip>
           )}
           {appliedChips.map((chip) => (
@@ -439,7 +500,7 @@ export function DishCatalog({
                 <CloseButton
                   size={12}
                   variant="transparent"
-                  aria-label={`Remove ${chip.label} filter`}
+                  aria-label={t('catalog.removeFilter', { label: chip.label })}
                   onClick={chip.onRemove}
                 />
               }
@@ -449,7 +510,7 @@ export function DishCatalog({
           ))}
           {extraFilters > 0 && (
             <Button size="compact-xs" variant="subtle" onClick={clearFilters}>
-              Clear filters
+              {t('catalog.clearFilters')}
             </Button>
           )}
         </Group>
@@ -460,7 +521,9 @@ export function DishCatalog({
           leftSection={<IconAdjustments size={14} />}
           onClick={() => setFilterDrawerOpened(true)}
         >
-          {extraFilters > 0 ? `Filters (${extraFilters})` : 'Filters'}
+          {extraFilters > 0
+            ? t('catalog.filtersCount', { count: extraFilters })
+            : t('catalog.filters')}
         </Button>
       </Group>
 

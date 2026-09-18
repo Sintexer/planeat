@@ -9,7 +9,7 @@ type ListSegment = 'current' | 'history'
 
 export function ListsScreen() {
   const lists = useGroceryLists()
-  const { t } = useLocalization()
+  const { t, bcp47 } = useLocalization()
   const [segment, setSegment] = useState<ListSegment>('current')
 
   const filtered = useMemo(() => {
@@ -22,14 +22,14 @@ export function ListsScreen() {
     return (
       <Stack gap="md" align="center" py="xl">
         <Loader size="sm" />
-        <Text c="dimmed">Loading lists…</Text>
+        <Text c="dimmed">{t('lists.loading')}</Text>
       </Stack>
     )
   }
 
   return (
     <Stack gap="lg">
-      <PageTitle>Groceries</PageTitle>
+      <PageTitle>{t('lists.title')}</PageTitle>
 
       <SegmentedControl
         fullWidth
@@ -37,14 +37,13 @@ export function ListsScreen() {
         value={segment}
         onChange={(value) => setSegment(value as ListSegment)}
         data={[
-          { label: 'Current', value: 'current' },
-          { label: 'History', value: 'history' },
+          { label: t('lists.current'), value: 'current' },
+          { label: t('lists.history'), value: 'history' },
         ]}
       />
 
       <Text size="sm" c="dimmed">
-        Generate a list from Plan, then check items off as you shop. Plan edits never silently
-        overwrite a list — use Update from Plan when you want a refresh.
+        {t('lists.help')}
       </Text>
 
       {filtered?.length === 0 && (
@@ -68,16 +67,21 @@ export function ListsScreen() {
               <Stack gap={2} style={{ minWidth: 0 }}>
                 <Text fw={600}>{list.title}</Text>
                 <Text size="xs" c="dimmed">
-                  Updated {new Date(list.updatedAt).toLocaleString()}
+                  {t('lists.updated', {
+                    when: new Intl.DateTimeFormat(bcp47, {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    }).format(new Date(list.updatedAt)),
+                  })}
                 </Text>
               </Stack>
               {segment === 'history' ? (
                 <Button component="span" size="compact-sm" variant="light" radius="xl">
-                  View
+                  {t('action.view')}
                 </Button>
               ) : (
                 <Badge color="green" variant="light">
-                  {list.status}
+                  {t(`lists.status.${list.status}` as 'lists.status.open')}
                 </Badge>
               )}
             </Group>
@@ -86,7 +90,7 @@ export function ListsScreen() {
       </Stack>
 
       <Button component={Link} to="/plan" variant="light">
-        Go to plan
+        {t('lists.goToPlan')}
       </Button>
     </Stack>
   )

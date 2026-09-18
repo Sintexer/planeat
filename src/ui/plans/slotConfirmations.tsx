@@ -2,47 +2,35 @@ import { Button, Stack, Text } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import type { PlanService } from '../../application/plans/PlanService'
-import { MEAL_TYPE_LABELS, type MealType } from '../../domain/shared/MealEnums'
+import { mealTypeLabel } from '../localization/labels'
+import { planErrorMessage } from '../localization/errors'
+import type { Translate } from '../localization/t'
 
-function planErrorMessage(error: string): string {
-  switch (error) {
-    case 'over-allocated':
-      return 'That uses more than the planned prep output.'
-    case 'reuse-forbidden':
-      return 'This recipe cannot be reused on that day.'
-    case 'before-prep':
-      return 'A meal cannot use prep before its scheduled day.'
-    case 'incompatible-quantity':
-      return 'Quantities use incompatible units.'
-    case 'invalid-quantity':
-      return 'Enter a valid positive quantity.'
-    default:
-      return `Could not update (${error})`
-  }
+function formatDependentLine(t: Translate, date: string, mealType: string): string {
+  return `${date} ${mealTypeLabel(t, mealType)}`
 }
 
-function formatDependentLine(date: string, mealType: MealType | string): string {
-  const label = mealType in MEAL_TYPE_LABELS ? MEAL_TYPE_LABELS[mealType as MealType] : mealType
-  return `${date} ${label}`
-}
-
-export async function confirmClearSlot(planService: PlanService, slotId: string): Promise<void> {
+export async function confirmClearSlot(
+  planService: PlanService,
+  slotId: string,
+  t: Translate,
+): Promise<void> {
   const shared = await planService.listSharedDependentsForSlot(slotId)
   if (!shared.ok) {
-    notifications.show({ message: planErrorMessage(shared.error), color: 'red' })
+    notifications.show({ message: planErrorMessage(t, shared.error), color: 'red' })
     return
   }
 
   if (shared.shared.length === 0) {
     modals.openConfirmModal({
-      title: 'Clear meal',
-      children: <Text size="sm">Remove all components from this meal?</Text>,
-      labels: { confirm: 'Clear', cancel: 'Cancel' },
+      title: t('confirm.clearMeal'),
+      children: <Text size="sm">{t('confirm.clearMealBody')}</Text>,
+      labels: { confirm: t('action.clear'), cancel: t('action.cancel') },
       confirmProps: { color: 'red' },
       onConfirm: () => {
         void planService.clearSlot(slotId).then((result) => {
           if (!result.ok) {
-            notifications.show({ message: 'Could not clear slot', color: 'red' })
+            notifications.show({ message: t('error.clearSlot'), color: 'red' })
           }
         })
       },
@@ -51,10 +39,10 @@ export async function confirmClearSlot(planService: PlanService, slotId: string)
   }
 
   modals.open({
-    title: 'Clear meal with shared prep',
+    title: t('confirm.clearSharedTitle'),
     children: (
       <Stack gap="sm">
-        <Text size="sm">This meal uses preparation that also supplies other meals:</Text>
+        <Text size="sm">{t('confirm.clearSharedBody')}</Text>
         {shared.shared.map((entry) => (
           <Stack key={entry.eventId} gap={2}>
             <Text size="sm" fw={600}>
@@ -62,7 +50,7 @@ export async function confirmClearSlot(planService: PlanService, slotId: string)
             </Text>
             {entry.dependents.map((d) => (
               <Text key={d.componentId} size="sm">
-                • {formatDependentLine(d.date, d.mealType)}
+                • {formatDependentLine(t, d.date, d.mealType)}
               </Text>
             ))}
           </Stack>
@@ -72,12 +60,12 @@ export async function confirmClearSlot(planService: PlanService, slotId: string)
             modals.closeAll()
             void planService.clearSlot(slotId).then((result) => {
               if (!result.ok) {
-                notifications.show({ message: 'Could not clear slot', color: 'red' })
+                notifications.show({ message: t('error.clearSlot'), color: 'red' })
               }
             })
           }}
         >
-          Clear this meal only
+          {t('confirm.clearThisOnly')}
         </Button>
         <Button
           color="red"
@@ -92,38 +80,40 @@ export async function confirmClearSlot(planService: PlanService, slotId: string)
             })()
           }}
         >
-          Remove shared prep from all meals
+          {t('confirm.removeSharedAll')}
         </Button>
         <Button variant="default" onClick={() => modals.closeAll()}>
-          Cancel
+          {t('action.cancel')}
         </Button>
       </Stack>
     ),
   })
 }
 
-export async function confirmExcludeSlot(planService: PlanService, slotId: string): Promise<void> {
+export async function confirmExcludeSlot(
+  planService: PlanService,
+  slotId: string,
+  t: Translate,
+): Promise<void> {
   const shared = await planService.listSharedDependentsForSlot(slotId)
   if (!shared.ok) {
-    notifications.show({ message: planErrorMessage(shared.error), color: 'red' })
+    notifications.show({ message: planErrorMessage(t, shared.error), color: 'red' })
     return
   }
 
   const runExclude = () => {
     void planService.setSlotExcluded(slotId, true).then((result) => {
       if (!result.ok) {
-        notifications.show({ message: 'Could not exclude slot', color: 'red' })
+        notifications.show({ message: t('error.excludeSlot'), color: 'red' })
       }
     })
   }
 
   if (shared.shared.length === 0) {
     modals.openConfirmModal({
-      title: 'Exclude meal',
-      children: (
-        <Text size="sm">Mark this meal as excluded / eating out? Components will be removed.</Text>
-      ),
-      labels: { confirm: 'Exclude', cancel: 'Cancel' },
+      title: t('confirm.excludeMeal'),
+      children: <Text size="sm">{t('confirm.excludeMealBody')}</Text>,
+      labels: { confirm: t('confirm.exclude'), cancel: t('action.cancel') },
       confirmProps: { color: 'red' },
       onConfirm: runExclude,
     })
@@ -131,10 +121,10 @@ export async function confirmExcludeSlot(planService: PlanService, slotId: strin
   }
 
   modals.open({
-    title: 'Exclude meal with shared prep',
+    title: t('confirm.excludeSharedTitle'),
     children: (
       <Stack gap="sm">
-        <Text size="sm">Excluding clears this meal. Shared preparation also supplies:</Text>
+        <Text size="sm">{t('confirm.excludeSharedBody')}</Text>
         {shared.shared.map((entry) => (
           <Stack key={entry.eventId} gap={2}>
             <Text size="sm" fw={600}>
@@ -142,7 +132,7 @@ export async function confirmExcludeSlot(planService: PlanService, slotId: strin
             </Text>
             {entry.dependents.map((d) => (
               <Text key={d.componentId} size="sm">
-                • {formatDependentLine(d.date, d.mealType)}
+                • {formatDependentLine(t, d.date, d.mealType)}
               </Text>
             ))}
           </Stack>
@@ -153,7 +143,7 @@ export async function confirmExcludeSlot(planService: PlanService, slotId: strin
             runExclude()
           }}
         >
-          Exclude this meal only
+          {t('confirm.excludeThisOnly')}
         </Button>
         <Button
           color="red"
@@ -168,10 +158,10 @@ export async function confirmExcludeSlot(planService: PlanService, slotId: strin
             })()
           }}
         >
-          Remove shared prep from all meals and exclude
+          {t('confirm.removeSharedAndExclude')}
         </Button>
         <Button variant="default" onClick={() => modals.closeAll()}>
-          Cancel
+          {t('action.cancel')}
         </Button>
       </Stack>
     ),

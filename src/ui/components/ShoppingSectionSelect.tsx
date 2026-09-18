@@ -1,10 +1,11 @@
 import { Select } from '@mantine/core'
-import { shoppingSectionSelectOptions } from '../../domain/groceries/shoppingSections'
+import { shoppingSectionOptions } from '../localization/labels'
+import { useLocalization } from '../localization/LocalizationContext'
 
 export function ShoppingSectionSelect({
   value,
   onChange,
-  label = 'Shopping section',
+  label,
   disabled,
   size,
 }: {
@@ -14,11 +15,12 @@ export function ShoppingSectionSelect({
   disabled?: boolean
   size?: 'xs' | 'sm' | 'md'
 }) {
+  const { t } = useLocalization()
   return (
     <Select
-      label={label}
-      placeholder="None — shown under Other"
-      data={shoppingSectionSelectOptions(value)}
+      label={label ?? t('section.label')}
+      placeholder={t('section.placeholder')}
+      data={shoppingSectionOptions(t, value)}
       value={value ?? null}
       onChange={(next) => onChange(next ?? undefined)}
       clearable

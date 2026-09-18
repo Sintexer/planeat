@@ -471,6 +471,50 @@ describe('backupFileSchema — saved library views (Sprint 22)', () => {
     expect(result.data.data.libraryViews[0]?.criteria.tagIds).toEqual(['tag-kids'])
   })
 
+  it('defaults omitted cleanup on a saved view and round-trips an explicit cleanup kind', () => {
+    const data = emptyData()
+    data.libraryViews = [
+      {
+        id: 'view-1',
+        name: 'Kids lunch',
+        criteria: {
+          query: '',
+          kind: 'all',
+          mealTypes: [],
+          roles: [],
+          effort: 'all',
+          tagIds: [],
+          maxTotalTimeMinutes: '',
+          containsIngredientIds: [],
+          excludeIngredientIds: [],
+          sort: 'relevance',
+          group: 'none',
+        },
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ]
+    const file = {
+      format: 'family-menu-planner',
+      schemaVersion: CURRENT_BACKUP_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    }
+    const omitted = backupFileSchema.safeParse(JSON.parse(JSON.stringify(file)))
+    expect(omitted.success).toBe(true)
+    if (!omitted.success) return
+    expect(omitted.data.data.libraryViews[0]?.criteria.cleanup).toBe('')
+
+    data.libraryViews[0] = {
+      ...data.libraryViews[0]!,
+      criteria: { ...data.libraryViews[0]!.criteria, cleanup: 'missing-time' },
+    }
+    const withCleanup = backupFileSchema.safeParse(JSON.parse(JSON.stringify({ ...file, data })))
+    expect(withCleanup.success).toBe(true)
+    if (!withCleanup.success) return
+    expect(withCleanup.data.data.libraryViews[0]?.criteria.cleanup).toBe('missing-time')
+  })
+
   it('rejects duplicate library-view ids', () => {
     const data = emptyData()
     const view = {
@@ -501,5 +545,32 @@ describe('backupFileSchema — saved library views (Sprint 22)', () => {
       data,
     })
     expect(result.success).toBe(false)
+  })
+
+  it('accepts settings.uiLocale ru', () => {
+    const data = emptyData()
+    data.settings = [
+      {
+        id: 'app-settings',
+        householdSize: 2,
+        weekStartDay: 1,
+        maxBatchPrepUnits: 4,
+        preferredBatchPrepDays: [0],
+        quickMealsOnlyDays: [],
+        avoidMultipleDemandingPreps: true,
+        favorVegetablesDaily: true,
+        uiLocale: 'ru',
+        measurementPreference: 'as-entered',
+        catalogSort: 'name',
+        catalogGroup: 'none',
+      },
+    ]
+    const result = backupFileSchema.safeParse({
+      format: 'family-menu-planner',
+      schemaVersion: CURRENT_BACKUP_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    })
+    expect(result.success).toBe(true)
   })
 })

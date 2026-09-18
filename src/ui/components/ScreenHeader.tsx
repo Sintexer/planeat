@@ -2,6 +2,7 @@ import { ActionIcon, Group, Stack, Title } from '@mantine/core'
 import { IconChevronLeft } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router'
+import { useLocalization } from '../localization/LocalizationContext'
 
 interface ScreenHeaderProps {
   title: ReactNode
@@ -13,6 +14,7 @@ interface ScreenHeaderProps {
 export function ScreenHeader({ title, fallbackTo, actions }: ScreenHeaderProps) {
   const navigate = useNavigate()
   const location = useLocation()
+  const { t } = useLocalization()
 
   const handleBack = () => {
     if (location.key !== 'default') {
@@ -30,7 +32,7 @@ export function ScreenHeader({ title, fallbackTo, actions }: ScreenHeaderProps) 
             variant="default"
             radius="xl"
             size={34}
-            aria-label="Back"
+            aria-label={t('action.back')}
             onClick={handleBack}
             style={{ flexShrink: 0 }}
           >

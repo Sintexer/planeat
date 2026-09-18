@@ -24,39 +24,40 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function reliableExportedAtDisplay(exportedAt: string): string | null {
+function reliableExportedAtDisplay(exportedAt: string, locale = 'en'): string | null {
   if (!/^\d{4}-\d{2}-\d{2}(T[\d:.+-Z]+)?$/.test(exportedAt)) return null
   const parsed = Date.parse(exportedAt)
   if (Number.isNaN(parsed)) return null
   const date = new Date(parsed)
   if (exportedAt.includes('T')) {
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
-      date,
-    )
+    return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(date)
   }
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date)
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(date)
 }
 
-function summaryFromBackup(backup: {
-  exportedAt: string
-  data: {
-    recipes: { length: number }
-    simpleFoods: { length: number }
-    plans: { length: number }
-    groceryLists: { length: number }
-  }
-}): BackupRestoreSummary {
+function summaryFromBackup(
+  backup: {
+    exportedAt: string
+    data: {
+      recipes: { length: number }
+      simpleFoods: { length: number }
+      plans: { length: number }
+      groceryLists: { length: number }
+    }
+  },
+  locale = 'en',
+): BackupRestoreSummary {
   return {
     formatSupported: true,
     recipeCount: backup.data.recipes.length,
     simpleFoodCount: backup.data.simpleFoods.length,
     planCount: backup.data.plans.length,
     groceryListCount: backup.data.groceryLists.length,
-    exportedAtDisplay: reliableExportedAtDisplay(backup.exportedAt),
+    exportedAtDisplay: reliableExportedAtDisplay(backup.exportedAt, locale),
   }
 }
 
-function inspectRaw(raw: unknown): BackupRestoreResult {
+function inspectRaw(raw: unknown, locale = 'en'): BackupRestoreResult {
   const parsed = backupFileSchema.safeParse(raw)
   if (parsed.success) {
     if (parsed.data.schemaVersion !== CURRENT_BACKUP_FORMAT_VERSION) {
@@ -66,7 +67,7 @@ function inspectRaw(raw: unknown): BackupRestoreResult {
         foundVersion: parsed.data.schemaVersion,
       }
     }
-    return { ok: true, summary: summaryFromBackup(parsed.data) }
+    return { ok: true, summary: summaryFromBackup(parsed.data, locale) }
   }
 
   if (
@@ -103,12 +104,12 @@ export class BackupService {
     }
   }
 
-  inspectBackup(raw: unknown): BackupRestoreResult {
-    return inspectRaw(raw)
+  inspectBackup(raw: unknown, locale = 'en'): BackupRestoreResult {
+    return inspectRaw(raw, locale)
   }
 
-  async restoreBackup(raw: unknown): Promise<BackupRestoreResult> {
-    const inspected = inspectRaw(raw)
+  async restoreBackup(raw: unknown, locale = 'en'): Promise<BackupRestoreResult> {
+    const inspected = inspectRaw(raw, locale)
     if (!inspected.ok) return inspected
 
     const parsed = backupFileSchema.safeParse(raw)

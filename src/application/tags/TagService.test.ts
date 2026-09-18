@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  addTagIds,
   removeTagId,
   rewriteTagIds,
   tagMatchesName,
@@ -83,6 +84,29 @@ class FakeTagRepository implements TagRepository {
       row.tagIds = removeTagId(row.tagIds, id)
     }
     this.rows.delete(id)
+  }
+
+  async applyLiveTagChanges(input: {
+    recipeIds: string[]
+    simpleFoodIds: string[]
+    addTagIds: TagId[]
+    removeTagIds: TagId[]
+  }): Promise<void> {
+    const patch = (row: TaggedItem) => {
+      let tagIds = row.tagIds
+      for (const removeId of input.removeTagIds) {
+        tagIds = removeTagId(tagIds, removeId)
+      }
+      row.tagIds = addTagIds(tagIds, input.addTagIds)
+    }
+    for (const id of input.recipeIds) {
+      const row = this.recipes.find((item) => item.id === id)
+      if (row) patch(row)
+    }
+    for (const id of input.simpleFoodIds) {
+      const row = this.simpleFoods.find((item) => item.id === id)
+      if (row) patch(row)
+    }
   }
 }
 
@@ -253,5 +277,95 @@ describe('TagService archive / merge / delete', () => {
   it('returns not-found when deleting a missing tag', async () => {
     const service = new TagService(new FakeTagRepository())
     expect(await service.deleteTag('missing')).toEqual({ ok: false, error: 'not-found' })
+  })
+})
+
+describe('TagService.applyTagsToCatalogItems', () => {
+  it('adds tags to mixed recipes and simple foods, creating a new name once', async () => {
+    const repo = new FakeTagRepository()
+    const service = new TagService(repo)
+    const kids = await service.createOrLinkByName('kids')
+    if (!kids.ok) throw new Error('setup failed')
+    repo.recipes = [{ id: 'cutlets', tagIds: [kids.tag.id] }]
+    repo.simpleFoods = [{ id: 'yogurt', tagIds: [] }]
+    repo.snapshotTagLabels = [['kids']]
+
+    const result = await service.applyTagsToCatalogItems(
+      [
+        { kind: 'recipe', id: 'cutlets' },
+        { kind: 'simple-food', id: 'yogurt' },
+      ],
+      { addNames: ['batch', '  kids  '] },
+    )
+    expect(result).toEqual({ ok: true })
+    expect((await repo.getAll()).map((tag) => tag.name)).toEqual(['kids', 'batch'])
+    const batch = (await repo.getAll()).find((tag) => tag.name === 'batch')
+    expect(repo.recipes[0]?.tagIds).toEqual([kids.tag.id, batch?.id])
+    expect(repo.simpleFoods[0]?.tagIds).toEqual([batch?.id, kids.tag.id])
+    expect(repo.snapshotTagLabels).toEqual([['kids']])
+  })
+
+  it('removes a tag only where present and skips missing items', async () => {
+    const repo = new FakeTagRepository()
+    const service = new TagService(repo)
+    const batch = await service.createOrLinkByName('batch')
+    if (!batch.ok) throw new Error('setup failed')
+    repo.recipes = [
+      { id: 'cutlets', tagIds: [batch.tag.id] },
+      { id: 'soup', tagIds: [] },
+    ]
+    repo.simpleFoods = [{ id: 'yogurt', tagIds: [batch.tag.id] }]
+
+    const result = await service.applyTagsToCatalogItems(
+      [
+        { kind: 'recipe', id: 'cutlets' },
+        { kind: 'recipe', id: 'gone' },
+        { kind: 'recipe', id: 'soup' },
+        { kind: 'simple-food', id: 'yogurt' },
+      ],
+      { removeTagIds: [batch.tag.id] },
+    )
+    expect(result).toEqual({ ok: true })
+    expect(repo.recipes.find((row) => row.id === 'cutlets')?.tagIds).toEqual([])
+    expect(repo.recipes.find((row) => row.id === 'soup')?.tagIds).toEqual([])
+    expect(repo.simpleFoods[0]?.tagIds).toEqual([])
+  })
+
+  it('applies add and remove in one call', async () => {
+    const repo = new FakeTagRepository()
+    const service = new TagService(repo)
+    const batch = await service.createOrLinkByName('batch')
+    if (!batch.ok) throw new Error('setup failed')
+    repo.recipes = [{ id: 'cutlets', tagIds: [batch.tag.id] }]
+
+    const result = await service.applyTagsToCatalogItems([{ kind: 'recipe', id: 'cutlets' }], {
+      addNames: ['kids'],
+      removeTagIds: [batch.tag.id],
+    })
+    expect(result).toEqual({ ok: true })
+    const kids = (await repo.getAll()).find((tag) => tag.name === 'kids')
+    expect(repo.recipes[0]?.tagIds).toEqual([kids?.id])
+  })
+
+  it('returns empty-selection, empty-op, and empty-name without writing', async () => {
+    const repo = new FakeTagRepository()
+    const service = new TagService(repo)
+    repo.recipes = [{ id: 'cutlets', tagIds: [] }]
+
+    expect(await service.applyTagsToCatalogItems([], { addNames: ['kids'] })).toEqual({
+      ok: false,
+      error: 'empty-selection',
+    })
+    expect(await service.applyTagsToCatalogItems([{ kind: 'recipe', id: 'cutlets' }], {})).toEqual({
+      ok: false,
+      error: 'empty-op',
+    })
+    expect(
+      await service.applyTagsToCatalogItems([{ kind: 'recipe', id: 'cutlets' }], {
+        addNames: ['   '],
+      }),
+    ).toEqual({ ok: false, error: 'empty-name' })
+    expect(repo.recipes[0]?.tagIds).toEqual([])
+    expect((await repo.getAll()).length).toBe(0)
   })
 })

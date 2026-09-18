@@ -3,6 +3,7 @@ import Fuse from 'fuse.js'
 import { useMemo, useState } from 'react'
 import type { IngredientService } from '../../application/ingredients/IngredientService'
 import type { Ingredient } from '../../domain/ingredients/Ingredient'
+import { useLocalization } from '../localization/LocalizationContext'
 import { linkOrCreateIngredient } from './IngredientCandidateModal'
 
 type IngredientSearchEntry = {
@@ -60,10 +61,12 @@ export function IngredientNameField({
   ingredients,
   ingredientService,
   labelFor,
-  label = 'Ingredient',
+  label = '',
   eagerResolve = true,
   confirmBeforeLink,
 }: IngredientNameFieldProps) {
+  const { t, bcp47 } = useLocalization()
+  const fieldLabel = label || t('editor.ingredient')
   const combobox = useCombobox({ onDropdownClose: () => combobox.resetSelectedOption() })
   const [resolving, setResolving] = useState(false)
 
@@ -75,13 +78,13 @@ export function IngredientNameField({
 
   const visibleIngredients = useMemo(() => {
     if (!query) {
-      return [...ingredients].sort((a, b) => labelFor(a).localeCompare(labelFor(b)))
+      return [...ingredients].sort((a, b) => labelFor(a).localeCompare(labelFor(b), bcp47))
     }
     return fuse
       .search(query)
       .slice(0, 8)
       .map((result) => result.item.ingredient)
-  }, [query, ingredients, labelFor, fuse])
+  }, [query, ingredients, labelFor, fuse, bcp47])
 
   const hasExactMatch = visibleIngredients.some(
     (ingredient) => labelFor(ingredient).toLowerCase() === query.toLowerCase(),
@@ -92,7 +95,7 @@ export function IngredientNameField({
     if (!trimmed || resolving) return
     setResolving(true)
     try {
-      const ingredient = await linkOrCreateIngredient(ingredientService, trimmed, labelFor)
+      const ingredient = await linkOrCreateIngredient(ingredientService, trimmed, labelFor, t)
       if (ingredient) {
         onResolved({ name: labelFor(ingredient), ingredientId: ingredient.id })
       }
@@ -144,8 +147,8 @@ export function IngredientNameField({
       <Combobox.Target>
         <TextInput
           flex={1}
-          label={label}
-          placeholder="e.g. chicken"
+          label={fieldLabel}
+          placeholder={t('ingredientName.placeholder')}
           value={value}
           rightSection={resolving ? <Loader size="xs" /> : <Combobox.Chevron />}
           onChange={(event) => {
@@ -174,7 +177,7 @@ export function IngredientNameField({
       <Combobox.Dropdown>
         <Combobox.Options mah={240} style={{ overflowY: 'auto' }}>
           {visibleIngredients.length === 0 && !query && (
-            <Combobox.Empty>No ingredients yet — type a name to create one.</Combobox.Empty>
+            <Combobox.Empty>{t('ingredientName.empty')}</Combobox.Empty>
           )}
           {visibleIngredients.map((ingredient) => (
             <Combobox.Option value={ingredient.id} key={ingredient.id}>
@@ -182,7 +185,9 @@ export function IngredientNameField({
             </Combobox.Option>
           ))}
           {query && !hasExactMatch && (
-            <Combobox.Option value="__create__">Create new ingredient “{query}”</Combobox.Option>
+            <Combobox.Option value="__create__">
+              {t('ingredientName.create', { query })}
+            </Combobox.Option>
           )}
         </Combobox.Options>
       </Combobox.Dropdown>

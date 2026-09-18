@@ -25,7 +25,6 @@ import {
   resolveIngredientLabel,
   ingredientMatchesAnyIdentifier,
 } from '../../domain/ingredients/Ingredient'
-import { REUSE_POLICIES, REUSE_POLICY_LABELS } from '../../domain/shared/MealEnums'
 import type { Recipe } from '../../domain/recipes/Recipe'
 import { useIngredients } from '../hooks/useIngredients'
 import { useTags } from '../hooks/useTags'
@@ -56,13 +55,9 @@ import {
   dishTypeOptions,
   effortOptions,
   mealTypeOptions,
+  reuseOptions,
   roleOptions,
-} from '../shared/mealEnumOptions'
-
-const reuseOptions = REUSE_POLICIES.map((policy) => ({
-  value: policy,
-  label: REUSE_POLICY_LABELS[policy],
-}))
+} from '../localization/labels'
 
 interface RecipeEditorProps {
   mode: 'create' | 'edit'
@@ -74,7 +69,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
   const { recipeService, ingredientService, tagService } = useServices()
   const ingredients = useIngredients()
   const tags = useTags()
-  const { locale } = useLocalization()
+  const { locale, t } = useLocalization()
   const [importBootstrap] = useState(() => {
     if (mode !== 'create') return { hints: [] as string[], form: null as RecipeFormValues | null }
     const draft = readAndClearImportDraft()
@@ -101,11 +96,12 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
   const form = useForm<RecipeFormValues>({
     initialValues: importBootstrap.form ?? defaultRecipeFormValues(),
     validate: {
-      name: (value) => (value.trim().length === 0 ? 'Name is required' : null),
+      name: (value) => (value.trim().length === 0 ? t('validation.nameRequired') : null),
       roles: (value) => (value.length === 0 ? 'Pick at least one role' : null),
       mealTypes: (value) => (value.length === 0 ? 'Pick at least one meal type' : null),
-      yieldValue: (value) => (value === '' || value <= 0 ? 'Yield must be positive' : null),
-      portionValue: (value) => (value === '' || value <= 0 ? 'Portion must be positive' : null),
+      yieldValue: (value) => (value === '' || value <= 0 ? t('editor.yieldPositive') : null),
+      portionValue: (value) =>
+        value === '' || value <= 0 ? t('validation.portionPositive') : null,
       photoUrl: (value) => {
         const trimmed = value.trim()
         if (!trimmed) return null
@@ -115,12 +111,13 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
   })
 
   const dishTypeData = useMemo(() => {
+    const options = dishTypeOptions(t)
     const current = form.values.dishType
-    if (!current || dishTypeOptions.some((option) => option.value === current)) {
-      return dishTypeOptions
+    if (!current || options.some((option) => option.value === current)) {
+      return options
     }
-    return [...dishTypeOptions, { value: current, label: current }]
-  }, [form.values.dishType])
+    return [...options, { value: current, label: current }]
+  }, [form.values.dishType, t])
 
   const hydratedRecipeId = useRef<string | undefined>(undefined)
   const importMatchApplied = useRef(false)
@@ -194,7 +191,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
   const handleSubmit = form.onSubmit(async (values) => {
     const built = buildPartialWriteFromForm(values)
     if (!built) {
-      notifications.show({ message: 'Yield and portion must be valid quantities', color: 'red' })
+      notifications.show({ message: t('editor.invalidYield'), color: 'red' })
       return
     }
 
@@ -203,11 +200,14 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
       const imported = Boolean(line.sourceText)
       let nextLine = line
       if (!line.ingredientId && !imported) {
-        const ingredient = await linkOrCreateIngredient(ingredientService, line.name, (candidate) =>
-          resolveIngredientLabel(candidate, locale),
+        const ingredient = await linkOrCreateIngredient(
+          ingredientService,
+          line.name,
+          (candidate) => resolveIngredientLabel(candidate, locale),
+          t,
         )
         if (!ingredient) {
-          notifications.show({ message: 'Could not resolve ingredient name', color: 'red' })
+          notifications.show({ message: t('editor.resolveNameFailed'), color: 'red' })
           return
         }
         nextLine = { ...line, ingredientId: ingredient.id }
@@ -223,13 +223,13 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
         notifications.show({
           message:
             result.error === 'invalid-photo-url'
-              ? 'Photo URL must start with http:// or https://'
-              : `Could not save recipe (${result.error})`,
+              ? t('editor.invalidPhotoUrl')
+              : t('editor.saveFailedDetail', { error: result.error }),
           color: 'red',
         })
         return
       }
-      notifications.show({ message: 'Recipe saved', color: 'green' })
+      notifications.show({ message: t('editor.saved'), color: 'green' })
       window.setTimeout(() => {
         void navigate(`/recipes/${result.recipe.id}`, { replace: true })
       }, 0)
@@ -242,13 +242,13 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
       notifications.show({
         message:
           result.error === 'invalid-photo-url'
-            ? 'Photo URL must start with http:// or https://'
-            : `Could not save recipe (${result.error})`,
+            ? t('editor.invalidPhotoUrl')
+            : t('editor.saveFailedDetail', { error: result.error }),
         color: 'red',
       })
       return
     }
-    notifications.show({ message: 'Recipe saved', color: 'green' })
+    notifications.show({ message: t('editor.saved'), color: 'green' })
     window.setTimeout(() => {
       void navigate(`/recipes/${recipe.id}`, { replace: true })
     }, 0)
@@ -260,12 +260,12 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
     <form onSubmit={handleSubmit}>
       <Stack gap="md">
         <ScreenHeader
-          title={mode === 'create' ? 'New recipe' : 'Edit recipe'}
+          title={mode === 'create' ? t('editor.newRecipe') : t('editor.editRecipe')}
           fallbackTo={recipe ? `/recipes/${recipe.id}` : '/recipes'}
         />
 
         {(importHints.length > 0 || importMatchHints.length > 0) && (
-          <Alert color="yellow" title="Imported — please confirm">
+          <Alert color="yellow" title={t('editor.importConfirmTitle')}>
             <Stack gap={4}>
               {[...importHints, ...importMatchHints].map((hint) => (
                 <Text key={hint} size="sm">
@@ -276,7 +276,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
           </Alert>
         )}
 
-        <TextInput label="Name" required {...form.getInputProps('name')} />
+        <TextInput label={t('common.name')} required {...form.getInputProps('name')} />
 
         <Group align="flex-start" wrap="nowrap" gap="md">
           <RecipePhotoThumb
@@ -286,15 +286,15 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
           />
           <TextInput
             style={{ flex: 1 }}
-            label="Photo URL"
-            description="http(s) image link"
+            label={t('editor.photoUrl')}
+            description={t('editor.photoHelp')}
             {...form.getInputProps('photoUrl')}
           />
         </Group>
 
         <QuantityFields
-          valueLabel="Yield amount"
-          unitLabel="Yield unit"
+          valueLabel={t('editor.yieldAmount')}
+          unitLabel={t('editor.yieldUnit')}
           value={form.values.yieldValue}
           unit={form.values.yieldUnit}
           min={0.001}
@@ -303,8 +303,8 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
         />
 
         <QuantityFields
-          valueLabel="Default portion per person"
-          unitLabel="Portion unit"
+          valueLabel={t('editor.portionAmount')}
+          unitLabel={t('editor.portionUnit')}
           value={form.values.portionValue}
           unit={form.values.portionUnit}
           min={0.001}
@@ -313,23 +313,27 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
         />
 
         <Stack gap="sm">
-          <Title order={4}>Organization</Title>
-          <MultiSelect label="Roles" data={roleOptions} {...form.getInputProps('roles')} />
+          <Title order={4}>{t('editor.organization')}</Title>
           <MultiSelect
-            label="Meal types"
-            data={mealTypeOptions}
+            label={t('editor.roles')}
+            data={roleOptions(t)}
+            {...form.getInputProps('roles')}
+          />
+          <MultiSelect
+            label={t('editor.mealTypes')}
+            data={mealTypeOptions(t)}
             {...form.getInputProps('mealTypes')}
           />
           <Select
-            label="Primary dish type"
+            label={t('editor.dishType')}
             data={dishTypeData}
             clearable
             {...form.getInputProps('dishType')}
           />
-          <TextInput label="Cuisine" {...form.getInputProps('cuisine')} />
+          <TextInput label={t('editor.cuisine')} {...form.getInputProps('cuisine')} />
           <TagsInput
-            label="Tags"
-            description="Pick an existing tag or type a new one. Archived tags stay assigned but are not suggested."
+            label={t('editor.tags')}
+            description={t('editor.tagsHelp')}
             data={tagCreateAutocompleteNames(tags ?? [])}
             value={form.values.tagIds
               .map((id) => tagsById.get(id))
@@ -339,21 +343,21 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
         </Stack>
 
         <Select
-          label="Effort"
-          data={effortOptions}
+          label={t('editor.effort')}
+          data={effortOptions(t)}
           allowDeselect={false}
           {...form.getInputProps('effort')}
         />
         <Select
-          label="Reuse policy"
-          data={reuseOptions}
+          label={t('editor.reuse')}
+          data={reuseOptions(t)}
           allowDeselect={false}
           {...form.getInputProps('reusePolicy')}
         />
 
         <Group grow>
           <NumberInput
-            label="Active time (minutes)"
+            label={t('editor.activeTime')}
             min={0}
             value={form.values.activeTimeMinutes}
             onChange={(next) =>
@@ -361,7 +365,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
             }
           />
           <NumberInput
-            label="Total time (minutes)"
+            label={t('editor.totalTime')}
             min={0}
             value={form.values.totalTimeMinutes}
             onChange={(next) =>
@@ -371,16 +375,16 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
         </Group>
 
         <Switch
-          label="Freezer-friendly"
+          label={t('editor.freezer')}
           {...form.getInputProps('freezerFriendly', { type: 'checkbox' })}
         />
         {form.values.freezerFriendly && (
-          <Textarea label="Freezing / reheating notes" {...form.getInputProps('freezingNotes')} />
+          <Textarea label={t('editor.freezingNotes')} {...form.getInputProps('freezingNotes')} />
         )}
 
-        <TextInput label="Source URL" {...form.getInputProps('sourceUrl')} />
+        <TextInput label={t('editor.sourceUrl')} {...form.getInputProps('sourceUrl')} />
         <NumberInput
-          label="Max preferred repeats in a plan"
+          label={t('editor.maxRepeats')}
           min={1}
           value={form.values.maxPreferredRepeats}
           onChange={(next) =>
@@ -388,7 +392,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
           }
         />
 
-        <Text fw={600}>Ingredients</Text>
+        <Text fw={600}>{t('editor.ingredients')}</Text>
         <Stack gap="sm">
           {ingredientLines.map((line, index) => (
             <Stack
@@ -410,6 +414,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
                             ingredient,
                             phrase,
                             (candidate) => resolveIngredientLabel(candidate, locale),
+                            t,
                           )
                           return linked !== null
                         }
@@ -426,7 +431,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
                 <ActionIcon
                   variant="subtle"
                   color="red"
-                  aria-label="Remove ingredient"
+                  aria-label={t('editor.removeIngredient')}
                   onClick={() =>
                     form.setFieldValue(
                       'ingredientLines',
@@ -459,6 +464,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
                       candidates,
                       line.name,
                       (candidate) => resolveIngredientLabel(candidate, locale),
+                      t,
                     )
                     if (choice.action === 'select') {
                       const linked = await confirmLinkImportedIngredient(
@@ -466,6 +472,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
                         choice.ingredient,
                         line.name,
                         (candidate) => resolveIngredientLabel(candidate, locale),
+                        t,
                       )
                       if (linked) {
                         form.setFieldValue(`ingredientLines.${index}.ingredientId`, linked.id)
@@ -493,8 +500,8 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
               <SegmentedControl
                 size="xs"
                 data={[
-                  { label: 'Amount + unit', value: 'amount' },
-                  { label: 'Describe amount', value: 'text' },
+                  { label: t('editor.amountPlusUnit'), value: 'amount' },
+                  { label: t('editor.describeAmount'), value: 'text' },
                 ]}
                 value={line.quantityMode}
                 onChange={(next) =>
@@ -503,8 +510,8 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
               />
               {line.quantityMode === 'text' ? (
                 <TextInput
-                  label="Amount"
-                  placeholder="e.g. to taste, a pinch"
+                  label={t('editor.amountMode')}
+                  placeholder={t('editor.quantityText')}
                   value={line.quantityText}
                   onChange={(event) =>
                     form.setFieldValue(
@@ -530,8 +537,8 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
                 />
               )}
               <TextInput
-                label="Note"
-                placeholder="optional"
+                label={t('editor.note')}
+                placeholder={t('editor.noteOptional')}
                 value={line.note}
                 onChange={(event) =>
                   form.setFieldValue(`ingredientLines.${index}.note`, event.currentTarget.value)
@@ -546,20 +553,20 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
               form.setFieldValue('ingredientLines', [...ingredientLines, emptyIngredientLine()])
             }
           >
-            Add ingredient
+            {t('ingredients.add')}
           </Button>
         </Stack>
 
         <Textarea
-          label="Instructions"
+          label={t('editor.instructions')}
           minRows={6}
           autosize
           {...form.getInputProps('instructions')}
         />
-        <Textarea label="Notes" minRows={2} {...form.getInputProps('notes')} />
+        <Textarea label={t('editor.notes')} minRows={2} {...form.getInputProps('notes')} />
 
         <Group>
-          <Button type="submit">Save</Button>
+          <Button type="submit">{t('action.save')}</Button>
         </Group>
       </Stack>
     </form>

@@ -4,65 +4,83 @@ import type { RecipePairing } from '../../domain/pairings/RecipePairing'
 import type { CookingEvent } from '../../domain/plans/CookingEvent'
 import type { PlanGraph } from '../../domain/plans/PlanGraph'
 import {
+  formatWhyThis,
   isPlannedThisWeek,
-  leftoverBatchSubtitle,
+  leftoverBatchWeekday,
   matchingFavoriteName,
   pairingPartnerName,
   pickerWhyThisCopy,
 } from './pickerWhyThis'
+import { bindT } from '../localization/t'
 
-describe('leftoverBatchSubtitle', () => {
+const t = bindT('en')
+
+describe('leftoverBatchWeekday', () => {
   it('names the weekday of the scheduled prep date', () => {
-    expect(leftoverBatchSubtitle('2026-09-14')).toBe("Uses Monday's batch")
-    expect(leftoverBatchSubtitle('2026-09-16')).toBe("Uses Wednesday's batch")
+    expect(leftoverBatchWeekday('2026-09-14')).toBe(1)
+    expect(leftoverBatchWeekday('2026-09-16')).toBe(3)
   })
 })
 
 describe('pickerWhyThisCopy', () => {
   it('explains a pairing with the partner name when present', () => {
     expect(
-      pickerWhyThisCopy({
-        kind: 'recipe',
-        reason: 'pairing',
-        pairingPartnerName: 'rice',
-      }),
+      formatWhyThis(
+        t,
+        pickerWhyThisCopy({
+          kind: 'recipe',
+          reason: 'pairing',
+          pairingPartnerName: 'rice',
+        }),
+      ),
     ).toBe('Often paired with rice')
   })
 
   it('explains a favorite by name when present', () => {
     expect(
-      pickerWhyThisCopy({
-        kind: 'recipe',
-        reason: 'favorite',
-        favoriteName: 'Cutlets dinner',
-      }),
+      formatWhyThis(
+        t,
+        pickerWhyThisCopy({
+          kind: 'recipe',
+          reason: 'favorite',
+          favoriteName: 'Cutlets dinner',
+        }),
+      ),
     ).toBe('From favorite Cutlets dinner')
   })
 
   it('explains already-planned-this-week when that is the only signal', () => {
     expect(
-      pickerWhyThisCopy({
-        kind: 'recipe',
-        reason: 'other',
-        plannedThisWeek: true,
-      }),
+      formatWhyThis(
+        t,
+        pickerWhyThisCopy({
+          kind: 'recipe',
+          reason: 'other',
+          plannedThisWeek: true,
+        }),
+      ),
     ).toBe('Already planned this week')
   })
 
   it('prefers pairing copy over planned-this-week', () => {
     expect(
-      pickerWhyThisCopy({
-        kind: 'recipe',
-        reason: 'pairing',
-        pairingPartnerName: 'rice',
-        plannedThisWeek: true,
-      }),
+      formatWhyThis(
+        t,
+        pickerWhyThisCopy({
+          kind: 'recipe',
+          reason: 'pairing',
+          pairingPartnerName: 'rice',
+          plannedThisWeek: true,
+        }),
+      ),
     ).toBe('Often paired with rice')
   })
 
   it('falls back to kind when no why-this signal exists', () => {
-    expect(pickerWhyThisCopy({ kind: 'recipe', reason: 'role' })).toBe('Recipe')
-    expect(pickerWhyThisCopy({ kind: 'simple-food', reason: 'other' })).toBe('Simple food')
+    expect(formatWhyThis(t, pickerWhyThisCopy({ kind: 'recipe', reason: 'role' }))).toBe('Recipe')
+    expect(formatWhyThis(t, pickerWhyThisCopy({ kind: 'simple-food', reason: 'other' }))).toBe(
+      'Simple food',
+    )
   })
 })
 

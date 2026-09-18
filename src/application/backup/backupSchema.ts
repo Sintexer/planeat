@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { LIBRARY_CLEANUP_KINDS } from '../../domain/libraryViews/LibraryView'
 import {
   EFFORT_LEVELS,
   MEAL_TYPES,
@@ -124,7 +125,7 @@ const settingsSchema = z.object({
   quickMealsOnlyDays: z.array(weekStartDaySchema),
   avoidMultipleDemandingPreps: z.boolean(),
   favorVegetablesDaily: z.boolean(),
-  uiLocale: z.enum(['en']).optional(),
+  uiLocale: z.enum(['en', 'ru']).optional(),
   measurementPreference: z.enum(['as-entered', 'metric', 'us-customary']).optional(),
   catalogSort: z
     .enum(['relevance', 'name', 'recent-added', 'recent-edited', 'shortest-time'])
@@ -273,6 +274,10 @@ const libraryViewCriteriaSchema = z.object({
   excludeIngredientIds: z.array(z.string()),
   sort: z.enum(['relevance', 'name', 'recent-added', 'recent-edited', 'shortest-time']),
   group: z.enum(['none', 'kind', 'dish-type']),
+  cleanup: z
+    .union([z.enum(LIBRARY_CLEANUP_KINDS), z.literal('')])
+    .optional()
+    .default(''),
 })
 
 const libraryViewSchema = z.object({

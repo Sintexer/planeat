@@ -3,6 +3,7 @@ import {
   criteriaForMatching,
   defaultLibraryViewCriteria,
   findStaleLibraryViewRefs,
+  itemMatchesCleanup,
   libraryViewCriteriaEquals,
 } from './LibraryView'
 
@@ -19,6 +20,9 @@ describe('libraryViewCriteriaEquals', () => {
     expect(libraryViewCriteriaEquals(base, { ...base, sort: 'name' })).toBe(false)
     expect(libraryViewCriteriaEquals(base, { ...base, group: 'kind' })).toBe(false)
     expect(libraryViewCriteriaEquals(base, { ...base, tagIds: ['kids'] })).toBe(false)
+    expect(libraryViewCriteriaEquals(base, { ...base, cleanup: 'missing-time' })).toBe(false)
+    const legacy = { ...base, cleanup: undefined }
+    expect(libraryViewCriteriaEquals(base, legacy)).toBe(true)
   })
 })
 
@@ -51,5 +55,52 @@ describe('findStaleLibraryViewRefs / criteriaForMatching', () => {
     const matching = criteriaForMatching(criteria, stale)
     expect(matching.containsIngredientIds).toEqual(['flour'])
     expect(matching.excludeIngredientIds).toEqual([])
+  })
+})
+
+describe('itemMatchesCleanup', () => {
+  const recipe = {
+    kind: 'recipe',
+    mealTypes: ['dinner'],
+    dishType: 'soup',
+    totalTimeMinutes: 30,
+    hasUnlinkedIngredients: false,
+  }
+
+  it('passes every item when cleanup is unset', () => {
+    expect(itemMatchesCleanup(recipe, '')).toBe(true)
+    expect(itemMatchesCleanup(recipe, undefined)).toBe(true)
+  })
+
+  it('finds missing meal occasion on recipes and simple foods', () => {
+    expect(itemMatchesCleanup({ ...recipe, mealTypes: [] }, 'missing-occasion')).toBe(true)
+    expect(itemMatchesCleanup(recipe, 'missing-occasion')).toBe(false)
+    expect(itemMatchesCleanup({ kind: 'simple-food', mealTypes: [] }, 'missing-occasion')).toBe(
+      true,
+    )
+  })
+
+  it('treats missing dish type and recorded time as recipe-only optional gaps', () => {
+    expect(itemMatchesCleanup({ ...recipe, dishType: undefined }, 'missing-dish-type')).toBe(true)
+    expect(itemMatchesCleanup({ ...recipe, dishType: '  ' }, 'missing-dish-type')).toBe(true)
+    expect(itemMatchesCleanup(recipe, 'missing-dish-type')).toBe(false)
+    expect(itemMatchesCleanup({ kind: 'simple-food', mealTypes: [] }, 'missing-dish-type')).toBe(
+      false,
+    )
+    expect(itemMatchesCleanup({ ...recipe, totalTimeMinutes: undefined }, 'missing-time')).toBe(
+      true,
+    )
+    expect(itemMatchesCleanup(recipe, 'missing-time')).toBe(false)
+    expect(itemMatchesCleanup({ kind: 'simple-food', mealTypes: [] }, 'missing-time')).toBe(false)
+  })
+
+  it('finds recipes with unlinked ingredient lines', () => {
+    expect(
+      itemMatchesCleanup({ ...recipe, hasUnlinkedIngredients: true }, 'unlinked-ingredients'),
+    ).toBe(true)
+    expect(itemMatchesCleanup(recipe, 'unlinked-ingredients')).toBe(false)
+    expect(itemMatchesCleanup({ kind: 'simple-food', mealTypes: [] }, 'unlinked-ingredients')).toBe(
+      false,
+    )
   })
 })

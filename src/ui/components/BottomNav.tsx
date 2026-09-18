@@ -7,37 +7,38 @@ import {
   type Icon,
 } from '@tabler/icons-react'
 import { NavLink, useLocation } from 'react-router'
+import { useLocalization } from '../localization/LocalizationContext'
+import type { MessageId } from '../localization/messages'
 
 interface NavItem {
   to: string
-  label: string
+  message: MessageId
   icon: Icon
-  /** True when this tab should look active for the current path. */
   isActive: (pathname: string) => boolean
 }
 
 const NAV_ITEMS: NavItem[] = [
   {
     to: '/plan',
-    label: 'Plan',
+    message: 'nav.plan',
     icon: IconCalendarWeek,
     isActive: (path) => path === '/plan' || path.startsWith('/plan/'),
   },
   {
     to: '/lists',
-    label: 'Groceries',
+    message: 'nav.groceries',
     icon: IconShoppingCart,
     isActive: (path) => path === '/lists' || path.startsWith('/lists/'),
   },
   {
     to: '/recipes',
-    label: 'Recipes',
+    message: 'nav.recipes',
     icon: IconBook2,
     isActive: (path) => path === '/recipes' || path.startsWith('/recipes/'),
   },
   {
     to: '/settings',
-    label: 'Settings',
+    message: 'nav.settings',
     icon: IconSettings,
     isActive: (path) => path === '/settings' || path.startsWith('/settings/'),
   },
@@ -45,10 +46,11 @@ const NAV_ITEMS: NavItem[] = [
 
 export function BottomNav() {
   const { pathname } = useLocation()
+  const { t } = useLocalization()
 
   return (
     <Group h="100%" grow gap={0} px="xs">
-      {NAV_ITEMS.map(({ to, label, icon: Icon, isActive }) => {
+      {NAV_ITEMS.map(({ to, message, icon: Icon, isActive }) => {
         const active = isActive(pathname)
         return (
           <NavLink key={to} to={to} style={{ textDecoration: 'none', width: '100%' }}>
@@ -61,7 +63,7 @@ export function BottomNav() {
               <Stack align="center" gap={4}>
                 <Icon size={20} />
                 <Text fz={10} fw={600}>
-                  {label}
+                  {t(message)}
                 </Text>
               </Stack>
             </UnstyledButton>

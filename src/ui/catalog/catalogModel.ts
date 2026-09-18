@@ -2,19 +2,20 @@ import type { CookingEvent } from '../../domain/plans/CookingEvent'
 import type { SuggestionCandidate } from '../../domain/plans/componentSuggestions'
 import type { Recipe } from '../../domain/recipes/Recipe'
 import {
-  DISH_TYPE_LABELS,
   type CatalogGroup,
   type CatalogSort,
-  type DishType,
   type Effort,
   type MealType,
   type RecipeRole,
 } from '../../domain/shared/MealEnums'
-import type { LibraryViewCriteria } from '../../domain/libraryViews/LibraryView'
+import {
+  itemMatchesCleanup,
+  type LibraryCleanupKind,
+  type LibraryViewCriteria,
+} from '../../domain/libraryViews/LibraryView'
 import type { Quantity } from '../../domain/shared/Quantity'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
 import type { TagId } from '../../domain/tags/Tag'
-import { leftoverBatchSubtitle } from './pickerWhyThis'
 
 export type { CatalogGroup, CatalogSort }
 
@@ -67,6 +68,7 @@ export type DishCatalogFilters = {
   maxTotalTimeMinutes: number | ''
   containsIngredientIds: string[]
   excludeIngredientIds: string[]
+  cleanup: LibraryCleanupKind | ''
 }
 
 export function defaultDishCatalogFilters(
@@ -84,6 +86,7 @@ export function defaultDishCatalogFilters(
     maxTotalTimeMinutes: '',
     containsIngredientIds: [],
     excludeIngredientIds: [],
+    cleanup: '',
   }
 }
 
@@ -112,7 +115,7 @@ export function recipeToCatalogItem(
     tags: resolveTagNames(recipe.tagIds, tagNamesById),
     tagIds: recipe.tagIds,
     effort: recipe.effort,
-    subtitle: extra?.subtitle ?? 'Recipe',
+    subtitle: extra?.subtitle ?? '',
     score: extra?.score,
     reason: extra?.reason,
     activeTimeMinutes: recipe.activeTimeMinutes,
@@ -139,7 +142,7 @@ export function simpleFoodToCatalogItem(
     mealTypes: food.mealTypes,
     tags: resolveTagNames(food.tagIds, tagNamesById),
     tagIds: food.tagIds,
-    subtitle: extra?.subtitle ?? 'Simple food',
+    subtitle: extra?.subtitle ?? '',
     score: extra?.score,
     reason: extra?.reason,
     createdAt: food.createdAt,
@@ -168,7 +171,7 @@ export function leftoverToCatalogItem(
     remaining,
     recipeId: event.recipeId,
     cookingEvent: event,
-    subtitle: leftoverBatchSubtitle(event.scheduledDate),
+    subtitle: '',
     ineligibleReason,
     ingredientIds: [],
   }
@@ -219,6 +222,7 @@ export function itemMatchesFilters(
   if (excludeIds.length > 0 && excludeIds.some((id) => item.ingredientIds.includes(id))) {
     return false
   }
+  if (!itemMatchesCleanup(item, filters.cleanup)) return false
   return true
 }
 
@@ -239,6 +243,7 @@ export function criteriaFromCatalogBrowse(
     excludeIngredientIds: [...filters.excludeIngredientIds],
     sort,
     group,
+    cleanup: filters.cleanup,
   }
 }
 
@@ -259,27 +264,33 @@ export function catalogBrowseFromCriteria(criteria: LibraryViewCriteria): {
       maxTotalTimeMinutes: criteria.maxTotalTimeMinutes,
       containsIngredientIds: [...criteria.containsIngredientIds],
       excludeIngredientIds: [...criteria.excludeIngredientIds],
+      cleanup: criteria.cleanup ?? '',
     },
     sort: criteria.sort,
     group: criteria.group,
   }
 }
 
-function compareForSort(a: DishCatalogItem, b: DishCatalogItem, sort: CatalogSort): number {
+function compareForSort(
+  a: DishCatalogItem,
+  b: DishCatalogItem,
+  sort: CatalogSort,
+  locale?: string,
+): number {
   switch (sort) {
     case 'name':
-      return a.name.localeCompare(b.name)
+      return a.name.localeCompare(b.name, locale)
     case 'recent-added':
-      return (b.createdAt ?? 0) - (a.createdAt ?? 0) || a.name.localeCompare(b.name)
+      return (b.createdAt ?? 0) - (a.createdAt ?? 0) || a.name.localeCompare(b.name, locale)
     case 'recent-edited':
-      return (b.updatedAt ?? 0) - (a.updatedAt ?? 0) || a.name.localeCompare(b.name)
+      return (b.updatedAt ?? 0) - (a.updatedAt ?? 0) || a.name.localeCompare(b.name, locale)
     case 'shortest-time': {
       const at = a.totalTimeMinutes
       const bt = b.totalTimeMinutes
-      if (at === undefined && bt === undefined) return a.name.localeCompare(b.name)
+      if (at === undefined && bt === undefined) return a.name.localeCompare(b.name, locale)
       if (at === undefined) return 1
       if (bt === undefined) return -1
-      return at - bt || a.name.localeCompare(b.name)
+      return at - bt || a.name.localeCompare(b.name, locale)
     }
     case 'relevance':
       return 0
@@ -291,11 +302,15 @@ function compareForSort(a: DishCatalogItem, b: DishCatalogItem, sort: CatalogSor
  * order (Fuse's ranked order while searching, or the score-desc/name default
  * otherwise) before calling this. Every other mode re-sorts from scratch.
  */
-export function sortCatalogItems(items: DishCatalogItem[], sort: CatalogSort): DishCatalogItem[] {
+export function sortCatalogItems(
+  items: DishCatalogItem[],
+  sort: CatalogSort,
+  locale?: string,
+): DishCatalogItem[] {
   if (sort === 'relevance' || items.length === 0) return items
   return items
     .map((item, index) => ({ item, index }))
-    .sort((a, b) => compareForSort(a.item, b.item, sort) || a.index - b.index)
+    .sort((a, b) => compareForSort(a.item, b.item, sort, locale) || a.index - b.index)
     .map((entry) => entry.item)
 }
 
@@ -337,7 +352,7 @@ export function uniqueTagFacets(
   for (const id of options.retainIds ?? []) {
     if (have.has(id)) continue
     have.add(id)
-    extra.push({ id, name: tagNamesById.get(id) ?? 'Unavailable tag' })
+    extra.push({ id, name: tagNamesById.get(id) ?? '' })
   }
   return [...ranked, ...extra]
 }
@@ -354,10 +369,6 @@ export type GroupCatalogItemsOptions = {
   pickerSections?: boolean
 }
 
-function dishTypeGroupLabel(dishType: string): string {
-  return DISH_TYPE_LABELS[dishType as DishType] ?? dishType
-}
-
 function groupRestByMode(rest: DishCatalogItem[], mode: CatalogGroup): DishCatalogGroup[] {
   if (rest.length === 0) return []
 
@@ -366,9 +377,9 @@ function groupRestByMode(rest: DishCatalogItem[], mode: CatalogGroup): DishCatal
     const foods = rest.filter((item) => item.kind === 'simple-food')
     const other = rest.filter((item) => item.kind !== 'recipe' && item.kind !== 'simple-food')
     const groups: DishCatalogGroup[] = []
-    if (recipes.length > 0) groups.push({ id: 'recipes', title: 'Recipes', items: recipes })
-    if (foods.length > 0) groups.push({ id: 'foods', title: 'Simple foods', items: foods })
-    if (other.length > 0) groups.push({ id: 'other', title: 'Other', items: other })
+    if (recipes.length > 0) groups.push({ id: 'recipes', title: '', items: recipes })
+    if (foods.length > 0) groups.push({ id: 'foods', title: '', items: foods })
+    if (other.length > 0) groups.push({ id: 'other', title: '', items: other })
     return groups
   }
 
@@ -385,19 +396,19 @@ function groupRestByMode(rest: DishCatalogItem[], mode: CatalogGroup): DishCatal
       else byType.set(item.dishType, [item])
     }
     const groups = [...byType.entries()]
-      .sort((a, b) => dishTypeGroupLabel(a[0]).localeCompare(dishTypeGroupLabel(b[0])))
+      .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([dishType, groupItems]) => ({
         id: `dish-type:${dishType}`,
-        title: dishTypeGroupLabel(dishType),
+        title: dishType,
         items: groupItems,
       }))
     if (unclassified.length > 0) {
-      groups.push({ id: 'unclassified', title: 'Unclassified', items: unclassified })
+      groups.push({ id: 'unclassified', title: '', items: unclassified })
     }
     return groups
   }
 
-  return [{ id: 'all', title: '', items: rest }]
+  return [{ id: 'ungrouped', title: '', items: rest }]
 }
 
 export function groupCatalogItems(
@@ -406,7 +417,7 @@ export function groupCatalogItems(
 ): DishCatalogGroup[] {
   const { searching, suggestedFirst = false, mode = 'none', pickerSections = false } = options
   if (searching || items.length === 0) {
-    return items.length === 0 ? [] : [{ id: 'results', title: 'Results', items }]
+    return items.length === 0 ? [] : [{ id: 'results', title: '', items }]
   }
 
   if (!suggestedFirst) {
@@ -432,16 +443,16 @@ export function groupCatalogItems(
 
     const groups: DishCatalogGroup[] = []
     if (pairings.length > 0) {
-      groups.push({ id: 'pairings', title: 'Pairs well', items: pairings })
+      groups.push({ id: 'pairings', title: '', items: pairings })
     }
     if (fromFavorites.length > 0) {
-      groups.push({ id: 'from-favorites', title: 'From favorites', items: fromFavorites })
+      groups.push({ id: 'from-favorites', title: '', items: fromFavorites })
     }
     if (suitable.length > 0) {
-      groups.push({ id: 'suitable', title: 'Good fit', items: suitable })
+      groups.push({ id: 'suitable', title: '', items: suitable })
     }
     if (allItems.length > 0) {
-      groups.push({ id: 'all', title: 'All items', items: allItems })
+      groups.push({ id: 'all', title: '', items: allItems })
     }
     return groups
   }
@@ -452,7 +463,7 @@ export function groupCatalogItems(
 
   const groups: DishCatalogGroup[] = []
   if (suggested.length > 0) {
-    groups.push({ id: 'suggested', title: 'Suggested', items: suggested })
+    groups.push({ id: 'suggested', title: '', items: suggested })
   }
   groups.push(...groupRestByMode(rest, mode === 'none' ? 'kind' : mode))
   return groups

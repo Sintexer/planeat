@@ -1,4 +1,5 @@
 import {
+  addTagIds,
   removeTagId,
   rewriteTagIds,
   tagMatchesName,
@@ -116,6 +117,55 @@ export class DexieTagRepository implements TagRepository {
           })
         }
         await this.db.tags.delete(id)
+      },
+    )
+  }
+
+  async applyLiveTagChanges(input: {
+    recipeIds: string[]
+    simpleFoodIds: string[]
+    addTagIds: TagId[]
+    removeTagIds: TagId[]
+  }): Promise<void> {
+    await this.db.transaction(
+      'rw',
+      this.db.tags,
+      this.db.recipes,
+      this.db.simpleFoods,
+      async () => {
+        const now = Date.now()
+        for (const id of input.recipeIds) {
+          const recipe = await this.db.recipes.get(id)
+          if (!recipe) continue
+          let tagIds = recipe.tagIds
+          for (const removeId of input.removeTagIds) {
+            tagIds = removeTagId(tagIds, removeId)
+          }
+          tagIds = addTagIds(tagIds, input.addTagIds)
+          if (
+            tagIds.length === recipe.tagIds.length &&
+            tagIds.every((tagId, i) => tagId === recipe.tagIds[i])
+          ) {
+            continue
+          }
+          await this.db.recipes.update(id, { tagIds, updatedAt: now })
+        }
+        for (const id of input.simpleFoodIds) {
+          const food = await this.db.simpleFoods.get(id)
+          if (!food) continue
+          let tagIds = food.tagIds
+          for (const removeId of input.removeTagIds) {
+            tagIds = removeTagId(tagIds, removeId)
+          }
+          tagIds = addTagIds(tagIds, input.addTagIds)
+          if (
+            tagIds.length === food.tagIds.length &&
+            tagIds.every((tagId, i) => tagId === food.tagIds[i])
+          ) {
+            continue
+          }
+          await this.db.simpleFoods.update(id, { tagIds, updatedAt: now })
+        }
       },
     )
   }

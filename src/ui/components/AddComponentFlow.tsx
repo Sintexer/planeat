@@ -12,6 +12,7 @@ import {
   type IngredientFilterOption,
 } from '../catalog/catalogModel'
 import {
+  formatWhyThis,
   isPlannedThisWeek,
   matchingFavoriteName,
   pairingPartnerName,
@@ -38,6 +39,8 @@ import { usePlanByStartDate } from '../hooks/usePlanByStartDate'
 import { QuantityFields } from './QuantityFields'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
 import { useIngredientLabel } from '../localization/useIngredientLabel'
+import { useLocalization } from '../localization/LocalizationContext'
+import { addComponentErrorMessage } from '../localization/errors'
 
 type Step =
   | { kind: 'pick' }
@@ -66,23 +69,6 @@ interface AddComponentFlowProps {
   }) => void
 }
 
-function errorMessage(error: string): string {
-  switch (error) {
-    case 'over-allocated':
-      return 'That uses more than the planned prep output.'
-    case 'reuse-forbidden':
-      return 'This recipe cannot be reused on that day.'
-    case 'before-prep':
-      return 'A meal cannot use prep before its scheduled day.'
-    case 'incompatible-quantity':
-      return 'Quantities use incompatible units.'
-    case 'invalid-quantity':
-      return 'Enter a valid positive quantity.'
-    default:
-      return `Could not add component (${error})`
-  }
-}
-
 function defaultPickerFilters(): DishCatalogFilters {
   return defaultDishCatalogFilters('all', false)
 }
@@ -104,6 +90,7 @@ export function AddComponentFlow({
   const settings = useSettings()
   const formatQty = useFormatQuantity()
   const ingredientLabel = useIngredientLabel()
+  const { t, bcp47 } = useLocalization()
   const previousWeekStart = addDays(graph.plan.startDate, -7)
   const previousWeek = usePlanByStartDate(previousWeekStart)
 
@@ -197,24 +184,28 @@ export function AddComponentFlow({
     if (!favorites || !pairings) return []
     return ranked
       .map((item) => {
-        const why = pickerWhyThisCopy({
-          kind: item.kind,
-          reason: item.reason,
-          pairingPartnerName: pairingPartnerName({
-            candidateKind: item.kind,
-            candidateId: item.id,
-            currentRecipeIds,
-            pairings,
-            recipeNamesById,
+        const why = formatWhyThis(
+          t,
+          pickerWhyThisCopy({
+            kind: item.kind,
+            reason: item.reason,
+            pairingPartnerName: pairingPartnerName({
+              candidateKind: item.kind,
+              candidateId: item.id,
+              currentRecipeIds,
+              pairings,
+              recipeNamesById,
+              locale: bcp47,
+            }),
+            favoriteName: matchingFavoriteName({
+              candidateKind: item.kind,
+              candidateId: item.id,
+              currentRecipeIds,
+              favorites,
+            }),
+            plannedThisWeek: isPlannedThisWeek(item.kind, item.id, graph),
           }),
-          favoriteName: matchingFavoriteName({
-            candidateKind: item.kind,
-            candidateId: item.id,
-            currentRecipeIds,
-            favorites,
-          }),
-          plannedThisWeek: isPlannedThisWeek(item.kind, item.id, graph),
-        })
+        )
         if (item.kind === 'recipe') {
           const recipe = recipes?.find((r) => r.id === item.id)
           if (!recipe) return null
@@ -243,6 +234,8 @@ export function AddComponentFlow({
     currentRecipeIds,
     recipeNamesById,
     graph,
+    t,
+    bcp47,
   ])
 
   const leftovers = useMemo((): DishCatalogItem[] => {
@@ -257,11 +250,11 @@ export function AddComponentFlow({
       )
       const ineligibleReason = eligible
         ? undefined
-        : `Same-day only — cooked ${event.scheduledDate}`
+        : t('picker.sameDayIneligible', { date: event.scheduledDate })
       rows.push(leftoverToCatalogItem(event, remaining, ineligibleReason))
     }
     return rows
-  }, [graph, planService, slot.date])
+  }, [graph, planService, slot.date, t])
 
   const resetPickerBrowseState = () => {
     setFilters(defaultPickerFilters())
@@ -287,7 +280,7 @@ export function AddComponentFlow({
     }
     const result = await planService.listEligibleCookingEventsForSlot(slot.id, event.recipeId)
     if (!result.ok) {
-      notifications.show({ message: errorMessage(result.error), color: 'red' })
+      notifications.show({ message: addComponentErrorMessage(t, result.error), color: 'red' })
       return
     }
     const events = result.events.length > 0 ? result.events : [event]
@@ -328,7 +321,7 @@ export function AddComponentFlow({
     const result = await planService.addSimpleFoodComponent(slot.id, simpleFoodId)
     setBusy(false)
     if (!result.ok) {
-      notifications.show({ message: errorMessage(result.error), color: 'red' })
+      notifications.show({ message: addComponentErrorMessage(t, result.error), color: 'red' })
       return
     }
     handleClose()
@@ -359,7 +352,7 @@ export function AddComponentFlow({
     if (step.kind !== 'source') return
     const result = await planService.listEligibleCookingEventsForSlot(slot.id, step.recipeId)
     if (!result.ok) {
-      notifications.show({ message: errorMessage(result.error), color: 'red' })
+      notifications.show({ message: addComponentErrorMessage(t, result.error), color: 'red' })
       return
     }
     if (result.events.length === 0) {
@@ -390,7 +383,7 @@ export function AddComponentFlow({
   const confirmCookNew = async () => {
     if (step.kind !== 'cook-new') return
     if (typeof allocValue !== 'number' || typeof outputValue !== 'number') {
-      notifications.show({ message: errorMessage('invalid-quantity'), color: 'red' })
+      notifications.show({ message: addComponentErrorMessage(t, 'invalid-quantity'), color: 'red' })
       return
     }
     const allocatedQuantity = { value: allocValue, unit: allocUnit }
@@ -413,7 +406,7 @@ export function AddComponentFlow({
         })
         return
       }
-      notifications.show({ message: errorMessage(result.error), color: 'red' })
+      notifications.show({ message: addComponentErrorMessage(t, result.error), color: 'red' })
       return
     }
     handleClose()
@@ -422,7 +415,7 @@ export function AddComponentFlow({
   const confirmUseExisting = async () => {
     if (step.kind !== 'use-existing' || !selectedEventId) return
     if (typeof allocValue !== 'number') {
-      notifications.show({ message: errorMessage('invalid-quantity'), color: 'red' })
+      notifications.show({ message: addComponentErrorMessage(t, 'invalid-quantity'), color: 'red' })
       return
     }
     const allocatedQuantity = { value: allocValue, unit: allocUnit }
@@ -440,7 +433,7 @@ export function AddComponentFlow({
         })
         return
       }
-      notifications.show({ message: errorMessage(result.error), color: 'red' })
+      notifications.show({ message: addComponentErrorMessage(t, result.error), color: 'red' })
       return
     }
     handleClose()
@@ -448,12 +441,12 @@ export function AddComponentFlow({
 
   const title =
     step.kind === 'pick'
-      ? 'Add dish'
+      ? t('slot.addDish')
       : step.kind === 'source'
         ? step.recipeName
         : step.kind === 'cook-new'
-          ? `Cook new — ${step.recipeName}`
-          : `Use existing — ${step.recipeName}`
+          ? t('picker.cookNewTitle', { name: step.recipeName })
+          : t('picker.useExistingTitle', { name: step.recipeName })
 
   return (
     <Modal opened={opened} onClose={handleClose} title={title} centered size="lg">
@@ -478,13 +471,13 @@ export function AddComponentFlow({
 
         {step.kind === 'source' && (
           <>
-            <Text size="sm">How should this component be sourced?</Text>
-            <Button onClick={() => void startCookNew()}>Cook new (this prep)</Button>
+            <Text size="sm">{t('picker.sourceQuestion')}</Text>
+            <Button onClick={() => void startCookNew()}>{t('picker.cookNew')}</Button>
             <Button variant="light" onClick={() => void startUseExisting()}>
-              Use existing prep in this plan
+              {t('picker.useExisting')}
             </Button>
             <Button variant="default" onClick={() => setStep({ kind: 'pick' })}>
-              Back
+              {t('action.back')}
             </Button>
           </>
         )}
@@ -492,7 +485,7 @@ export function AddComponentFlow({
         {step.kind === 'cook-new' && (
           <>
             <QuantityFields
-              valueLabel="Allocated to this meal"
+              valueLabel={t('picker.allocated')}
               value={allocValue}
               unit={allocUnit}
               onValueChange={setAllocValue}
@@ -500,7 +493,7 @@ export function AddComponentFlow({
               min={0.001}
             />
             <QuantityFields
-              valueLabel="Total prep output"
+              valueLabel={t('picker.totalOutput')}
               value={outputValue}
               unit={outputUnit}
               onValueChange={setOutputValue}
@@ -508,7 +501,7 @@ export function AddComponentFlow({
               min={0.001}
             />
             <TextInput
-              label="Prep date"
+              label={t('picker.prepDate')}
               type="date"
               value={prepDate}
               onChange={(e) => setPrepDate(e.currentTarget.value)}
@@ -522,14 +515,14 @@ export function AddComponentFlow({
                 setStep({ kind: 'source', recipeId: step.recipeId, recipeName: step.recipeName })
               }
             >
-              Back
+              {t('action.back')}
             </Button>
           </>
         )}
 
         {step.kind === 'use-existing' && (
           <>
-            <Text size="sm">Choose prep with remaining output:</Text>
+            <Text size="sm">{t('picker.choosePrep')}</Text>
             <Stack gap={4}>
               {step.events.map((event) => {
                 const remaining = step.remainingById.get(event.id)
@@ -563,14 +556,14 @@ export function AddComponentFlow({
               })}
             </Stack>
             <QuantityFields
-              valueLabel="Allocated to this meal"
+              valueLabel={t('picker.allocated')}
               value={allocValue}
               unit={allocUnit}
               onValueChange={setAllocValue}
               onUnitChange={setAllocUnit}
               min={0.001}
             />
-            {!selectedEventId && <Alert color="yellow">Select a prep event.</Alert>}
+            {!selectedEventId && <Alert color="yellow">{t('picker.selectPrep')}</Alert>}
             <Button
               loading={busy}
               disabled={!selectedEventId}
@@ -584,7 +577,7 @@ export function AddComponentFlow({
                 setStep({ kind: 'source', recipeId: step.recipeId, recipeName: step.recipeName })
               }
             >
-              Back
+              {t('action.back')}
             </Button>
           </>
         )}

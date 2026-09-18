@@ -1,39 +1,35 @@
-import {
-  selectableUnitDefinitions,
-  unitLabel,
-  type UnitFamily,
-} from '../../domain/shared/UnitRegistry'
+import { selectableUnitDefinitions, type UnitFamily } from '../../domain/shared/UnitRegistry'
+import type { MessageId } from '../localization/messages'
+import { unitDisplayLabel } from '../localization/labels'
+import type { Translate } from '../localization/t'
 
-const FAMILY_GROUP_LABELS: Record<UnitFamily, string> = {
-  volume: 'Volume',
-  mass: 'Mass',
-  count: 'Count',
+const FAMILY_IDS: Record<UnitFamily, MessageId> = {
+  volume: 'unitFamily.volume',
+  mass: 'unitFamily.mass',
+  count: 'unitFamily.count',
 }
 
-function optionsForFamily(family: UnitFamily) {
-  return selectableUnitDefinitions()
-    .filter((definition) => definition.family === family)
-    .map((definition) => ({ value: definition.key, label: definition.label }))
-}
+const FAMILIES: UnitFamily[] = ['volume', 'mass', 'count']
 
-const unitSelectGroups = (['volume', 'mass', 'count'] as const).map((family) => ({
-  group: FAMILY_GROUP_LABELS[family],
-  items: optionsForFamily(family),
-}))
-
-/**
- * Grouped unit Select data for `currentUnit`. If the stored unit isn't in the
- * selectable list (a legacy `cup`, or any unrecognized string), a one-off
- * option is prepended so it displays and stays selected faithfully — never
- * coerced to another unit, and never offered to a row that doesn't already have it.
- */
-export function unitOptionsFor(currentUnit: string) {
+export function unitOptionsFor(currentUnit: string, t: Translate) {
+  const unitSelectGroups = FAMILIES.map((family) => ({
+    group: t(FAMILY_IDS[family]),
+    items: selectableUnitDefinitions()
+      .filter((definition) => definition.family === family)
+      .map((definition) => ({
+        value: definition.key,
+        label: unitDisplayLabel(t, definition.key),
+      })),
+  }))
   const isSelectable = unitSelectGroups.some((group) =>
     group.items.some((item) => item.value === currentUnit),
   )
   if (isSelectable) return unitSelectGroups
   return [
-    { group: 'Current', items: [{ value: currentUnit, label: unitLabel(currentUnit) }] },
+    {
+      group: t('unitFamily.current'),
+      items: [{ value: currentUnit, label: unitDisplayLabel(t, currentUnit) }],
+    },
     ...unitSelectGroups,
   ]
 }

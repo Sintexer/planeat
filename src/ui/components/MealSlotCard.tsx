@@ -18,7 +18,8 @@ import {
   IconToolsKitchen2,
   IconX,
 } from '@tabler/icons-react'
-import { MEAL_TYPE_LABELS, type MealType } from '../../domain/shared/MealEnums'
+import { type MealType } from '../../domain/shared/MealEnums'
+import { mealTypeLabel } from '../localization/labels'
 import { RecipePhotoThumb } from './RecipePhotoThumb'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
 import { useLocalization } from '../localization/LocalizationContext'
@@ -137,28 +138,31 @@ function SlotMenu({
   onExclude: () => void
   onUnexclude: () => void
 }) {
+  const { t } = useLocalization()
   return (
     <Menu position="bottom-end" withinPortal>
       <Menu.Target>
-        <ActionIcon variant="subtle" color="gray" aria-label="Slot actions">
+        <ActionIcon variant="subtle" color="gray" aria-label={t('slot.actions')}>
           <IconDots size={18} />
         </ActionIcon>
       </Menu.Target>
       <Menu.Dropdown>
         {excluded ? (
           <>
-            <Menu.Item onClick={onUnexclude}>Include again</Menu.Item>
-            <Menu.Item onClick={onOpen}>Edit meal</Menu.Item>
+            <Menu.Item onClick={onUnexclude}>{t('slot.includeAgain')}</Menu.Item>
+            <Menu.Item onClick={onOpen}>{t('slot.editMeal')}</Menu.Item>
           </>
         ) : (
           <>
-            <Menu.Item onClick={onOpen}>{hasComponents ? 'Edit meal' : 'Add dish'}</Menu.Item>
+            <Menu.Item onClick={onOpen}>
+              {hasComponents ? t('slot.editMeal') : t('slot.addDish')}
+            </Menu.Item>
             {hasComponents && (
               <Menu.Item color="red" leftSection={<IconX size={14} />} onClick={onClear}>
-                Clear
+                {t('action.clear')}
               </Menu.Item>
             )}
-            <Menu.Item onClick={onExclude}>Exclude / eating out</Menu.Item>
+            <Menu.Item onClick={onExclude}>{t('slot.excludeEatingOut')}</Menu.Item>
           </>
         )}
       </Menu.Dropdown>
@@ -197,7 +201,7 @@ export function MealSlotCard({
             >
               <MealIcon size={16} />
             </Paper>
-            <Text fw={700}>{MEAL_TYPE_LABELS[slot.mealType]}</Text>
+            <Text fw={700}>{mealTypeLabel(t, slot.mealType)}</Text>
           </Group>
           <SlotMenu
             excluded={slot.excluded}

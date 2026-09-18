@@ -1,24 +1,12 @@
 import { SegmentedControl, Text } from '@mantine/core'
 import type { RecipeFormIngredientLine } from '../recipes/recipeForm'
 import { measurementStatusForUnit } from '../recipes/recipeForm'
+import { useLocalization } from '../localization/LocalizationContext'
 
 interface ImportLineMeasurementProps {
   line: RecipeFormIngredientLine
   onChange: (patch: Partial<RecipeFormIngredientLine>) => void
 }
-
-const CUP_OPTIONS = [
-  { label: 'Keep unspecified', value: 'cup' },
-  { label: 'US cup', value: 'cup-us' },
-  { label: 'Metric cup', value: 'cup-metric' },
-]
-
-const OZ_OPTIONS = [
-  { label: 'Unspecified', value: 'oz' },
-  { label: 'Weight (oz)', value: 'oz-mass' },
-  { label: 'Fluid (fl oz)', value: 'oz-fl' },
-  { label: 'Leave unresolved', value: 'unresolved' },
-]
 
 function ozControlValue(line: RecipeFormIngredientLine): string {
   if (line.quantityMode === 'text' || line.measurementStatus === 'unresolved') return 'unresolved'
@@ -33,6 +21,18 @@ function ozControlValue(line: RecipeFormIngredientLine): string {
 }
 
 export function ImportLineMeasurement({ line, onChange }: ImportLineMeasurementProps) {
+  const { t } = useLocalization()
+  const cupOptions = [
+    { label: t('import.keepUnspecified'), value: 'cup' },
+    { label: t('import.usCup'), value: 'cup-us' },
+    { label: t('import.metricCup'), value: 'cup-metric' },
+  ]
+  const ozOptions = [
+    { label: t('import.unspecifiedOz'), value: 'oz' },
+    { label: t('import.weightOz'), value: 'oz-mass' },
+    { label: t('import.fluidOz'), value: 'oz-fl' },
+    { label: t('import.leaveUnresolved'), value: 'unresolved' },
+  ]
   const showCup =
     line.quantityUnit === 'cup' ||
     line.quantityUnit === 'cup-us' ||
@@ -48,14 +48,14 @@ export function ImportLineMeasurement({ line, onChange }: ImportLineMeasurementP
     <>
       {line.sourceText ? (
         <Text size="xs" c="dimmed">
-          Original: {line.sourceText}
+          {t('import.original', { text: line.sourceText })}
         </Text>
       ) : null}
       {showCup && line.quantityMode === 'amount' ? (
         <SegmentedControl
           size="xs"
           fullWidth
-          data={CUP_OPTIONS}
+          data={cupOptions}
           value={
             line.quantityUnit === 'cup-us' || line.quantityUnit === 'cup-metric'
               ? line.quantityUnit
@@ -74,7 +74,7 @@ export function ImportLineMeasurement({ line, onChange }: ImportLineMeasurementP
         <SegmentedControl
           size="xs"
           fullWidth
-          data={OZ_OPTIONS}
+          data={ozOptions}
           value={ozControlValue(line)}
           onChange={(next) => {
             if (next === 'unresolved') {

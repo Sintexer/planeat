@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped through **Sprint 25**. Optional Phase 4 follow-ups remain. Full cards and Status log: [`docs/sprints/plan.md`](sprints/plan.md).
+Shipped through **Sprint 27C**. Optional Phase 4 follow-ups remain. Full cards and Status log: [`docs/sprints/plan.md`](sprints/plan.md).
 
 ## Done — project initialization
 
@@ -105,6 +105,21 @@ Shipped through **Sprint 25**. Optional Phase 4 follow-ups remain. Full cards an
 - Update-from-plan preview before changing an open list: added, changed, no longer required, edited quantities, and checked rows whose amount increases.
 - Keep-my-quantity vs use-planned; cancel and create-new leave the existing list untouched. Matching generated rows keep their ids. No schema or backup-format bump.
 
+## Done — Sprint 26A (bulk household tagging)
+
+- Recipes library selection mode: Select / Done, selected count, Clear, Select visible.
+- Add tags (create-or-link) or remove tags present on the selection; one Dexie transaction across recipes and simple foods. Snapshots unchanged. Add-dish picker has no checkboxes. No schema or backup-format bump.
+
+## Done — Sprint 27A (library cleanup views)
+
+- Optional Recipes cleanup views: missing meal occasion, dish type, recorded total time, unlinked ingredient lines.
+- Maintenance tools only — missing optional metadata is not an error on the main library. Additive `cleanup` on saved views; omitted backup field means none.
+
+## Done — Lane C (Sprints 26C–27C)
+
+- Message catalog, interpolation, plurals, and locale-aware dates/week labels.
+- Russian UI language with an explicit Settings control. Household-authored content is not auto-translated.
+
 ## Later (optional Phase 4 follow-ups)
 
-Still out of scope unless separately backlogged: automatic weekly generation, backends, nutrition/barcode databases, food ontologies, pantry accounting, full second-language UI, local photo uploads.
+Still out of scope unless separately backlogged: automatic weekly generation, backends, nutrition/barcode databases, food ontologies, pantry accounting, additional languages, local photo uploads.

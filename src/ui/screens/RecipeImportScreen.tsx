@@ -14,11 +14,10 @@ import { IconUpload } from '@tabler/icons-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useServices } from '../../app/servicesContext'
+import type { ImportCandidate } from '../../application/recipes/RecipeImportService'
 import { ScreenHeader } from '../components/ScreenHeader'
-import {
-  importErrorMessage,
-  type ImportCandidate,
-} from '../../application/recipes/RecipeImportService'
+import { useLocalization } from '../localization/LocalizationContext'
+import { importErrorCopy } from '../localization/errors'
 import { writeImportDraft } from '../recipes/importDraft'
 
 const ACCEPT = {
@@ -31,6 +30,7 @@ const ACCEPT = {
 export function RecipeImportScreen() {
   const navigate = useNavigate()
   const { recipeImportService } = useServices()
+  const { t, tPlural } = useLocalization()
   const [paste, setPaste] = useState('')
   const [busy, setBusy] = useState(false)
   const [candidates, setCandidates] = useState<ImportCandidate[] | null>(null)
@@ -49,7 +49,7 @@ export function RecipeImportScreen() {
     setCandidates(null)
     const result = recipeImportService.extractAndNormalize(raw)
     if (!result.ok) {
-      const message = importErrorMessage(result.error)
+      const message = importErrorCopy(t, result.error)
       setError(message)
       notifications.show({ message, color: 'red' })
       return
@@ -72,7 +72,7 @@ export function RecipeImportScreen() {
       setPaste(text)
       runExtract(text)
     } catch {
-      notifications.show({ message: 'Could not read that file', color: 'red' })
+      notifications.show({ message: t('import.readFailed'), color: 'red' })
     } finally {
       setBusy(false)
     }
@@ -80,18 +80,14 @@ export function RecipeImportScreen() {
 
   return (
     <Stack gap="md">
-      <ScreenHeader title="Import recipe" fallbackTo="/recipes" />
+      <ScreenHeader title={t('import.title')} fallbackTo="/recipes" />
 
       <Text size="sm" c="dimmed">
-        Paste Schema.org JSON-LD, or HTML that contains{' '}
-        <Text span ff="monospace" size="sm">
-          application/ld+json
-        </Text>
-        . We never fetch a URL. After extract, you confirm everything in the normal recipe editor.
+        {t('import.help')}
       </Text>
 
       <Textarea
-        label="Paste JSON-LD or HTML"
+        label={t('import.pasteLabel')}
         minRows={10}
         autosize
         maxRows={20}
@@ -105,16 +101,14 @@ export function RecipeImportScreen() {
           const file = files[0]
           if (file) void handleFileText(file)
         }}
-        onReject={() =>
-          notifications.show({ message: 'Use a .json, .jsonld, or .html file', color: 'yellow' })
-        }
+        onReject={() => notifications.show({ message: t('import.badFileType'), color: 'yellow' })}
         accept={ACCEPT}
         maxFiles={1}
         loading={busy}
       >
         <Group justify="center" gap="sm" mih={80} style={{ pointerEvents: 'none' }}>
           <IconUpload size={20} />
-          <Text size="sm">Drop a file here</Text>
+          <Text size="sm">{t('import.dropFile')}</Text>
         </Group>
       </Dropzone>
 
@@ -127,24 +121,24 @@ export function RecipeImportScreen() {
         >
           {(props) => (
             <Button variant="default" loading={busy} {...props}>
-              Choose file
+              {t('import.chooseFile')}
             </Button>
           )}
         </FileButton>
         <Button onClick={handleSubmit} loading={busy}>
-          Extract
+          {t('import.extract')}
         </Button>
       </Group>
 
       {error && (
-        <Alert color="red" title="Could not import">
+        <Alert color="red" title={t('import.failedTitle')}>
           {error}
         </Alert>
       )}
 
       {candidates && candidates.length > 1 && (
         <Stack gap="xs">
-          <Text fw={600}>Several recipes found — pick one</Text>
+          <Text fw={600}>{t('import.pickOne')}</Text>
           {candidates.map((candidate, index) => (
             <UnstyledButton
               key={`${candidate.normalized.displayName}-${index}`}
@@ -160,8 +154,10 @@ export function RecipeImportScreen() {
                 {candidate.normalized.displayName}
               </Text>
               <Text size="xs" c="dimmed">
-                {candidate.normalized.form.ingredientLines.filter((l) => l.name).length} ingredient
-                line(s)
+                {tPlural(
+                  'import.ingredientLines',
+                  candidate.normalized.form.ingredientLines.filter((l) => l.name).length,
+                )}
               </Text>
             </UnstyledButton>
           ))}

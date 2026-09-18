@@ -1,13 +1,25 @@
-import { ActionIcon, Alert, Group, Stack, Text } from '@mantine/core'
+import {
+  ActionIcon,
+  Alert,
+  Button,
+  Group,
+  Modal,
+  MultiSelect,
+  Paper,
+  Select,
+  Stack,
+  TagsInput,
+  Text,
+} from '@mantine/core'
+import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import { IconFileImport, IconPlus, IconCarrot, IconApple, IconTag } from '@tabler/icons-react'
-import { useLayoutEffect, useMemo, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { useServices } from '../../app/servicesContext'
 import {
   DEFAULT_CATALOG_GROUP,
   DEFAULT_CATALOG_SORT,
-  EFFORT_LABELS,
   type CatalogGroup,
   type CatalogSort,
 } from '../../domain/shared/MealEnums'
@@ -15,6 +27,8 @@ import {
   findStaleLibraryViewRefs,
   libraryViewCriteriaEquals,
   skipIdsForMatching,
+  LIBRARY_CLEANUP_KINDS,
+  type LibraryCleanupKind,
   type LibraryView,
   type LibraryViewId,
 } from '../../domain/libraryViews/LibraryView'
@@ -27,6 +41,7 @@ import {
   recipeToCatalogItem,
   simpleFoodToCatalogItem,
   type DishCatalogFilters,
+  type DishCatalogItem,
   type IngredientFilterOption,
 } from '../catalog/catalogModel'
 import { PageTitle } from '../components/ScreenHeader'
@@ -36,16 +51,37 @@ import { useRecipes } from '../hooks/useRecipes'
 import { useSettings } from '../hooks/useSettings'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
 import { useTags } from '../hooks/useTags'
-import { archivedTagIdSet } from '../../domain/tags/Tag'
+import { archivedTagIdSet, tagCreateAutocompleteNames } from '../../domain/tags/Tag'
+import type { CatalogTagItemRef } from '../../application/tags/TagService'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
 import { useIngredientLabel } from '../localization/useIngredientLabel'
 import { useLocalization } from '../localization/LocalizationContext'
+import { cleanupLabel, effortLabel } from '../localization/labels'
+import type { Translate } from '../localization/t'
 import { recipesBrowseState } from './recipesBrowseState'
 
-function viewErrorMessage(error: 'empty-name' | 'name-collision' | 'not-found'): string {
-  if (error === 'empty-name') return 'View name cannot be empty'
-  if (error === 'name-collision') return 'Another view already has that name'
-  return 'Saved view not found'
+function viewErrorMessage(
+  t: Translate,
+  error: 'empty-name' | 'name-collision' | 'not-found',
+): string {
+  if (error === 'empty-name') return t('view.error.emptyName')
+  if (error === 'name-collision') return t('view.error.nameCollision')
+  return t('view.error.notFound')
+}
+
+function isLiveCatalogItem(
+  item: DishCatalogItem,
+): item is DishCatalogItem & { kind: 'recipe' | 'simple-food' } {
+  return item.kind === 'recipe' || item.kind === 'simple-food'
+}
+
+function applyTagsErrorMessage(
+  t: Translate,
+  error: 'empty-selection' | 'empty-op' | 'empty-name',
+): string {
+  if (error === 'empty-selection') return t('tags.error.emptySelection')
+  if (error === 'empty-name') return t('tags.error.emptyName')
+  return t('tags.error.emptyOp')
 }
 
 export function RecipesScreen() {
@@ -55,10 +91,10 @@ export function RecipesScreen() {
   const ingredients = useIngredients()
   const settings = useSettings()
   const views = useLibraryViews()
-  const { settingsRepository, libraryViewService } = useServices()
+  const { settingsRepository, libraryViewService, tagService } = useServices()
   const navigate = useNavigate()
   const formatQty = useFormatQuantity()
-  const { t } = useLocalization()
+  const { t, tPlural } = useLocalization()
   const ingredientLabel = useIngredientLabel()
   const [filters, setFilters] = useState<DishCatalogFilters>(() => ({
     ...defaultDishCatalogFilters('all'),
@@ -67,6 +103,15 @@ export function RecipesScreen() {
   const [loadedViewId, setLoadedViewId] = useState<LibraryViewId | null>(
     () => recipesBrowseState.loadedViewId,
   )
+  const [selecting, setSelecting] = useState(false)
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set())
+  const [visibleItems, setVisibleItems] = useState<
+    { key: string; kind: 'recipe' | 'simple-food'; id: string; tagIds: string[] }[]
+  >([])
+  const [addOpened, setAddOpened] = useState(false)
+  const [removeOpened, setRemoveOpened] = useState(false)
+  const [addNames, setAddNames] = useState<string[]>([])
+  const [removeTagIds, setRemoveTagIds] = useState<string[]>([])
 
   const sort: CatalogSort = settings?.catalogSort ?? DEFAULT_CATALOG_SORT
   const group: CatalogGroup = settings?.catalogGroup ?? DEFAULT_CATALOG_GROUP
@@ -126,8 +171,16 @@ export function RecipesScreen() {
     const recipeItems = (recipes ?? []).map((recipe) =>
       recipeToCatalogItem(recipe, tagNamesById, {
         subtitle:
-          `Yield ${formatQty(recipe.yield)} · ${EFFORT_LABELS[recipe.effort]}` +
-          (recipe.totalTimeMinutes !== undefined ? ` · ${recipe.totalTimeMinutes} min` : ''),
+          recipe.totalTimeMinutes !== undefined
+            ? t('recipes.yieldEffortTime', {
+                yield: formatQty(recipe.yield),
+                effort: effortLabel(t, recipe.effort),
+                minutes: recipe.totalTimeMinutes,
+              })
+            : t('recipes.yieldEffort', {
+                yield: formatQty(recipe.yield),
+                effort: effortLabel(t, recipe.effort),
+              }),
       }),
     )
     const foodItems = (simpleFoods ?? []).map((food) =>
@@ -136,7 +189,7 @@ export function RecipesScreen() {
       }),
     )
     return [...recipeItems, ...foodItems]
-  }, [recipes, simpleFoods, formatQty, tagNamesById])
+  }, [recipes, simpleFoods, formatQty, tagNamesById, t])
 
   const ingredientOptions = useMemo((): IngredientFilterOption[] => {
     return (ingredients ?? []).map((ingredient) => ({
@@ -163,6 +216,80 @@ export function RecipesScreen() {
     recipesBrowseState.scrollY = window.scrollY
   }
 
+  const selectedItems = useMemo(
+    () => items.filter((item) => selectedKeys.has(item.key)),
+    [items, selectedKeys],
+  )
+  const selectedRefs: CatalogTagItemRef[] = useMemo(
+    () => selectedItems.filter(isLiveCatalogItem).map((item) => ({ kind: item.kind, id: item.id })),
+    [selectedItems],
+  )
+  const removeOptions = useMemo(() => {
+    const ids = new Set<string>()
+    for (const item of selectedItems) {
+      for (const tagId of item.tagIds) ids.add(tagId)
+    }
+    return [...ids].map((id) => ({
+      value: id,
+      label: tagNamesById.get(id) ?? t('common.unavailableTag'),
+    }))
+  }, [selectedItems, tagNamesById, t])
+  const addTagSuggestions = useMemo(() => tagCreateAutocompleteNames(tags ?? []), [tags])
+
+  const handleVisibleItemsChange = useCallback((next: DishCatalogItem[]) => {
+    setVisibleItems(
+      next.filter(isLiveCatalogItem).map((item) => ({
+        key: item.key,
+        kind: item.kind,
+        id: item.id,
+        tagIds: item.tagIds,
+      })),
+    )
+  }, [])
+
+  const exitSelectMode = () => {
+    setSelecting(false)
+    setSelectedKeys(new Set())
+    setAddOpened(false)
+    setRemoveOpened(false)
+    setAddNames([])
+    setRemoveTagIds([])
+  }
+
+  const applyBulkTags = (ops: { addNames?: string[]; removeTagIds?: string[] }) => {
+    if (selectedRefs.length === 0) {
+      notifications.show({ message: applyTagsErrorMessage(t, 'empty-selection'), color: 'red' })
+      return
+    }
+    const addLabel = (ops.addNames ?? []).filter((name) => name.trim()).join(', ')
+    const removeLabel = (ops.removeTagIds ?? []).map((id) => tagNamesById.get(id) ?? id).join(', ')
+    modals.openConfirmModal({
+      title: t('recipes.updateTags'),
+      children: (
+        <Text size="sm">
+          {t('recipes.applyTo', { count: selectedRefs.length })}
+          {addLabel ? t('recipes.addClause', { names: addLabel }) : ''}
+          {removeLabel ? t('recipes.removeClause', { names: removeLabel }) : ''}.
+        </Text>
+      ),
+      labels: { confirm: t('action.apply'), cancel: t('action.cancel') },
+      onConfirm: () => {
+        void (async () => {
+          const result = await tagService.applyTagsToCatalogItems(selectedRefs, ops)
+          if (!result.ok) {
+            notifications.show({ message: applyTagsErrorMessage(t, result.error), color: 'red' })
+            return
+          }
+          notifications.show({ message: t('recipes.tagsUpdated'), color: 'green' })
+          setAddOpened(false)
+          setRemoveOpened(false)
+          setAddNames([])
+          setRemoveTagIds([])
+        })()
+      },
+    })
+  }
+
   return (
     <Stack gap="lg">
       <PageTitle
@@ -175,7 +302,7 @@ export function RecipesScreen() {
               variant="default"
               radius="xl"
               size={34}
-              aria-label="Import recipe"
+              aria-label={t('recipes.import')}
             >
               <IconFileImport size={18} />
             </ActionIcon>
@@ -186,14 +313,14 @@ export function RecipesScreen() {
               variant="default"
               radius="xl"
               size={34}
-              aria-label="New recipe"
+              aria-label={t('recipes.new')}
             >
               <IconPlus size={18} />
             </ActionIcon>
           </Group>
         }
       >
-        Recipes
+        {t('recipes.title')}
       </PageTitle>
 
       <Group gap="xs">
@@ -204,7 +331,7 @@ export function RecipesScreen() {
           variant="light"
           radius="xl"
           size={34}
-          aria-label="Simple foods"
+          aria-label={t('recipes.simpleFoods')}
         >
           <IconApple size={18} />
         </ActionIcon>
@@ -215,7 +342,7 @@ export function RecipesScreen() {
           size="sm"
           style={{ textDecoration: 'none' }}
         >
-          Manage simple foods
+          {t('recipes.manageSimpleFoods')}
         </Text>
         <ActionIcon
           component={Link}
@@ -224,7 +351,7 @@ export function RecipesScreen() {
           variant="light"
           radius="xl"
           size={34}
-          aria-label="Ingredients"
+          aria-label={t('recipes.ingredients')}
           ml="sm"
         >
           <IconCarrot size={18} />
@@ -236,7 +363,7 @@ export function RecipesScreen() {
           size="sm"
           style={{ textDecoration: 'none' }}
         >
-          Ingredients
+          {t('recipes.ingredients')}
         </Text>
         <ActionIcon
           component={Link}
@@ -245,7 +372,7 @@ export function RecipesScreen() {
           variant="light"
           radius="xl"
           size={34}
-          aria-label="Tags"
+          aria-label={t('recipes.tags')}
           ml="sm"
         >
           <IconTag size={18} />
@@ -257,11 +384,11 @@ export function RecipesScreen() {
           size="sm"
           style={{ textDecoration: 'none' }}
         >
-          Tags
+          {t('recipes.tags')}
         </Text>
       </Group>
 
-      {recipes === undefined && <Text c="dimmed">Loading…</Text>}
+      {recipes === undefined && <Text c="dimmed">{t('common.loading')}</Text>}
       {recipes?.length === 0 && simpleFoods?.length === 0 && (
         <Stack gap={4}>
           <Text c="dimmed">{t('empty.recipes')}</Text>
@@ -272,70 +399,157 @@ export function RecipesScreen() {
       )}
 
       {(recipes !== undefined || simpleFoods !== undefined) && (
-        <LibraryViewsBar
-          views={views ?? []}
-          loadedViewId={loadedViewId}
-          dirty={dirty}
-          onSelectView={(id) => {
-            if (!id) {
+        <Stack gap="xs">
+          <LibraryViewsBar
+            views={views ?? []}
+            loadedViewId={loadedViewId}
+            dirty={dirty}
+            onSelectView={(id) => {
+              if (!id) {
+                recipesBrowseState.loadedViewId = null
+                setLoadedViewId(null)
+                return
+              }
+              const view = views?.find((candidate) => candidate.id === id)
+              if (view) applyView(view)
+            }}
+            onSaveAsNew={async (name) => {
+              const result = await libraryViewService.create(name, currentCriteria)
+              if (!result.ok) {
+                notifications.show({ message: viewErrorMessage(t, result.error), color: 'red' })
+                return false
+              }
+              recipesBrowseState.loadedViewId = result.view.id
+              setLoadedViewId(result.view.id)
+              notifications.show({
+                message: t('view.saved', { name: result.view.name }),
+                color: 'green',
+              })
+              return true
+            }}
+            onUpdate={async () => {
+              if (!loadedViewId) return false
+              const result = await libraryViewService.updateCriteria(loadedViewId, currentCriteria)
+              if (!result.ok) {
+                notifications.show({ message: viewErrorMessage(t, result.error), color: 'red' })
+                return false
+              }
+              notifications.show({ message: t('view.updated'), color: 'green' })
+              return true
+            }}
+            onRename={async (name) => {
+              if (!loadedViewId) return false
+              const result = await libraryViewService.rename(loadedViewId, name)
+              if (!result.ok) {
+                notifications.show({ message: viewErrorMessage(t, result.error), color: 'red' })
+                return false
+              }
+              notifications.show({ message: t('view.renamed'), color: 'green' })
+              return true
+            }}
+            onDelete={async () => {
+              if (!loadedViewId) return
+              const result = await libraryViewService.delete(loadedViewId)
+              if (!result.ok) {
+                notifications.show({ message: viewErrorMessage(t, result.error), color: 'red' })
+                return
+              }
               recipesBrowseState.loadedViewId = null
               setLoadedViewId(null)
-              return
+              notifications.show({ message: t('view.deleted'), color: 'green' })
+            }}
+          />
+          <Select
+            size="xs"
+            w={240}
+            label={t('cleanup.label')}
+            description={t('cleanup.help')}
+            placeholder={t('common.none')}
+            clearable
+            data={LIBRARY_CLEANUP_KINDS.map((kind) => ({
+              value: kind,
+              label: cleanupLabel(t, kind),
+            }))}
+            value={filters.cleanup || null}
+            onChange={(value) =>
+              setFiltersAndPersist({
+                ...filters,
+                cleanup: (value as LibraryCleanupKind | null) ?? '',
+              })
             }
-            const view = views?.find((candidate) => candidate.id === id)
-            if (view) applyView(view)
-          }}
-          onSaveAsNew={async (name) => {
-            const result = await libraryViewService.create(name, currentCriteria)
-            if (!result.ok) {
-              notifications.show({ message: viewErrorMessage(result.error), color: 'red' })
-              return false
-            }
-            recipesBrowseState.loadedViewId = result.view.id
-            setLoadedViewId(result.view.id)
-            notifications.show({ message: `Saved “${result.view.name}”`, color: 'green' })
-            return true
-          }}
-          onUpdate={async () => {
-            if (!loadedViewId) return false
-            const result = await libraryViewService.updateCriteria(loadedViewId, currentCriteria)
-            if (!result.ok) {
-              notifications.show({ message: viewErrorMessage(result.error), color: 'red' })
-              return false
-            }
-            notifications.show({ message: 'View updated', color: 'green' })
-            return true
-          }}
-          onRename={async (name) => {
-            if (!loadedViewId) return false
-            const result = await libraryViewService.rename(loadedViewId, name)
-            if (!result.ok) {
-              notifications.show({ message: viewErrorMessage(result.error), color: 'red' })
-              return false
-            }
-            notifications.show({ message: 'View renamed', color: 'green' })
-            return true
-          }}
-          onDelete={async () => {
-            if (!loadedViewId) return
-            const result = await libraryViewService.delete(loadedViewId)
-            if (!result.ok) {
-              notifications.show({ message: viewErrorMessage(result.error), color: 'red' })
-              return
-            }
-            recipesBrowseState.loadedViewId = null
-            setLoadedViewId(null)
-            notifications.show({ message: 'View deleted', color: 'green' })
-          }}
-        />
+            aria-label={t('cleanup.label')}
+          />
+        </Stack>
+      )}
+
+      {filters.cleanup && items.length > 0 && (
+        <Alert color="gray" title={t('cleanup.alertTitle')}>
+          {t('cleanup.alertBody')}
+        </Alert>
       )}
 
       {staleRefs.length > 0 && (
-        <Alert color="yellow" title="Some filters are no longer in the catalog">
-          Archived tags still apply by name. Deleted tags and missing ingredients stay visible as
-          chips so you can clear them; they are ignored while matching so this view does not empty
-          the library.
+        <Alert color="yellow" title={t('catalog.staleFiltersTitle')}>
+          {t('catalog.staleFiltersBody')}
         </Alert>
+      )}
+
+      {(recipes !== undefined || simpleFoods !== undefined) && items.length > 0 && (
+        <Paper withBorder p="sm" radius="md">
+          <Group gap="xs" wrap="wrap">
+            {selecting ? (
+              <Button size="compact-sm" variant="default" onClick={exitSelectMode}>
+                {t('recipes.done')}
+              </Button>
+            ) : (
+              <Button size="compact-sm" variant="default" onClick={() => setSelecting(true)}>
+                {t('recipes.select')}
+              </Button>
+            )}
+            {selecting && (
+              <>
+                <Text size="sm">{tPlural('catalog.selected', selectedKeys.size)}</Text>
+                <Button
+                  size="compact-sm"
+                  variant="subtle"
+                  disabled={selectedKeys.size === 0}
+                  onClick={() => setSelectedKeys(new Set())}
+                >
+                  {t('recipes.clearSelection')}
+                </Button>
+                <Button
+                  size="compact-sm"
+                  variant="subtle"
+                  disabled={visibleItems.length === 0}
+                  onClick={() => setSelectedKeys(new Set(visibleItems.map((item) => item.key)))}
+                >
+                  {t('recipes.selectVisible')}
+                </Button>
+                <Button
+                  size="compact-sm"
+                  disabled={selectedKeys.size === 0}
+                  onClick={() => {
+                    setAddNames([])
+                    setAddOpened(true)
+                  }}
+                >
+                  {t('recipes.addTags')}
+                </Button>
+                <Button
+                  size="compact-sm"
+                  variant="light"
+                  disabled={selectedKeys.size === 0 || removeOptions.length === 0}
+                  onClick={() => {
+                    setRemoveTagIds([])
+                    setRemoveOpened(true)
+                  }}
+                >
+                  {t('recipes.removeTag')}
+                </Button>
+              </>
+            )}
+          </Group>
+        </Paper>
       )}
 
       {(recipes !== undefined || simpleFoods !== undefined) && items.length > 0 && (
@@ -354,6 +568,17 @@ export function RecipesScreen() {
           showGroupControl
           layout="page"
           ingredientOptions={ingredientOptions}
+          selectionMode={selecting}
+          selectedKeys={selectedKeys}
+          onToggleSelect={(item) => {
+            setSelectedKeys((current) => {
+              const next = new Set(current)
+              if (next.has(item.key)) next.delete(item.key)
+              else next.add(item.key)
+              return next
+            })
+          }}
+          onVisibleItemsChange={handleVisibleItemsChange}
           onSelect={(item) => {
             captureScroll()
             if (item.kind === 'simple-food') {
@@ -364,6 +589,42 @@ export function RecipesScreen() {
           }}
         />
       )}
+
+      <Modal
+        opened={addOpened}
+        onClose={() => setAddOpened(false)}
+        title={t('recipes.addTags')}
+        centered
+      >
+        <Stack>
+          <TagsInput
+            label={t('recipes.tags')}
+            data={addTagSuggestions}
+            value={addNames}
+            onChange={setAddNames}
+            placeholder={t('recipes.tagPlaceholder')}
+          />
+          <Button onClick={() => applyBulkTags({ addNames })}>{t('action.apply')}</Button>
+        </Stack>
+      </Modal>
+
+      <Modal
+        opened={removeOpened}
+        onClose={() => setRemoveOpened(false)}
+        title={t('recipes.removeTag')}
+        centered
+      >
+        <Stack>
+          <MultiSelect
+            label={t('recipes.tagsOnSelection')}
+            data={removeOptions}
+            value={removeTagIds}
+            onChange={setRemoveTagIds}
+            searchable
+          />
+          <Button onClick={() => applyBulkTags({ removeTagIds })}>{t('action.apply')}</Button>
+        </Stack>
+      </Modal>
     </Stack>
   )
 }

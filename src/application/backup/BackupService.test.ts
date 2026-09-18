@@ -241,7 +241,12 @@ describe('BackupService.restoreBackup', () => {
     const result = await service.restoreBackup(backupFile(data))
 
     expect(result.ok).toBe(true)
-    expect(repo.replaceAllCalls[0]?.libraryViews).toEqual(data.libraryViews)
+    expect(repo.replaceAllCalls[0]?.libraryViews).toEqual([
+      {
+        ...data.libraryViews[0]!,
+        criteria: { ...data.libraryViews[0]!.criteria, cleanup: '' },
+      },
+    ])
   })
 
   it('fills missing ingredient locale fields on restore', async () => {

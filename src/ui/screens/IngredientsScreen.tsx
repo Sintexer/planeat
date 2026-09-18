@@ -34,6 +34,7 @@ interface NewIngredientForm {
 
 function IngredientEditSection({ ingredient }: { ingredient: Ingredient }) {
   const { ingredientService } = useServices()
+  const { t } = useLocalization()
 
   return (
     <Stack gap="xs" mt="xs">
@@ -48,8 +49,8 @@ function IngredientEditSection({ ingredient }: { ingredient: Ingredient }) {
           <Stack key={locale} gap={4}>
             <TextInput
               size="xs"
-              label={`Preferred label (${locale})`}
-              placeholder="Use default name"
+              label={t('ingredients.preferredLabel', { locale })}
+              placeholder={t('ingredients.defaultName')}
               defaultValue={preferredLabel}
               onBlur={(event) => {
                 const label = event.currentTarget.value.trim()
@@ -63,7 +64,7 @@ function IngredientEditSection({ ingredient }: { ingredient: Ingredient }) {
             />
             <TagsInput
               size="xs"
-              label={`Aliases (${locale})`}
+              label={t('ingredients.aliasesLocale', { locale })}
               value={localizedAliases}
               onChange={(texts) => {
                 const otherAliases = (ingredient.localizedAliases ?? []).filter(
@@ -91,7 +92,7 @@ export function IngredientsScreen() {
   const form = useForm<NewIngredientForm>({
     initialValues: { name: '', aliases: [], category: '', shoppingSection: '', isCommon: false },
     validate: {
-      name: (value) => (value.trim().length === 0 ? 'Name is required' : null),
+      name: (value) => (value.trim().length === 0 ? t('validation.nameRequired') : null),
     },
   })
 
@@ -107,51 +108,46 @@ export function IngredientsScreen() {
       notifications.show({
         message:
           result.error === 'name-collision'
-            ? 'An ingredient with that name or alias already exists'
-            : 'Name is required',
+            ? t('ingredients.nameCollision')
+            : t('validation.nameRequired'),
         color: 'red',
       })
       return
     }
     form.reset()
-    notifications.show({ message: 'Ingredient added', color: 'green' })
+    notifications.show({ message: t('ingredients.added'), color: 'green' })
   })
 
   const handleDelete = (ingredient: Ingredient) => {
     modals.openConfirmModal({
-      title: 'Delete ingredient',
-      children: (
-        <Text>
-          Delete “{ingredient.name}”? Recipes that reference it keep their display text, but the
-          catalog link will be missing until you edit them.
-        </Text>
-      ),
-      labels: { confirm: 'Delete', cancel: 'Cancel' },
+      title: t('ingredients.deleteTitle'),
+      children: <Text>{t('ingredients.deleteBody', { name: ingredient.name })}</Text>,
+      labels: { confirm: t('action.delete'), cancel: t('action.cancel') },
       confirmProps: { color: 'red' },
       onConfirm: async () => {
         const result = await ingredientService.deleteIngredient(ingredient.id)
         if (!result.ok) {
-          notifications.show({ message: 'Ingredient not found', color: 'red' })
+          notifications.show({ message: t('ingredients.notFound'), color: 'red' })
           return
         }
-        notifications.show({ message: 'Ingredient deleted', color: 'green' })
+        notifications.show({ message: t('ingredients.deleted'), color: 'green' })
       },
     })
   }
 
   return (
     <Stack gap="md">
-      <ScreenHeader title="Ingredients" fallbackTo="/recipes" />
+      <ScreenHeader title={t('ingredients.title')} fallbackTo="/recipes" />
 
       <Text size="sm" c="dimmed">
-        Canonical names and aliases. Saving a recipe also creates ingredients from typed names.
+        {t('ingredients.helpShort')}
       </Text>
 
       <form onSubmit={handleCreate}>
         <Stack gap="sm">
-          <TextInput label="Name" required {...form.getInputProps('name')} />
-          <TagsInput label="Aliases" {...form.getInputProps('aliases')} />
-          <TextInput label="Category" {...form.getInputProps('category')} />
+          <TextInput label={t('common.name')} required {...form.getInputProps('name')} />
+          <TagsInput label={t('ingredients.aliases')} {...form.getInputProps('aliases')} />
+          <TextInput label={t('ingredients.category')} {...form.getInputProps('category')} />
           <ShoppingSectionSelect
             value={form.values.shoppingSection || undefined}
             onChange={(section) => form.setFieldValue('shoppingSection', section ?? '')}
@@ -160,12 +156,12 @@ export function IngredientsScreen() {
             label={t('ingredient.usuallyAtHome')}
             {...form.getInputProps('isCommon', { type: 'checkbox' })}
           />
-          <Button type="submit">Add ingredient</Button>
+          <Button type="submit">{t('ingredients.add')}</Button>
         </Stack>
       </form>
 
-      {ingredients === undefined && <Text c="dimmed">Loading…</Text>}
-      {ingredients?.length === 0 && <Text c="dimmed">No ingredients yet.</Text>}
+      {ingredients === undefined && <Text c="dimmed">{t('common.loading')}</Text>}
+      {ingredients?.length === 0 && <Text c="dimmed">{t('ingredients.empty')}</Text>}
 
       <Stack gap="xs">
         {ingredients?.map((ingredient) => {
@@ -177,7 +173,7 @@ export function IngredientsScreen() {
                   <Text fw={500}>{ingredientLabel(ingredient)}</Text>
                   {ingredient.aliases.length > 0 && (
                     <Text size="sm" c="dimmed">
-                      Aliases: {ingredient.aliases.join(', ')}
+                      {t('ingredients.aliasesList', { list: ingredient.aliases.join(', ') })}
                     </Text>
                   )}
                   {ingredient.category && (
@@ -209,7 +205,11 @@ export function IngredientsScreen() {
                 <Group gap={4}>
                   <ActionIcon
                     variant="subtle"
-                    aria-label={expanded ? 'Collapse edit section' : `Edit ${ingredient.name}`}
+                    aria-label={
+                      expanded
+                        ? t('ingredients.collapse')
+                        : t('ingredients.editNamed', { name: ingredient.name })
+                    }
                     onClick={() => setExpandedId(expanded ? null : ingredient.id)}
                   >
                     {expanded ? <IconChevronUp size={18} /> : <IconChevronDown size={18} />}
@@ -217,7 +217,7 @@ export function IngredientsScreen() {
                   <ActionIcon
                     variant="subtle"
                     color="red"
-                    aria-label={`Delete ${ingredient.name}`}
+                    aria-label={t('ingredients.deleteNamed', { name: ingredient.name })}
                     onClick={() => handleDelete(ingredient)}
                   >
                     <IconTrash size={18} />

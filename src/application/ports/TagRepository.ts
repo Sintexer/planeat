@@ -29,4 +29,14 @@ export interface TagRepository {
    * Must not delete food items or rewrite snapshots.
    */
   deleteTagAndUnassign(id: TagId): Promise<void>
+  /**
+   * Add and/or remove tags on selected live recipes and simple foods.
+   * Missing ids are skipped. Must not rewrite snapshots.
+   */
+  applyLiveTagChanges(input: {
+    recipeIds: string[]
+    simpleFoodIds: string[]
+    addTagIds: TagId[]
+    removeTagIds: TagId[]
+  }): Promise<void>
 }

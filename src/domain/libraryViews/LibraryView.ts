@@ -14,7 +14,23 @@ export type LibraryViewId = string
 export type LibraryViewKind = 'all' | 'recipe' | 'simple-food'
 export type LibraryViewEffort = Effort | 'all'
 
-/** Query, filters, sort, and grouping captured by a named library view. */
+export const LIBRARY_CLEANUP_KINDS = [
+  'missing-occasion',
+  'missing-dish-type',
+  'missing-time',
+  'unlinked-ingredients',
+] as const
+
+export type LibraryCleanupKind = (typeof LIBRARY_CLEANUP_KINDS)[number]
+
+export const LIBRARY_CLEANUP_LABELS: Record<LibraryCleanupKind, string> = {
+  'missing-occasion': 'Missing meal occasion',
+  'missing-dish-type': 'Missing dish type',
+  'missing-time': 'Missing recorded time',
+  'unlinked-ingredients': 'Unlinked ingredient lines',
+}
+
+/** Query, filters, sort, grouping, and optional catalog-cleanup view. */
 export interface LibraryViewCriteria {
   query: string
   kind: LibraryViewKind
@@ -27,6 +43,8 @@ export interface LibraryViewCriteria {
   excludeIngredientIds: string[]
   sort: CatalogSort
   group: CatalogGroup
+  /** Empty / omitted = not a cleanup view. Additive; older saved views omit the field. */
+  cleanup?: LibraryCleanupKind | ''
 }
 
 export interface LibraryView {
@@ -50,6 +68,7 @@ export function defaultLibraryViewCriteria(): LibraryViewCriteria {
     excludeIngredientIds: [],
     sort: DEFAULT_CATALOG_SORT,
     group: DEFAULT_CATALOG_GROUP,
+    cleanup: '',
   }
 }
 
@@ -69,7 +88,8 @@ export function libraryViewCriteriaEquals(a: LibraryViewCriteria, b: LibraryView
     sameSequence(a.roles, b.roles) &&
     sameSequence(a.tagIds, b.tagIds) &&
     sameSequence(a.containsIngredientIds, b.containsIngredientIds) &&
-    sameSequence(a.excludeIngredientIds, b.excludeIngredientIds)
+    sameSequence(a.excludeIngredientIds, b.excludeIngredientIds) &&
+    (a.cleanup ?? '') === (b.cleanup ?? '')
   )
 }
 
@@ -136,5 +156,31 @@ export function skipIdsForMatching(stale: readonly StaleLibraryViewRef[]): {
     skipIngredientIds: new Set(
       stale.filter((ref) => ref.status === 'missing-ingredient').map((ref) => ref.id),
     ),
+  }
+}
+
+export type CleanupCatalogFields = {
+  kind: string
+  mealTypes: readonly string[]
+  dishType?: string
+  totalTimeMinutes?: number
+  hasUnlinkedIngredients?: boolean
+}
+
+/** True when the item belongs in the optional cleanup view (or any view if unset). */
+export function itemMatchesCleanup(
+  item: CleanupCatalogFields,
+  cleanup: LibraryCleanupKind | '' | undefined,
+): boolean {
+  if (!cleanup) return true
+  switch (cleanup) {
+    case 'missing-occasion':
+      return item.mealTypes.length === 0
+    case 'missing-dish-type':
+      return item.kind === 'recipe' && !(item.dishType && item.dishType.trim())
+    case 'missing-time':
+      return item.kind === 'recipe' && item.totalTimeMinutes === undefined
+    case 'unlinked-ingredients':
+      return item.kind === 'recipe' && item.hasUnlinkedIngredients === true
   }
 }

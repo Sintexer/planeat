@@ -1,6 +1,6 @@
 # Functional spec
 
-Present-tense product behavior as of Sprint 25. Remaining sequenced work lives in [`docs/sprints/plan.md`](sprints/plan.md).
+Present-tense product behavior as of Sprint 27C. Remaining sequenced work lives in [`docs/sprints/plan.md`](sprints/plan.md).
 
 ## Plan
 
@@ -30,7 +30,11 @@ Displayed quantities follow the household measurement presentation preference wi
 
 Full recipe library (create/edit/detail, ingredient catalog, simple foods, scale preview, household tags, optional dish type / cuisine). Recipes and simple foods share catalog UI; they stay separate records. Compact cards show kind and recorded time when present.
 
-Library search is Fuse on name/tags/subtitle. Filters live in a drawer: kind, meal occasion, meal role, effort, household tags, maximum recorded total time, contains/exclude catalog ingredients (IDs; aliases only help pick the row). Missing total time is not treated as zero. Unlinked imported ingredient lines do not satisfy contains/exclude; the drawer states this is not an allergy-safety guarantee. Sort and grouping persist in settings. Named saved views store the current query, filters, sort, and grouping; restoring a view re-runs it against the live catalog. Changing browse state never silently overwrites a view — use Update view or Save as new. Deleted tag/ingredient filter ids stay visible to clear; they are skipped while matching so the library is not emptied. Archived tags still filter by live assignments.
+Library search is Fuse on name/tags/subtitle. Filters live in a drawer: kind, meal occasion, meal role, effort, household tags, maximum recorded total time, contains/exclude catalog ingredients (IDs; aliases only help pick the row). Missing total time is not treated as zero. Unlinked imported ingredient lines do not satisfy contains/exclude; the drawer states this is not an allergy-safety guarantee. Sort and grouping persist in settings. Named saved views store the current query, filters, sort, grouping, and optional cleanup kind; restoring a view re-runs it against the live catalog. Changing browse state never silently overwrites a view — use Update view or Save as new. Deleted tag/ingredient filter ids stay visible to clear; they are skipped while matching so the library is not emptied. Archived tags still filter by live assignments.
+
+Optional **Cleanup** views list items missing meal occasion, dish type, recorded total time, or unlinked ingredient lines. These are maintenance tools: missing optional metadata is not an error, and the main library does not warn on every incomplete card. Recipe-only gaps (dish type, time, unlinked lines) do not list simple foods. Cleanup can be saved on a named view; backups treat an omitted cleanup field as none.
+
+The Recipes library has an explicit **Select** mode for bulk tagging. Select visible items (or tap rows), then add tags (create-or-link like the editor) or remove a tag that appears on the selection. Apply is transactional across the selected recipes and simple foods; cancel writes nothing. Selection is session-only and is not part of saved views. The Add-dish picker does not use this mode. Cooking-event snapshots keep frozen historical label strings.
 
 Household tags can be renamed, archived, merged, or deleted from `/recipes/tags`. Merge collapses duplicate live assignments; delete removes the tag only (recipes and simple foods stay) after confirming affected-item counts. Archived tags stay on assigned items and remain recoverable from tag management, but they are omitted from create autocomplete and default filter facets. Applied filters and chips still work if a tag is archived or missing. Cooking-event snapshots keep frozen historical label strings.
 
@@ -40,6 +44,6 @@ Structured import (JSON / JSON-LD / HTML with embedded JSON-LD) prefills a draft
 
 ## Settings
 
-Household size, week-start day, planning preferences, catalog sort/group, UI locale, measurement presentation (default as-entered), JSON backup export/restore (replace-all after a validated preflight: counts, optional export date, export current data first), including saved library views. An invalid or unsupported backup leaves existing household data untouched.
+Household size, week-start day, planning preferences, catalog sort/group, UI locale (English or Russian), measurement presentation (default as-entered), JSON backup export/restore (replace-all after a validated preflight: counts, optional export date, export current data first), including saved library views. An invalid or unsupported backup leaves existing household data untouched.
 
-Locale and measurement presentation must not change stored quantities, IDs, or local calendar dates.
+Locale and measurement presentation must not change stored quantities, IDs, or local calendar dates. User-authored recipe, tag, simple-food, grocery-line, and cooking-event snapshot text stays as stored. Controlled vocabulary (meal types, shopping sections, units) follows the interface language.

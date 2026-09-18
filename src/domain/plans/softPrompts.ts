@@ -9,8 +9,17 @@ import type { MealType } from '../shared/MealEnums'
 export interface SoftPrompt {
   id: string
   date?: LocalDate
-  message: string
   severity: 'info' | 'warning'
+  kind:
+    | 'max-units'
+    | 'demanding'
+    | 'quick-only'
+    | 'preferred-prep'
+    | 'vegetables'
+    | 'breakfast-repeat'
+    | 'identical-dinners'
+    | 'previous-week-reuse'
+  params?: Record<string, string>
 }
 
 function componentSignature(graph: PlanGraph, slotId: string): string {
@@ -45,7 +54,7 @@ function dayHasVegetable(graph: PlanGraph, date: LocalDate): boolean {
       }
     }
   }
-  return hasMeal ? false : true // empty day: no veg prompt
+  return hasMeal ? false : true
 }
 
 function slotKeyItem(graph: PlanGraph, date: LocalDate, mealType: MealType): string | null {
@@ -71,7 +80,11 @@ export function evaluatePlanSoftPrompts(
         id: `max-units-${date}`,
         date,
         severity: 'warning',
-        message: `${date}: prep effort (${formatEffortUnits(units)}) is above your max batch-prep units (${formatEffortUnits(settings.maxBatchPrepUnits)}).`,
+        kind: 'max-units',
+        params: {
+          units: formatEffortUnits(units),
+          max: formatEffortUnits(settings.maxBatchPrepUnits),
+        },
       })
     }
 
@@ -82,7 +95,7 @@ export function evaluatePlanSoftPrompts(
         id: `demanding-${date}`,
         date,
         severity: 'warning',
-        message: `${date}: multiple demanding preparations on this day.`,
+        kind: 'demanding',
       })
     }
 
@@ -94,7 +107,7 @@ export function evaluatePlanSoftPrompts(
           id: `quick-only-${date}`,
           date,
           severity: 'warning',
-          message: `${date}: non-quick prep on a quick-meals-only day.`,
+          kind: 'quick-only',
         })
       }
     }
@@ -108,7 +121,7 @@ export function evaluatePlanSoftPrompts(
         id: `preferred-prep-${date}`,
         date,
         severity: 'info',
-        message: `${date}: prep scheduled outside your preferred batch-prep days.`,
+        kind: 'preferred-prep',
       })
     }
 
@@ -121,7 +134,7 @@ export function evaluatePlanSoftPrompts(
           id: `veg-${date}`,
           date,
           severity: 'info',
-          message: `${date}: Add vegetables?`,
+          kind: 'vegetables',
         })
       }
     }
@@ -139,7 +152,7 @@ export function evaluatePlanSoftPrompts(
       prompts.push({
         id: `breakfast-repeat-${key}`,
         severity: 'warning',
-        message: 'Same breakfast is repeated within this plan.',
+        kind: 'breakfast-repeat',
       })
       break
     }
@@ -152,7 +165,8 @@ export function evaluatePlanSoftPrompts(
       prompts.push({
         id: `identical-dinner-${dates[i]}-${dates[i + 1]}`,
         severity: 'warning',
-        message: `Identical dinners on consecutive days (${dates[i]} and ${dates[i + 1]}).`,
+        kind: 'identical-dinners',
+        params: { a: dates[i], b: dates[i + 1] },
       })
     }
   }
@@ -164,7 +178,10 @@ export function evaluatePlanSoftPrompts(
       prompts.push({
         id: 'previous-week-reuse',
         severity: 'info',
-        message: `Used last week — consider an alternative: ${names.slice(0, 3).join(', ')}${names.length > 3 ? '…' : ''}.`,
+        kind: 'previous-week-reuse',
+        params: {
+          names: `${names.slice(0, 3).join(', ')}${names.length > 3 ? '…' : ''}`,
+        },
       })
     }
   }

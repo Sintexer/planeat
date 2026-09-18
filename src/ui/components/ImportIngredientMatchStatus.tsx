@@ -3,6 +3,7 @@ import {
   ingredientMatchesAnyIdentifier,
   type Ingredient,
 } from '../../domain/ingredients/Ingredient'
+import { useLocalization } from '../localization/LocalizationContext'
 
 interface ImportIngredientMatchStatusProps {
   lineName: string
@@ -21,14 +22,15 @@ export function ImportIngredientMatchStatus({
   onUnlink,
   onChooseMatch,
 }: ImportIngredientMatchStatusProps) {
+  const { t } = useLocalization()
   if (ingredientId) {
     return (
       <Group gap="xs">
         <Text size="xs" c="dimmed">
-          Matched: {matchedLabel ?? 'catalog ingredient'}
+          {t('import.matched', { name: matchedLabel ?? t('import.catalogIngredient') })}
         </Text>
         <Button size="compact-xs" variant="subtle" onClick={onUnlink}>
-          Unlink
+          {t('import.unlink')}
         </Button>
       </Group>
     )
@@ -41,11 +43,11 @@ export function ImportIngredientMatchStatus({
   return (
     <Group gap="xs">
       <Text size="xs" c="dimmed">
-        Unlinked — save is allowed.
+        {t('import.unlinkedOk')}
       </Text>
       {identityCount > 1 ? (
         <Button size="compact-xs" variant="light" onClick={onChooseMatch}>
-          Choose catalog match
+          {t('import.chooseMatch')}
         </Button>
       ) : null}
     </Group>

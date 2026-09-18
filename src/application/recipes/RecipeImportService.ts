@@ -33,18 +33,3 @@ export class RecipeImportService {
     return { ok: true, candidates }
   }
 }
-
-export function importErrorMessage(error: RecipeImportError): string {
-  switch (error) {
-    case 'empty':
-      return 'Paste JSON-LD or choose a file.'
-    case 'url-only':
-      return 'We don’t fetch websites — paste JSON-LD or HTML that contains it.'
-    case 'parse-failed':
-      return 'Couldn’t parse as JSON or HTML with JSON-LD.'
-    case 'no-recipe':
-      return 'No Schema.org Recipe found.'
-    default:
-      return `Import failed (${error})`
-  }
-}

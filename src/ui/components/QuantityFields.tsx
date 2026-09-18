@@ -1,6 +1,7 @@
 import { NumberInput, Select, SimpleGrid } from '@mantine/core'
 import { unitOptionsFor } from '../shared/unitOptions'
 import { precisionStep } from './quantityStep'
+import { useLocalization } from '../localization/LocalizationContext'
 
 interface QuantityFieldsProps {
   valueLabel?: string
@@ -13,18 +14,19 @@ interface QuantityFieldsProps {
 }
 
 export function QuantityFields({
-  valueLabel = 'Amount',
-  unitLabel = 'Unit',
+  valueLabel,
+  unitLabel,
   value,
   unit,
   onValueChange,
   onUnitChange,
   min = 0.001,
 }: QuantityFieldsProps) {
+  const { t } = useLocalization()
   return (
     <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm">
       <NumberInput
-        label={valueLabel}
+        label={valueLabel ?? t('common.amount')}
         value={value}
         min={min}
         step={precisionStep(value, 3)}
@@ -33,8 +35,8 @@ export function QuantityFields({
         onChange={(next) => onValueChange(typeof next === 'number' ? next : '')}
       />
       <Select
-        label={unitLabel}
-        data={unitOptionsFor(unit)}
+        label={unitLabel ?? t('common.unit')}
+        data={unitOptionsFor(unit, t)}
         value={unit}
         allowDeselect={false}
         onChange={(next) => onUnitChange(next ?? unit)}

@@ -4,9 +4,10 @@ import {
   monthContainsDate,
   type LocalDate,
   type WeekStartDay,
-  weekdayHeaders,
   weeksOverlappingMonth,
 } from '../../domain/shared/LocalDate'
+import { formatMonthTitle, formatWeekdayHeaders } from '../localization/formatDate'
+import { useLocalization } from '../localization/LocalizationContext'
 
 interface PlanWeekPickerProps {
   year: number
@@ -16,13 +17,6 @@ interface PlanWeekPickerProps {
   today: LocalDate
   onMonthChange: (year: number, month: number) => void
   onSelectWeek: (weekStart: LocalDate) => void
-}
-
-function monthTitle(year: number, month: number): string {
-  return new Date(year, month - 1, 1).toLocaleDateString(undefined, {
-    month: 'long',
-    year: 'numeric',
-  })
 }
 
 function shiftMonth(year: number, month: number, delta: number): { year: number; month: number } {
@@ -39,7 +33,8 @@ export function PlanWeekPicker({
   onMonthChange,
   onSelectWeek,
 }: PlanWeekPickerProps) {
-  const headers = weekdayHeaders(weekStartDay)
+  const { t, bcp47 } = useLocalization()
+  const headers = formatWeekdayHeaders(weekStartDay, bcp47)
   const weeks = weeksOverlappingMonth(year, month, weekStartDay)
 
   return (
@@ -48,7 +43,7 @@ export function PlanWeekPicker({
         <ActionIcon
           variant="subtle"
           radius="xl"
-          aria-label="Previous month"
+          aria-label={t('month.prev')}
           onClick={() => {
             const next = shiftMonth(year, month, -1)
             onMonthChange(next.year, next.month)
@@ -57,12 +52,12 @@ export function PlanWeekPicker({
           <IconChevronLeft size={16} />
         </ActionIcon>
         <Text size="sm" fw={600}>
-          {monthTitle(year, month)}
+          {formatMonthTitle(year, month, bcp47)}
         </Text>
         <ActionIcon
           variant="subtle"
           radius="xl"
-          aria-label="Next month"
+          aria-label={t('month.next')}
           onClick={() => {
             const next = shiftMonth(year, month, 1)
             onMonthChange(next.year, next.month)

@@ -13,6 +13,11 @@ export type MergeTagResult = { ok: true } | { ok: false; error: 'not-found' | 's
 
 export type DeleteTagResult = { ok: true } | { ok: false; error: 'not-found' }
 
+export type CatalogTagItemRef = { kind: 'recipe' | 'simple-food'; id: string }
+
+export type ApplyTagsResult =
+  { ok: true } | { ok: false; error: 'empty-selection' | 'empty-op' | 'empty-name' }
+
 export class TagService {
   private readonly tags: TagRepository
 
@@ -89,6 +94,37 @@ export class TagService {
     const current = await this.tags.getById(id)
     if (!current) return { ok: false, error: 'not-found' }
     await this.tags.deleteTagAndUnassign(id)
+    return { ok: true }
+  }
+
+  async applyTagsToCatalogItems(
+    items: CatalogTagItemRef[],
+    ops: { addNames?: string[]; removeTagIds?: TagId[] },
+  ): Promise<ApplyTagsResult> {
+    if (items.length === 0) return { ok: false, error: 'empty-selection' }
+
+    const addNames = (ops.addNames ?? [])
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0)
+    const removeTagIds = [...new Set(ops.removeTagIds ?? [])]
+    if (addNames.length === 0 && removeTagIds.length === 0) {
+      const hadBlankAdd = (ops.addNames ?? []).some((name) => name.trim().length === 0)
+      return {
+        ok: false,
+        error: hadBlankAdd && (ops.addNames?.length ?? 0) > 0 ? 'empty-name' : 'empty-op',
+      }
+    }
+
+    const addTagIds: TagId[] = []
+    for (const name of addNames) {
+      const result = await this.createOrLinkByName(name)
+      if (!result.ok) return { ok: false, error: result.error }
+      if (!addTagIds.includes(result.tag.id)) addTagIds.push(result.tag.id)
+    }
+
+    const recipeIds = items.filter((item) => item.kind === 'recipe').map((item) => item.id)
+    const simpleFoodIds = items.filter((item) => item.kind === 'simple-food').map((item) => item.id)
+    await this.tags.applyLiveTagChanges({ recipeIds, simpleFoodIds, addTagIds, removeTagIds })
     return { ok: true }
   }
 }

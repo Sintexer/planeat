@@ -87,4 +87,4 @@ Run format, lint, typecheck, and test before considering any change complete —
 
 ## Next Work
 
-Sprints 1–25 are shipped. Next is checkpoint D, then a Phase 6 lane chosen from household-trial evidence — see "Phase 5 — Reliability and household validation" and the Status section in [docs/sprints/plan.md](docs/sprints/plan.md). Do not invent work from older "Next" headings elsewhere or from Cursor plan files.
+Sprints 1–27C are shipped (Lane A and Lane C). Next work is optional Lane B (shopping-section order) — see the Status section in [docs/sprints/plan.md](docs/sprints/plan.md). Do not invent work from older "Next" headings elsewhere or from Cursor plan files.

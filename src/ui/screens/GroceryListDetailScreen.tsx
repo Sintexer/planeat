@@ -24,14 +24,11 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useServices } from '../../app/servicesContext'
 import type { GroceryItem, GroceryItemSource } from '../../domain/groceries/GroceryItem'
-import {
-  groceryListView,
-  clusterGroceryItems,
-  shoppingSectionLabel,
-} from '../../domain/groceries/shoppingSections'
-import type { PlanGraph } from '../../domain/plans/PlanGraph'
+import { groceryListView, clusterGroceryItems } from '../../domain/groceries/shoppingSections'
 import type { Quantity } from '../../domain/shared/Quantity'
-import { MEAL_TYPE_LABELS, type MealType } from '../../domain/shared/MealEnums'
+import type { PlanGraph } from '../../domain/plans/PlanGraph'
+import { mealTypeLabel, shoppingSectionLabel } from '../localization/labels'
+import type { Translate } from '../localization/t'
 import { QuantityFields } from '../components/QuantityFields'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { ShoppingSectionSelect } from '../components/ShoppingSectionSelect'
@@ -54,11 +51,8 @@ interface EditItemForm {
   shoppingSection: string
 }
 
-function mealTypeLabel(mealType: string): string {
-  if (mealType in MEAL_TYPE_LABELS) {
-    return MEAL_TYPE_LABELS[mealType as MealType].toLowerCase()
-  }
-  return mealType
+function sourceMealType(t: Translate, mealType: string): string {
+  return mealTypeLabel(t, mealType).toLowerCase()
 }
 
 function weekdayLong(date: string, locale: string): string {
@@ -67,9 +61,9 @@ function weekdayLong(date: string, locale: string): string {
   return new Date(year, month - 1, day).toLocaleDateString(locale, { weekday: 'long' })
 }
 
-function sourceHeading(source: GroceryItemSource, locale: string): string {
+function sourceHeading(source: GroceryItemSource, locale: string, t: Translate): string {
   const meals = source.meals
-    .map((meal) => `${weekdayLong(meal.date, locale)} ${mealTypeLabel(meal.mealType)}`)
+    .map((meal) => `${weekdayLong(meal.date, locale)} ${sourceMealType(t, meal.mealType)}`)
     .join(', ')
   if (!meals) return source.dishName
   return `${meals} — ${source.dishName}`
@@ -87,6 +81,7 @@ function GrocerySourceRow({
   planGraph,
   locale,
   formatQty,
+  t,
 }: {
   source: GroceryItemSource
   planId?: string
@@ -94,8 +89,9 @@ function GrocerySourceRow({
   planGraph: PlanGraph | undefined
   locale: string
   formatQty: (quantity: Quantity | null) => string
+  t: Translate
 }) {
-  const heading = sourceHeading(source, locale)
+  const heading = sourceHeading(source, locale, t)
   const liveMeal = source.meals.find((meal) => liveSlotIds.has(meal.slotId))
   const missingMeal =
     Boolean(planId && planGraph) && source.meals.some((meal) => !liveSlotIds.has(meal.slotId))
@@ -138,7 +134,7 @@ export function GroceryListDetailScreen() {
   const detail = useGroceryList(listId)
   const sourcePlan = usePlan(detail?.list.sourcePlanId)
   const formatQty = useFormatQuantity()
-  const { bcp47 } = useLocalization()
+  const { t, bcp47 } = useLocalization()
   const [editingId, setEditingId] = useState<string | undefined>(undefined)
   const [expandedSourceId, setExpandedSourceId] = useState<string | undefined>(undefined)
   const [grouped, setGrouped] = useState(true)
@@ -159,7 +155,7 @@ export function GroceryListDetailScreen() {
     return (
       <Stack gap="md" align="center" py="xl">
         <Loader size="sm" />
-        <Text c="dimmed">Loading list…</Text>
+        <Text c="dimmed">{t('grocery.loading')}</Text>
       </Stack>
     )
   }
@@ -167,8 +163,8 @@ export function GroceryListDetailScreen() {
   if (detail === null) {
     return (
       <Stack gap="md">
-        <ScreenHeader title="List not found" fallbackTo="/lists" />
-        <Text c="dimmed">This grocery list could not be found.</Text>
+        <ScreenHeader title={t('grocery.listNotFoundTitle')} fallbackTo="/lists" />
+        <Text c="dimmed">{t('grocery.notFound')}</Text>
       </Stack>
     )
   }
@@ -181,7 +177,10 @@ export function GroceryListDetailScreen() {
   const handleToggle = async (item: GroceryItem) => {
     const result = await groceryService.toggleChecked(item.id)
     if (!result.ok) {
-      notifications.show({ message: `Could not update item (${result.error})`, color: 'red' })
+      notifications.show({
+        message: t('grocery.error.updateItem', { error: result.error }),
+        color: 'red',
+      })
     }
   }
 
@@ -190,7 +189,10 @@ export function GroceryListDetailScreen() {
       if (item.checked === checked) continue
       const result = await groceryService.toggleChecked(item.id)
       if (!result.ok) {
-        notifications.show({ message: `Could not update item (${result.error})`, color: 'red' })
+        notifications.show({
+          message: t('grocery.error.updateItem', { error: result.error }),
+          color: 'red',
+        })
         return
       }
     }
@@ -204,7 +206,10 @@ export function GroceryListDetailScreen() {
       values.shoppingSection || undefined,
     )
     if (!result.ok) {
-      notifications.show({ message: `Could not add item (${result.error})`, color: 'red' })
+      notifications.show({
+        message: t('grocery.error.addItem', { error: result.error }),
+        color: 'red',
+      })
       return
     }
     addForm.reset()
@@ -228,7 +233,10 @@ export function GroceryListDetailScreen() {
       shoppingSection: values.shoppingSection || null,
     })
     if (!result.ok) {
-      notifications.show({ message: `Could not save (${result.error})`, color: 'red' })
+      notifications.show({
+        message: t('grocery.saveFailed', { error: result.error }),
+        color: 'red',
+      })
       return
     }
     setEditingId(undefined)
@@ -236,14 +244,17 @@ export function GroceryListDetailScreen() {
 
   const handleDeleteItem = (item: GroceryItem) => {
     modals.openConfirmModal({
-      title: 'Delete item',
-      children: <Text>Remove “{item.label}” from this list?</Text>,
-      labels: { confirm: 'Delete', cancel: 'Cancel' },
+      title: t('grocery.deleteItemTitle'),
+      children: <Text>{t('grocery.deleteItemBody', { name: item.label })}</Text>,
+      labels: { confirm: t('action.delete'), cancel: t('action.cancel') },
       confirmProps: { color: 'red' },
       onConfirm: async () => {
         const result = await groceryService.deleteItem(item.id)
         if (!result.ok) {
-          notifications.show({ message: `Could not delete (${result.error})`, color: 'red' })
+          notifications.show({
+            message: t('grocery.error.delete', { error: result.error }),
+            color: 'red',
+          })
         }
       },
     })
@@ -253,23 +264,25 @@ export function GroceryListDetailScreen() {
     if (closed) {
       void groceryService.reopenList(list.id).then((result) => {
         if (!result.ok) {
-          notifications.show({ message: `Could not reopen (${result.error})`, color: 'red' })
+          notifications.show({
+            message: t('grocery.error.reopen', { error: result.error }),
+            color: 'red',
+          })
         }
       })
       return
     }
     modals.openConfirmModal({
-      title: 'Close list',
-      children: (
-        <Text>
-          Closed lists cannot be edited or updated from a plan. You can reopen them later.
-        </Text>
-      ),
-      labels: { confirm: 'Close list', cancel: 'Cancel' },
+      title: t('grocery.closeTitle'),
+      children: <Text>{t('grocery.closeBody')}</Text>,
+      labels: { confirm: t('grocery.closeConfirm'), cancel: t('action.cancel') },
       onConfirm: () => {
         void groceryService.closeList(list.id).then((result) => {
           if (!result.ok) {
-            notifications.show({ message: `Could not close (${result.error})`, color: 'red' })
+            notifications.show({
+              message: t('grocery.error.close', { error: result.error }),
+              color: 'red',
+            })
           }
         })
       },
@@ -278,14 +291,17 @@ export function GroceryListDetailScreen() {
 
   const handleDeleteList = () => {
     modals.openConfirmModal({
-      title: 'Delete list',
-      children: <Text>Delete “{list.title}” and all of its items? This cannot be undone.</Text>,
-      labels: { confirm: 'Delete list', cancel: 'Cancel' },
+      title: t('grocery.deleteListTitle'),
+      children: <Text>{t('grocery.deleteListBody', { name: list.title })}</Text>,
+      labels: { confirm: t('grocery.deleteListConfirm'), cancel: t('action.cancel') },
       confirmProps: { color: 'red' },
       onConfirm: async () => {
         const result = await groceryService.deleteList(list.id)
         if (!result.ok) {
-          notifications.show({ message: `Could not delete (${result.error})`, color: 'red' })
+          notifications.show({
+            message: t('grocery.error.delete', { error: result.error }),
+            color: 'red',
+          })
           return
         }
         navigate('/lists')
@@ -305,13 +321,13 @@ export function GroceryListDetailScreen() {
         checked={item.checked}
         disabled={closed}
         onChange={() => void handleToggle(item)}
-        aria-label={`Check ${item.label}`}
+        aria-label={t('grocery.checkItem', { name: item.label })}
         style={{ flexShrink: 0 }}
       />
       {editingId === item.id ? (
         <form onSubmit={saveEdit} style={{ flex: 1 }}>
           <Stack gap="xs">
-            <TextInput label="Label" required {...editForm.getInputProps('label')} />
+            <TextInput label={t('common.label')} required {...editForm.getInputProps('label')} />
             <QuantityFields
               value={editForm.values.quantityValue}
               unit={editForm.values.quantityUnit}
@@ -392,6 +408,7 @@ export function GroceryListDetailScreen() {
                         planGraph={sourcePlan}
                         locale={bcp47}
                         formatQty={formatQty}
+                        t={t}
                       />
                     ))}
                   </Stack>
@@ -458,19 +475,19 @@ export function GroceryListDetailScreen() {
 
   const listBody =
     items.length === 0 ? (
-      <Text c="dimmed">No items yet.</Text>
+      <Text c="dimmed">{t('grocery.noItems')}</Text>
     ) : view.mode === 'flat' ? (
       view.items.length === 0 ? (
-        <Text c="dimmed">All items are checked.</Text>
+        <Text c="dimmed">{t('grocery.allChecked')}</Text>
       ) : (
         clusterGroceryItems(view.items).map(renderCluster)
       )
     ) : view.groups.length === 0 ? (
-      <Text c="dimmed">All items are checked.</Text>
+      <Text c="dimmed">{t('grocery.allChecked')}</Text>
     ) : (
       view.groups.map((group) => (
         <Stack key={group.key} gap="sm">
-          <Title order={4}>{shoppingSectionLabel(group.key)}</Title>
+          <Title order={4}>{shoppingSectionLabel(t, group.key)}</Title>
           {clusterGroceryItems(group.items).map(renderCluster)}
         </Stack>
       ))
@@ -483,17 +500,17 @@ export function GroceryListDetailScreen() {
         fallbackTo="/lists"
         actions={
           <Badge w="fit-content" color={closed ? 'gray' : 'green'} variant="light">
-            {list.status}
+            {list.status === 'closed' ? t('lists.status.closed') : t('lists.status.open')}
           </Badge>
         }
       />
 
       <Group>
         <Button variant="light" onClick={handleCloseOrReopen}>
-          {closed ? 'Reopen' : 'Close'}
+          {closed ? t('grocery.reopen') : t('grocery.close')}
         </Button>
         <Button variant="subtle" color="red" onClick={handleDeleteList}>
-          Delete list
+          {t('grocery.deleteListConfirm')}
         </Button>
       </Group>
 
@@ -501,12 +518,12 @@ export function GroceryListDetailScreen() {
         value={grouped ? 'grouped' : 'flat'}
         onChange={(value) => setGrouped(value === 'grouped')}
         data={[
-          { value: 'grouped', label: 'Grouped' },
-          { value: 'flat', label: 'Flat' },
+          { value: 'grouped', label: t('grocery.grouped') },
+          { value: 'flat', label: t('grocery.flat') },
         ]}
       />
       <Switch
-        label="Hide checked items"
+        label={t('grocery.hideChecked')}
         checked={hideChecked}
         onChange={(event) => setHideChecked(event.currentTarget.checked)}
       />
@@ -516,8 +533,8 @@ export function GroceryListDetailScreen() {
       {!closed && (
         <form onSubmit={handleAdd}>
           <Stack gap="sm">
-            <Text fw={600}>Add item</Text>
-            <TextInput label="Label" required {...addForm.getInputProps('label')} />
+            <Text fw={600}>{t('grocery.addItem')}</Text>
+            <TextInput label={t('common.label')} required {...addForm.getInputProps('label')} />
             <QuantityFields
               value={addForm.values.quantityValue}
               unit={addForm.values.quantityUnit}
@@ -528,7 +545,7 @@ export function GroceryListDetailScreen() {
               value={addForm.values.shoppingSection || undefined}
               onChange={(section) => addForm.setFieldValue('shoppingSection', section ?? '')}
             />
-            <Button type="submit">Add to list</Button>
+            <Button type="submit">{t('grocery.addToList')}</Button>
           </Stack>
         </form>
       )}
