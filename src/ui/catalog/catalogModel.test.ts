@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  catalogRowTagLabels,
   groupCatalogItems,
   itemMatchesFilters,
   sortCatalogItems,
@@ -252,5 +253,18 @@ describe('uniqueTagFacets', () => {
       { id: 'archived', name: 'batch' },
       { id: 'missing', name: '' },
     ])
+  })
+})
+
+describe('catalogRowTagLabels', () => {
+  it('skips tags that duplicate a shown role label', () => {
+    expect(catalogRowTagLabels(['Side', 'Italian', 'Pasta'], ['SIDE', 'vegetable'])).toEqual([
+      'Italian',
+      'Pasta',
+    ])
+  })
+
+  it('caps at two tags', () => {
+    expect(catalogRowTagLabels(['a', 'b', 'c'], [])).toEqual(['a', 'b'])
   })
 })

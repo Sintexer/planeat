@@ -1,4 +1,16 @@
-import { Alert, Button, Modal, Stack, Text, TextInput, UnstyledButton } from '@mantine/core'
+import {
+  Alert,
+  Button,
+  Group,
+  Modal,
+  Paper,
+  Stack,
+  Text,
+  TextInput,
+  ThemeIcon,
+  UnstyledButton,
+} from '@mantine/core'
+import { CaretRight, Check, CookingPot, Package, Warning } from '@phosphor-icons/react'
 import { notifications } from '@mantine/notifications'
 import { useMemo, useState } from 'react'
 import { DishCatalog } from '../catalog/DishCatalog'
@@ -357,8 +369,8 @@ export function AddComponentFlow({
     }
     if (result.events.length === 0) {
       notifications.show({
-        message: 'No eligible prep in this plan with remaining output.',
-        color: 'yellow',
+        message: t('picker.noEligiblePrep'),
+        color: 'warning',
       })
       return
     }
@@ -454,138 +466,195 @@ export function AddComponentFlow({
           ? t('picker.cookNewTitle', { name: step.recipeName })
           : t('picker.useExistingTitle', { name: step.recipeName })
 
+  const catalogLoading = !recipes || !simpleFoods || !favorites || !pairings || !settings
+
   return (
     <Modal opened={opened} onClose={handleClose} title={title} centered size="lg">
       <Stack gap="sm">
         {step.kind === 'pick' && (
-          <DishCatalog
-            items={catalogItems}
-            leftovers={leftovers}
-            filters={filters}
-            onFiltersChange={setFilters}
-            tagNamesById={tagNamesById}
-            archivedTagIds={archivedTagIds}
-            sort={sort}
-            onSortChange={setSort}
-            onSelect={pickCatalogItem}
-            disabled={busy}
-            showSuggestedFilter
-            ingredientOptions={ingredientOptions}
-            pickerSections
-          />
+          <div key={step.kind} className="step-transition">
+            <DishCatalog
+              items={catalogItems}
+              leftovers={leftovers}
+              filters={filters}
+              onFiltersChange={setFilters}
+              tagNamesById={tagNamesById}
+              archivedTagIds={archivedTagIds}
+              sort={sort}
+              onSortChange={setSort}
+              onSelect={pickCatalogItem}
+              disabled={busy}
+              loading={catalogLoading}
+              showSuggestedFilter
+              ingredientOptions={ingredientOptions}
+              pickerSections
+            />
+          </div>
         )}
 
         {step.kind === 'source' && (
-          <>
-            <Text size="sm">{t('picker.sourceQuestion')}</Text>
-            <Button onClick={() => void startCookNew()}>{t('picker.cookNew')}</Button>
-            <Button variant="light" onClick={() => void startUseExisting()}>
-              {t('picker.useExisting')}
-            </Button>
-            <Button variant="default" onClick={() => setStep({ kind: 'pick' })}>
-              {t('action.back')}
-            </Button>
-          </>
+          <div key={step.kind} className="step-transition">
+            <Stack gap="sm">
+              <Text size="sm" c="dimmed">
+                {t('picker.sourceQuestion')}
+              </Text>
+              <UnstyledButton className="selectable-row" onClick={() => void startCookNew()}>
+                <Paper withBorder radius="md" p="sm">
+                  <Group wrap="nowrap" gap="sm">
+                    <ThemeIcon size={36} radius="xl" variant="light" color="primary">
+                      <CookingPot size={18} />
+                    </ThemeIcon>
+                    <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+                      <Text size="sm" fw={600}>
+                        {t('picker.cookNew')}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {t('picker.cookNewHint')}
+                      </Text>
+                    </Stack>
+                    <CaretRight size={16} style={{ color: 'var(--mantine-color-dimmed)' }} />
+                  </Group>
+                </Paper>
+              </UnstyledButton>
+              <UnstyledButton className="selectable-row" onClick={() => void startUseExisting()}>
+                <Paper withBorder radius="md" p="sm">
+                  <Group wrap="nowrap" gap="sm">
+                    <ThemeIcon size={36} radius="xl" variant="light" color="secondary">
+                      <Package size={18} />
+                    </ThemeIcon>
+                    <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+                      <Text size="sm" fw={600}>
+                        {t('picker.useExisting')}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {t('picker.useExistingHint')}
+                      </Text>
+                    </Stack>
+                    <CaretRight size={16} style={{ color: 'var(--mantine-color-dimmed)' }} />
+                  </Group>
+                </Paper>
+              </UnstyledButton>
+              <Button variant="subtle" color="dark" onClick={() => setStep({ kind: 'pick' })}>
+                {t('action.back')}
+              </Button>
+            </Stack>
+          </div>
         )}
 
         {step.kind === 'cook-new' && (
-          <>
-            <QuantityFields
-              valueLabel={t('picker.allocated')}
-              value={allocValue}
-              unit={allocUnit}
-              onValueChange={setAllocValue}
-              onUnitChange={setAllocUnit}
-              min={0.001}
-            />
-            <QuantityFields
-              valueLabel={t('picker.totalOutput')}
-              value={outputValue}
-              unit={outputUnit}
-              onValueChange={setOutputValue}
-              onUnitChange={setOutputUnit}
-              min={0.001}
-            />
-            <TextInput
-              label={t('picker.prepDate')}
-              type="date"
-              value={prepDate}
-              onChange={(e) => setPrepDate(e.currentTarget.value)}
-            />
-            <Button loading={busy} onClick={() => void confirmCookNew()}>
-              Add
-            </Button>
-            <Button
-              variant="default"
-              onClick={() =>
-                setStep({ kind: 'source', recipeId: step.recipeId, recipeName: step.recipeName })
-              }
-            >
-              {t('action.back')}
-            </Button>
-          </>
+          <div key={step.kind} className="step-transition">
+            <Stack gap="sm">
+              <QuantityFields
+                valueLabel={t('picker.allocated')}
+                value={allocValue}
+                unit={allocUnit}
+                onValueChange={setAllocValue}
+                onUnitChange={setAllocUnit}
+                min={0.001}
+              />
+              <QuantityFields
+                valueLabel={t('picker.totalOutput')}
+                value={outputValue}
+                unit={outputUnit}
+                onValueChange={setOutputValue}
+                onUnitChange={setOutputUnit}
+                min={0.001}
+              />
+              <TextInput
+                label={t('picker.prepDate')}
+                type="date"
+                value={prepDate}
+                onChange={(e) => setPrepDate(e.currentTarget.value)}
+              />
+              <Button loading={busy} onClick={() => void confirmCookNew()}>
+                {t('action.add')}
+              </Button>
+              <Button
+                variant="default"
+                onClick={() =>
+                  setStep({ kind: 'source', recipeId: step.recipeId, recipeName: step.recipeName })
+                }
+              >
+                {t('action.back')}
+              </Button>
+            </Stack>
+          </div>
         )}
 
         {step.kind === 'use-existing' && (
-          <>
-            <Text size="sm">{t('picker.choosePrep')}</Text>
-            <Stack gap={4}>
-              {step.events.map((event) => {
-                const remaining = step.remainingById.get(event.id)
-                const selected = selectedEventId === event.id
-                return (
-                  <UnstyledButton
-                    key={event.id}
-                    onClick={() => {
-                      setSelectedEventId(event.id)
-                      setAllocValue(
-                        remaining && remaining.value > 0
-                          ? remaining.value
-                          : event.outputQuantity.value,
-                      )
-                      setAllocUnit(event.outputQuantity.unit)
-                    }}
-                    p="xs"
-                    style={{
-                      borderRadius: 4,
-                      border: selected
-                        ? '1px solid var(--mantine-color-primary-filled)'
-                        : '1px solid transparent',
-                    }}
-                  >
-                    <Text size="sm">
-                      {event.scheduledDate} · {formatQty(event.outputQuantity)} total
-                      {remaining ? ` · ${formatQty(remaining)} left` : ''}
-                    </Text>
-                  </UnstyledButton>
-                )
-              })}
+          <div key={step.kind} className="step-transition">
+            <Stack gap="sm">
+              <Text size="sm">{t('picker.choosePrep')}</Text>
+              <Stack gap={6}>
+                {step.events.map((event) => {
+                  const remaining = step.remainingById.get(event.id)
+                  const selected = selectedEventId === event.id
+                  return (
+                    <UnstyledButton
+                      key={event.id}
+                      className="selectable-row"
+                      data-selected={selected}
+                      onClick={() => {
+                        setSelectedEventId(event.id)
+                        setAllocValue(
+                          remaining && remaining.value > 0
+                            ? remaining.value
+                            : event.outputQuantity.value,
+                        )
+                        setAllocUnit(event.outputQuantity.unit)
+                      }}
+                    >
+                      <Paper withBorder radius="md" p="xs">
+                        <Group justify="space-between" wrap="nowrap">
+                          <Text size="sm">
+                            {event.scheduledDate} · {formatQty(event.outputQuantity)} total
+                            {remaining ? ` · ${formatQty(remaining)} left` : ''}
+                          </Text>
+                          {selected && (
+                            <Check
+                              size={16}
+                              style={{
+                                color: 'var(--mantine-color-primary-filled)',
+                                flexShrink: 0,
+                              }}
+                            />
+                          )}
+                        </Group>
+                      </Paper>
+                    </UnstyledButton>
+                  )
+                })}
+              </Stack>
+              <QuantityFields
+                valueLabel={t('picker.allocated')}
+                value={allocValue}
+                unit={allocUnit}
+                onValueChange={setAllocValue}
+                onUnitChange={setAllocUnit}
+                min={0.001}
+              />
+              {!selectedEventId && (
+                <Alert color="warning" icon={<Warning size={16} />}>
+                  {t('picker.selectPrep')}
+                </Alert>
+              )}
+              <Button
+                loading={busy}
+                disabled={!selectedEventId}
+                onClick={() => void confirmUseExisting()}
+              >
+                {t('action.add')}
+              </Button>
+              <Button
+                variant="default"
+                onClick={() =>
+                  setStep({ kind: 'source', recipeId: step.recipeId, recipeName: step.recipeName })
+                }
+              >
+                {t('action.back')}
+              </Button>
             </Stack>
-            <QuantityFields
-              valueLabel={t('picker.allocated')}
-              value={allocValue}
-              unit={allocUnit}
-              onValueChange={setAllocValue}
-              onUnitChange={setAllocUnit}
-              min={0.001}
-            />
-            {!selectedEventId && <Alert color="yellow">{t('picker.selectPrep')}</Alert>}
-            <Button
-              loading={busy}
-              disabled={!selectedEventId}
-              onClick={() => void confirmUseExisting()}
-            >
-              Add
-            </Button>
-            <Button
-              variant="default"
-              onClick={() =>
-                setStep({ kind: 'source', recipeId: step.recipeId, recipeName: step.recipeName })
-              }
-            >
-              {t('action.back')}
-            </Button>
-          </>
+          </div>
         )}
       </Stack>
     </Modal>

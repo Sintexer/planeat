@@ -32,6 +32,7 @@ The PWA `theme_color` is `#cf6139` (`index.html`, `vite.config.ts`).
 - `src/ui/components/ScreenHeader.tsx`: the shared per-screen title/back-navigation header, used instead of ad hoc `<Title>` + back-button markup per screen.
 - Plan has two views: a horizontally scrollable week grid (`src/ui/plans/PlanWeekGrid.tsx`) as the default, drilling into the existing day strip + `MealSlotCard` stack.
 - Screens are `Stack`-based single-column layouts; there is no custom grid system beyond the Plan week grid.
+- Recipes library: large in-content title plus one filled **New recipe** CTA, quiet catalog-manager links, then a single bordered search/toolbar surface (saved view, find gaps, sort/group, filters, select) and a divider list of dishes — not stacked labeled Selects and bordered row cards.
 
 ## Components — conventions to follow, not just examples
 

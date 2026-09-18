@@ -22,9 +22,11 @@ export function RecipePhotoThumb({ url, label, size }: RecipePhotoThumbProps) {
       title={failed ? t('photo.unavailable') : undefined}
       style={{
         flexShrink: 0,
-        borderRadius: 'var(--mantine-radius-md)',
+        borderRadius: 'var(--mantine-radius-lg)',
         overflow: 'hidden',
-        background: 'var(--mantine-color-default-hover)',
+        background: showImg
+          ? 'var(--mantine-color-default-hover)'
+          : 'repeating-linear-gradient(-45deg, var(--mantine-color-default-hover) 0 6px, transparent 6px 12px), var(--mantine-color-default)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

@@ -1,5 +1,6 @@
-import { Button, Group, Modal, Select, Text, TextInput } from '@mantine/core'
+import { Button, Group, Menu, Modal, Text, TextInput } from '@mantine/core'
 import { modals } from '@mantine/modals'
+import { BookmarkSimple, CaretDown, Check } from '@phosphor-icons/react'
 import { useState } from 'react'
 import type { LibraryView, LibraryViewId } from '../../domain/libraryViews/LibraryView'
 import { useLocalization } from '../localization/LocalizationContext'
@@ -62,57 +63,61 @@ export function LibraryViewsBar({
     })
   }
 
+  const triggerLabel = loaded
+    ? dirty
+      ? t('library.unsavedSuffix', { name: loaded.name })
+      : loaded.name
+    : t('library.savedView')
+
   return (
     <>
-      <Group gap="xs" wrap="wrap" align="flex-end">
-        <Select
-          size="xs"
-          w={180}
-          label={t('library.savedView')}
-          placeholder={t('common.none')}
-          clearable
-          data={views.map((view) => ({
-            value: view.id,
-            label:
-              view.id === loadedViewId && dirty
+      <Menu shadow="md" position="bottom-start" width={240}>
+        <Menu.Target>
+          <Button
+            type="button"
+            size="compact-sm"
+            variant="default"
+            radius="md"
+            leftSection={<BookmarkSimple size={14} />}
+            rightSection={<CaretDown size={12} />}
+            aria-label={t('library.savedView')}
+          >
+            {triggerLabel}
+          </Button>
+        </Menu.Target>
+        <Menu.Dropdown>
+          <Menu.Item
+            onClick={() => onSelectView(null)}
+            leftSection={!loaded ? <Check size={14} /> : undefined}
+          >
+            {t('common.none')}
+          </Menu.Item>
+          {views.length > 0 && <Menu.Divider />}
+          {views.map((view) => (
+            <Menu.Item
+              key={view.id}
+              onClick={() => onSelectView(view.id)}
+              leftSection={view.id === loadedViewId ? <Check size={14} /> : undefined}
+            >
+              {view.id === loadedViewId && dirty
                 ? t('library.unsavedSuffix', { name: view.name })
-                : view.name,
-          }))}
-          value={loadedViewId}
-          onChange={(value) => onSelectView(value)}
-          aria-label={t('library.savedView')}
-        />
-        {loaded && dirty && (
-          <Text size="xs" c="orange" mb={6}>
-            {t('library.unsaved')}
-          </Text>
-        )}
-        <Button
-          size="compact-xs"
-          variant="default"
-          disabled={!loaded || !dirty}
-          onClick={() => {
-            void onUpdate()
-          }}
-        >
-          {t('library.updateView')}
-        </Button>
-        <Button size="compact-xs" variant="light" onClick={openSave}>
-          {t('library.saveAsNew')}
-        </Button>
-        <Button size="compact-xs" variant="subtle" disabled={!loaded} onClick={openRename}>
-          {t('action.rename')}
-        </Button>
-        <Button
-          size="compact-xs"
-          variant="subtle"
-          color="error"
-          disabled={!loaded}
-          onClick={confirmDelete}
-        >
-          {t('action.delete')}
-        </Button>
-      </Group>
+                : view.name}
+            </Menu.Item>
+          ))}
+          <Menu.Divider />
+          {dirty && <Menu.Label>{t('library.unsaved')}</Menu.Label>}
+          <Menu.Item disabled={!loaded || !dirty} onClick={() => void onUpdate()}>
+            {t('library.updateView')}
+          </Menu.Item>
+          <Menu.Item onClick={openSave}>{t('library.saveAsNew')}</Menu.Item>
+          <Menu.Item disabled={!loaded} onClick={openRename}>
+            {t('action.rename')}
+          </Menu.Item>
+          <Menu.Item disabled={!loaded} color="error" onClick={confirmDelete}>
+            {t('action.delete')}
+          </Menu.Item>
+        </Menu.Dropdown>
+      </Menu>
 
       <Modal
         opened={dialog !== null}

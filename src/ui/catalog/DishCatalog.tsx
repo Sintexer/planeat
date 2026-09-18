@@ -5,18 +5,26 @@ import {
   Chip,
   CloseButton,
   Group,
-  Paper,
   ScrollArea,
   Select,
+  Skeleton,
   Stack,
   Text,
   TextInput,
   Tooltip,
   UnstyledButton,
 } from '@mantine/core'
-import { Sliders, Warning } from '@phosphor-icons/react'
+import {
+  CaretRight,
+  Heart,
+  Link,
+  MagnifyingGlass,
+  Sliders,
+  Sparkle,
+  Warning,
+} from '@phosphor-icons/react'
 import Fuse from 'fuse.js'
-import { useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import type { TagId } from '../../domain/tags/Tag'
 import { RecipePhotoThumb } from '../components/RecipePhotoThumb'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
@@ -35,6 +43,8 @@ import {
 import { formatWeekday } from '../localization/formatDate'
 import { FilterDrawer } from './FilterDrawer'
 import {
+  catalogActiveFilterCount,
+  catalogRowTagLabels,
   groupCatalogItems,
   itemMatchesFilters,
   sortCatalogItems,
@@ -45,7 +55,7 @@ import {
   type DishCatalogItem,
   type IngredientFilterOption,
 } from './catalogModel'
-import { leftoverBatchWeekday } from './pickerWhyThis'
+import { leftoverBatchWeekday, reasonBadgeCopy } from './pickerWhyThis'
 
 interface DishCatalogProps {
   items: DishCatalogItem[]
@@ -60,6 +70,8 @@ interface DishCatalogProps {
   onGroupChange?: (next: CatalogGroup) => void
   showGroupControl?: boolean
   disabled?: boolean
+  /** Data the list is built from is still resolving — show a skeleton, not an empty state. */
+  loading?: boolean
   showKindFilter?: boolean
   showSuggestedFilter?: boolean
   emptyMessage?: string
@@ -76,20 +88,12 @@ interface DishCatalogProps {
   selectedKeys?: ReadonlySet<string>
   onToggleSelect?: (item: DishCatalogItem) => void
   onVisibleItemsChange?: (items: DishCatalogItem[]) => void
-}
-
-function activeFilterCount(filters: DishCatalogFilters, showSuggested: boolean): number {
-  let count = 0
-  if (showSuggested && filters.suggestedOnly) count += 1
-  if (filters.kind !== 'all') count += 1
-  count += filters.mealTypes.length
-  count += filters.roles.length
-  count += filters.tagIds.length
-  if (filters.effort !== 'all') count += 1
-  if (filters.maxTotalTimeMinutes !== '') count += 1
-  count += filters.containsIngredientIds.length
-  count += filters.excludeIngredientIds.length
-  return count
+  /** Extra toolbar (saved views, select, sort menus). Page layout only. */
+  toolbar?: ReactNode
+  hideSortGroup?: boolean
+  showFiltersButton?: boolean
+  filterDrawerOpened?: boolean
+  onFilterDrawerOpenedChange?: (opened: boolean) => void
 }
 
 function ItemRow({
@@ -126,82 +130,104 @@ function ItemRow({
   const remainingText = item.remaining
     ? ` · ${formatQty(item.remaining)} ${t('quantity.left')}`
     : ''
+  const reasonPill = !leftover ? reasonBadgeCopy(t, item.reason) : undefined
+  const shownRoles = item.roles.slice(0, 2)
+  const roleLabels = shownRoles.flatMap((role) => [roleLabel(t, role), roleChipLabel(t, role)])
+  const tagLabels = catalogRowTagLabels(item.tags, roleLabels)
   const row = (
     <UnstyledButton
+      className="catalog-item-row"
+      data-leftover={leftover}
+      data-selected={selected}
       disabled={disabled || ineligible}
       onClick={() => onSelect(item)}
-      w="100%"
-      style={{ textAlign: 'left' }}
+      style={ineligible ? { opacity: 0.55 } : undefined}
     >
-      <Paper
-        p={8}
-        radius="md"
-        withBorder={leftover || selected}
-        style={
-          ineligible
-            ? { opacity: 0.55 }
-            : leftover
-              ? { background: 'var(--mantine-color-default-hover)' }
-              : undefined
-        }
-      >
-        <Group wrap="nowrap" align="flex-start" gap="sm">
-          {selectionMode && (
-            <Checkbox
-              checked={selected}
-              readOnly
-              tabIndex={-1}
-              mt={4}
-              aria-hidden
-              styles={{ input: { pointerEvents: 'none' } }}
-            />
-          )}
-          <RecipePhotoThumb url={item.photoUrl} label={item.name} size={44} />
-          <Stack gap={4} style={{ minWidth: 0, flex: 1 }}>
-            <Text size="sm" fw={600} lineClamp={2}>
-              {item.name}
-            </Text>
-            <Text size="xs" c="dimmed">
-              {leftoverSubtitle}
-              {remainingText}
-            </Text>
-            <Group gap={4}>
-              {(item.kind === 'recipe' || item.kind === 'simple-food') && (
-                <Badge size="xs" color="gray" variant="dot" radius="sm">
-                  {kindLabel(t, item.kind)}
+      <Group wrap="nowrap" align="flex-start" gap="sm">
+        {selectionMode && (
+          <Checkbox
+            checked={selected}
+            readOnly
+            tabIndex={-1}
+            mt={6}
+            aria-hidden
+            styles={{ input: { pointerEvents: 'none' } }}
+          />
+        )}
+        <RecipePhotoThumb url={item.photoUrl} label={item.name} size={52} />
+        <Stack gap={4} style={{ minWidth: 0, flex: 1 }}>
+          <Text
+            fw={600}
+            lineClamp={2}
+            style={{
+              fontFamily: 'var(--mantine-font-family-headings)',
+              fontSize: 16,
+              lineHeight: 1.3,
+            }}
+          >
+            {item.name}
+          </Text>
+          <Text size="xs" c="dimmed">
+            {leftoverSubtitle}
+            {remainingText}
+          </Text>
+          <Group gap={4}>
+            {(item.kind === 'recipe' || item.kind === 'simple-food') && (
+              <Badge size="xs" color="dark" variant="outline" radius="sm">
+                {kindLabel(t, item.kind)}
+              </Badge>
+            )}
+            {reasonPill && (
+              <Badge
+                size="xs"
+                color={reasonPill.type === 'favorite' ? 'secondary' : 'primary'}
+                variant="light"
+                radius="sm"
+                leftSection={
+                  reasonPill.type === 'favorite' ? (
+                    <Heart size={10} weight="fill" />
+                  ) : (
+                    <Link size={10} />
+                  )
+                }
+              >
+                {reasonPill.label}
+              </Badge>
+            )}
+            {ineligible ? (
+              <Badge
+                size="xs"
+                color="error"
+                variant="filled"
+                radius="xl"
+                leftSection={<Warning size={10} />}
+              >
+                {ineligibleLabel}
+              </Badge>
+            ) : (
+              leftover && (
+                <Badge size="xs" color="warning" variant="light" radius="xl">
+                  {t('catalog.remainingBadge')}
                 </Badge>
-              )}
-              {ineligible ? (
-                <Badge
-                  size="xs"
-                  color="error"
-                  variant="filled"
-                  radius="xl"
-                  leftSection={<Warning size={10} />}
-                >
-                  {ineligibleLabel}
-                </Badge>
-              ) : (
-                leftover && (
-                  <Badge size="xs" color="gray" variant="outline" radius="xl">
-                    {t('catalog.remainingBadge')}
-                  </Badge>
-                )
-              )}
-              {item.roles.slice(0, 2).map((role) => (
-                <Badge key={role} size="xs" variant="light" radius="sm">
-                  {roleLabel(t, role)}
-                </Badge>
-              ))}
-              {item.tags.slice(0, 2).map((tag) => (
-                <Badge key={tag} size="xs" variant="outline" radius="xl">
-                  {tag}
-                </Badge>
-              ))}
-            </Group>
-          </Stack>
-        </Group>
-      </Paper>
+              )
+            )}
+            {shownRoles.map((role) => (
+              <Badge key={role} size="xs" color="primary" variant="light" radius="sm">
+                {roleChipLabel(t, role)}
+              </Badge>
+            ))}
+            {tagLabels.map((tag) => (
+              <Badge key={tag} size="xs" variant="outline" radius="xl">
+                {tag}
+              </Badge>
+            ))}
+          </Group>
+        </Stack>
+        <CaretRight
+          size={16}
+          style={{ color: 'var(--mantine-color-dimmed)', flexShrink: 0, marginTop: 8 }}
+        />
+      </Group>
     </UnstyledButton>
   )
 
@@ -226,6 +252,7 @@ export function DishCatalog({
   onGroupChange,
   showGroupControl = false,
   disabled,
+  loading = false,
   showKindFilter = true,
   showSuggestedFilter = false,
   emptyMessage,
@@ -239,9 +266,19 @@ export function DishCatalog({
   selectedKeys,
   onToggleSelect,
   onVisibleItemsChange,
+  toolbar,
+  hideSortGroup = false,
+  showFiltersButton = true,
+  filterDrawerOpened,
+  onFilterDrawerOpenedChange,
 }: DishCatalogProps) {
   const { t, bcp47 } = useLocalization()
-  const [filterDrawerOpened, setFilterDrawerOpened] = useState(false)
+  const [internalFilterOpened, setInternalFilterOpened] = useState(false)
+  const filtersOpen = filterDrawerOpened ?? internalFilterOpened
+  const setFiltersOpen = (opened: boolean) => {
+    onFilterDrawerOpenedChange?.(opened)
+    if (filterDrawerOpened === undefined) setInternalFilterOpened(opened)
+  }
   const tagFacets = useMemo(
     () =>
       uniqueTagFacets(items, tagNamesById, {
@@ -250,7 +287,7 @@ export function DishCatalog({
       }),
     [items, tagNamesById, archivedTagIds, filters.tagIds],
   )
-  const extraFilters = activeFilterCount(filters, showSuggestedFilter)
+  const extraFilters = catalogActiveFilterCount(filters, showSuggestedFilter)
 
   const visibleLeftovers = useMemo(() => {
     const q = filters.query.trim()
@@ -294,9 +331,15 @@ export function DishCatalog({
     [sortedItems, searching, showSuggestedFilter, showGroupControl, group, pickerSections],
   )
 
+  const visibleSignature = sortedItems
+    .map((item) => `${item.key}:${item.tagIds.join(',')}`)
+    .join('|')
+
   useEffect(() => {
     onVisibleItemsChange?.(sortedItems)
-  }, [sortedItems, onVisibleItemsChange])
+    // sortedItems is represented by visibleSignature so identical catalogs do not loop setState.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleSignature, onVisibleItemsChange])
 
   const setFilters = (patch: Partial<DishCatalogFilters>) => {
     onFiltersChange({ ...filters, ...patch })
@@ -389,11 +432,17 @@ export function DishCatalog({
     })
   }
 
-  const list = (
-    <Stack gap="md">
+  const list = loading ? (
+    <Stack gap={8}>
+      {[0, 1, 2, 3].map((i) => (
+        <Skeleton key={i} height={64} radius="md" />
+      ))}
+    </Stack>
+  ) : (
+    <Stack gap={0}>
       {visibleLeftovers.length > 0 && (
         <Stack gap={8}>
-          <Text size="xs" fw={700} tt="uppercase" c="teal">
+          <Text size="xs" fw={700} tt="uppercase" c="secondary">
             {t('catalog.leftoversThisWeek')}
           </Text>
           {visibleLeftovers.map((item) => (
@@ -403,8 +452,9 @@ export function DishCatalog({
       )}
 
       {groups.length === 0 && visibleLeftovers.length === 0 && (
-        <Stack gap={4}>
-          <Text size="sm" c="dimmed">
+        <Stack gap={6} align="center" py="md">
+          <MagnifyingGlass size={28} style={{ color: 'var(--mantine-color-dimmed)' }} />
+          <Text size="sm" c="dimmed" ta="center">
             {extraFilters > 0
               ? t('empty.noFilterMatch')
               : filters.cleanup
@@ -412,7 +462,7 @@ export function DishCatalog({
                 : (emptyMessage ?? t('empty.noFilterMatch'))}
           </Text>
           {extraFilters > 0 && (
-            <Button size="compact-xs" variant="subtle" onClick={clearFilters} w="fit-content">
+            <Button size="compact-xs" variant="subtle" onClick={clearFilters}>
               {t('catalog.clearFilters')}
             </Button>
           )}
@@ -422,7 +472,7 @@ export function DishCatalog({
       {groups.map((catalogGroup) => (
         <Stack key={catalogGroup.id} gap={8}>
           {catalogGroup.id !== 'ungrouped' && catalogGroup.id !== 'results' && (
-            <Text size="xs" fw={700} tt="uppercase" c="dimmed">
+            <Text size="xs" fw={700} tt="uppercase" c="dimmed" pt="sm" pb={4}>
               {catalogGroupHeading(t, catalogGroup.id, catalogGroup.title || undefined)}
             </Text>
           )}
@@ -448,30 +498,35 @@ export function DishCatalog({
         value={filters.query}
         onChange={(event) => setFilters({ query: event.currentTarget.value })}
         data-autofocus={layout === 'modal'}
+        leftSection={<MagnifyingGlass size={16} />}
       />
 
-      <Group gap="xs" wrap="wrap">
-        <Select
-          size="xs"
-          w={160}
-          data={catalogSortOptions(t)}
-          value={sort}
-          onChange={(value) => value && onSortChange(value as CatalogSort)}
-          aria-label={t('catalog.sortBy')}
-          allowDeselect={false}
-        />
-        {showGroupControl && (
+      {!hideSortGroup && (
+        <Group gap="xs" wrap="wrap">
           <Select
             size="xs"
             w={160}
-            data={catalogGroupOptions(t)}
-            value={group ?? 'none'}
-            onChange={(value) => value && onGroupChange?.(value as CatalogGroup)}
-            aria-label={t('catalog.groupBy')}
+            data={catalogSortOptions(t)}
+            value={sort}
+            onChange={(value) => value && onSortChange(value as CatalogSort)}
+            aria-label={t('catalog.sortBy')}
             allowDeselect={false}
           />
-        )}
-      </Group>
+          {showGroupControl && (
+            <Select
+              size="xs"
+              w={160}
+              data={catalogGroupOptions(t)}
+              value={group ?? 'none'}
+              onChange={(value) => value && onGroupChange?.(value as CatalogGroup)}
+              aria-label={t('catalog.groupBy')}
+              allowDeselect={false}
+            />
+          )}
+        </Group>
+      )}
+
+      {toolbar}
 
       <Group gap="xs" justify="space-between" wrap="nowrap" align="center">
         <Group gap={6} wrap="wrap" style={{ flex: 1, minWidth: 0 }}>
@@ -482,7 +537,10 @@ export function DishCatalog({
               checked={filters.suggestedOnly}
               onChange={() => setFilters({ suggestedOnly: !filters.suggestedOnly })}
             >
-              {t('catalog.group.suggested')}
+              <Group gap={4} wrap="nowrap">
+                <Sparkle size={12} />
+                {t('catalog.group.suggested')}
+              </Group>
             </Chip>
           )}
           {appliedChips.map((chip) => (
@@ -509,22 +567,24 @@ export function DishCatalog({
             </Button>
           )}
         </Group>
-        <Button
-          size="compact-xs"
-          variant="default"
-          radius="sm"
-          leftSection={<Sliders size={14} />}
-          onClick={() => setFilterDrawerOpened(true)}
-        >
-          {extraFilters > 0
-            ? t('catalog.filtersCount', { count: extraFilters })
-            : t('catalog.filters')}
-        </Button>
+        {showFiltersButton && (
+          <Button
+            size="compact-sm"
+            variant="default"
+            radius="md"
+            leftSection={<Sliders size={14} />}
+            onClick={() => setFiltersOpen(true)}
+          >
+            {extraFilters > 0
+              ? t('catalog.filtersCount', { count: extraFilters })
+              : t('catalog.filters')}
+          </Button>
+        )}
       </Group>
 
       <FilterDrawer
-        opened={filterDrawerOpened}
-        onClose={() => setFilterDrawerOpened(false)}
+        opened={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
         appliedFilters={filters}
         onApply={onFiltersChange}
         items={items}

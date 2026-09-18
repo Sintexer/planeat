@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react'
 import {
   DEFAULT_MEASUREMENT_PREFERENCE,
   DEFAULT_UI_LOCALE,
@@ -32,19 +32,24 @@ export function LocalizationProvider({ children }: { children: ReactNode }) {
   const settings = useSettings()
   const locale = settings?.uiLocale ?? DEFAULT_UI_LOCALE
   const measurementPreference = settings?.measurementPreference ?? DEFAULT_MEASUREMENT_PREFERENCE
-  const t = bindT(locale)
-  const value: LocalizationValue = {
-    locale,
-    bcp47: UI_LOCALE_BCP47[locale],
-    measurementPreference,
-    t,
-    tPlural: bindTPlural(locale),
-  }
+  const t = useMemo(() => bindT(locale), [locale])
+  const tPlural = useMemo(() => bindTPlural(locale), [locale])
+  const bcp47 = UI_LOCALE_BCP47[locale]
+  const value = useMemo(
+    (): LocalizationValue => ({
+      locale,
+      bcp47,
+      measurementPreference,
+      t,
+      tPlural,
+    }),
+    [locale, bcp47, measurementPreference, t, tPlural],
+  )
 
   useEffect(() => {
-    document.documentElement.lang = UI_LOCALE_BCP47[locale]
+    document.documentElement.lang = bcp47
     document.title = t('app.title')
-  }, [locale, t])
+  }, [bcp47, t])
 
   return <LocalizationContext.Provider value={value}>{children}</LocalizationContext.Provider>
 }

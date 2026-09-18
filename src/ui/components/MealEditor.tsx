@@ -1,5 +1,27 @@
-import { Alert, Button, Group, Modal, Stack, Text, TextInput, ActionIcon } from '@mantine/core'
-import { Calendar, PencilSimple, Trash } from '@phosphor-icons/react'
+import {
+  Alert,
+  Button,
+  Group,
+  Menu,
+  Modal,
+  Paper,
+  Skeleton,
+  Stack,
+  Text,
+  TextInput,
+  ActionIcon,
+} from '@mantine/core'
+import {
+  BookmarkSimple,
+  Calendar,
+  DotsThreeVertical,
+  ForkKnife,
+  PencilSimple,
+  Plus,
+  Star,
+  Trash,
+  Warning,
+} from '@phosphor-icons/react'
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import { useMemo, useState } from 'react'
@@ -45,7 +67,9 @@ function openOverAllocationChoices(args: {
     title: args.title ?? t('meal.overAllocTitle'),
     children: (
       <Stack gap="sm">
-        <Text size="sm">{t('meal.overAllocBody')}</Text>
+        <Alert color="warning" icon={<Warning size={16} />}>
+          {t('meal.overAllocBody')}
+        </Alert>
         <Button
           onClick={() => {
             modals.closeAll()
@@ -96,6 +120,8 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
   const [outputValue, setOutputValue] = useState<number | ''>('')
   const [outputUnit, setOutputUnit] = useState('piece')
   const [prepDate, setPrepDate] = useState(slot.date)
+  const [savingAllocation, setSavingAllocation] = useState(false)
+  const [savingPrep, setSavingPrep] = useState(false)
 
   const toFavoriteComponents = (): FavoriteComponent[] => {
     const result: FavoriteComponent[] = []
@@ -122,7 +148,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
   const saveAsFavorite = () => {
     const favoriteComponents = toFavoriteComponents()
     if (favoriteComponents.length === 0) {
-      notifications.show({ message: t('meal.favoriteNeedComponents'), color: 'yellow' })
+      notifications.show({ message: t('meal.favoriteNeedComponents'), color: 'warning' })
       return
     }
     modals.open({
@@ -227,7 +253,9 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
   const saveAllocation = async () => {
     if (!editComponentId || typeof allocValue !== 'number') return
     const allocatedQuantity = { value: allocValue, unit: allocUnit }
+    setSavingAllocation(true)
     const result = await planService.updateComponentAllocation(editComponentId, allocatedQuantity)
+    setSavingAllocation(false)
     if (!result.ok) {
       if (result.error === 'over-allocated') {
         const item = components.find((c) => c.component.id === editComponentId)
@@ -319,10 +347,12 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
 
   const savePrep = async () => {
     if (!editEventId || typeof outputValue !== 'number') return
+    setSavingPrep(true)
     const result = await planService.updateCookingEvent(editEventId, {
       outputQuantity: { value: outputValue, unit: outputUnit },
       scheduledDate: prepDate,
     })
+    setSavingPrep(false)
     if (!result.ok) {
       notifications.show({ message: planErrorMessage(t, result.error), color: 'error' })
       return
@@ -528,7 +558,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
       >
         <Stack gap="sm">
           {unusedWarnings.length > 0 && (
-            <Alert color="yellow" title={t('meal.unallocatedPrep')}>
+            <Alert color="warning" icon={<Warning size={16} />} title={t('meal.unallocatedPrep')}>
               {unusedWarnings.map((line) => (
                 <Text key={line} size="sm">
                   {line}
@@ -538,18 +568,16 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
           )}
 
           {components.length === 0 && (
-            <Text size="sm" c="dimmed">
-              {t('meal.noComponents')}
-            </Text>
+            <Stack gap={6} align="center" py="md">
+              <ForkKnife size={28} style={{ color: 'var(--mantine-color-dimmed)' }} />
+              <Text size="sm" c="dimmed" ta="center">
+                {t('meal.noComponents')}
+              </Text>
+            </Stack>
           )}
 
           {components.map((item) => (
-            <Stack
-              key={item.component.id}
-              gap={4}
-              p="xs"
-              style={{ border: '1px solid var(--mantine-color-default-border)', borderRadius: 8 }}
-            >
+            <Paper key={item.component.id} withBorder radius="md" p="xs">
               <Group justify="space-between" wrap="nowrap" align="flex-start">
                 <Stack gap={0} style={{ minWidth: 0, flex: 1 }}>
                   <Text size="sm" fw={600}>
@@ -592,74 +620,113 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                   </ActionIcon>
                 </Group>
               </Group>
-            </Stack>
+            </Paper>
           ))}
 
           {editComponentId && (
-            <Stack gap="xs" p="sm" bg="gray.0" style={{ borderRadius: 8 }}>
-              <Text size="sm" fw={600}>
-                {t('meal.editAllocation')}
-              </Text>
-              <QuantityFields
-                value={allocValue}
-                unit={allocUnit}
-                onValueChange={setAllocValue}
-                onUnitChange={setAllocUnit}
-                min={0.001}
-              />
-              <Group>
-                <Button size="xs" onClick={() => void saveAllocation()}>
-                  {t('action.save')}
-                </Button>
-                <Button size="xs" variant="default" onClick={() => setEditComponentId(undefined)}>
-                  {t('action.cancel')}
-                </Button>
-              </Group>
-            </Stack>
+            <Paper
+              p="sm"
+              radius="md"
+              withBorder
+              style={{ borderColor: 'var(--mantine-color-primary-filled)' }}
+            >
+              <Stack gap="xs">
+                <Text size="sm" fw={600}>
+                  {t('meal.editAllocation')}
+                </Text>
+                <QuantityFields
+                  value={allocValue}
+                  unit={allocUnit}
+                  onValueChange={setAllocValue}
+                  onUnitChange={setAllocUnit}
+                  min={0.001}
+                />
+                <Group>
+                  <Button
+                    size="xs"
+                    loading={savingAllocation}
+                    onClick={() => void saveAllocation()}
+                  >
+                    {t('action.save')}
+                  </Button>
+                  <Button size="xs" variant="default" onClick={() => setEditComponentId(undefined)}>
+                    {t('action.cancel')}
+                  </Button>
+                </Group>
+              </Stack>
+            </Paper>
           )}
 
           {editEventId && (
-            <Stack gap="xs" p="sm" bg="gray.0" style={{ borderRadius: 8 }}>
-              <Text size="sm" fw={600}>
-                {t('meal.editPreparation')}
-              </Text>
-              <QuantityFields
-                valueLabel={t('picker.totalOutput')}
-                value={outputValue}
-                unit={outputUnit}
-                onValueChange={setOutputValue}
-                onUnitChange={setOutputUnit}
-                min={0.001}
-              />
-              <TextInput
-                label={t('picker.prepDate')}
-                type="date"
-                value={prepDate}
-                onChange={(e) => setPrepDate(e.currentTarget.value)}
-              />
-              <Group>
-                <Button size="xs" onClick={() => void savePrep()}>
-                  {t('action.save')}
-                </Button>
-                <Button size="xs" variant="default" onClick={() => setEditEventId(undefined)}>
-                  {t('action.cancel')}
-                </Button>
-              </Group>
-            </Stack>
+            <Paper
+              p="sm"
+              radius="md"
+              withBorder
+              style={{ borderColor: 'var(--mantine-color-primary-filled)' }}
+            >
+              <Stack gap="xs">
+                <Text size="sm" fw={600}>
+                  {t('meal.editPreparation')}
+                </Text>
+                <QuantityFields
+                  valueLabel={t('picker.totalOutput')}
+                  value={outputValue}
+                  unit={outputUnit}
+                  onValueChange={setOutputValue}
+                  onUnitChange={setOutputUnit}
+                  min={0.001}
+                />
+                <TextInput
+                  label={t('picker.prepDate')}
+                  type="date"
+                  value={prepDate}
+                  onChange={(e) => setPrepDate(e.currentTarget.value)}
+                />
+                <Group>
+                  <Button size="xs" loading={savingPrep} onClick={() => void savePrep()}>
+                    {t('action.save')}
+                  </Button>
+                  <Button size="xs" variant="default" onClick={() => setEditEventId(undefined)}>
+                    {t('action.cancel')}
+                  </Button>
+                </Group>
+              </Stack>
+            </Paper>
           )}
 
-          <Button onClick={() => setAddOpen(true)}>{t('meal.addComponent')}</Button>
-          {components.length > 0 && (
-            <Button variant="light" onClick={saveAsFavorite}>
-              {t('meal.saveFavorite')}
+          <Button leftSection={<Plus size={16} />} onClick={() => setAddOpen(true)}>
+            {t('meal.addComponent')}
+          </Button>
+          <Group gap="xs" wrap="nowrap">
+            <Menu shadow="md" width={220} position="top-start">
+              <Menu.Target>
+                <Button
+                  variant="subtle"
+                  color="dark"
+                  style={{ flex: 1 }}
+                  leftSection={<DotsThreeVertical size={16} />}
+                >
+                  {t('meal.moreActions')}
+                </Button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                {components.length > 0 && (
+                  <Menu.Item leftSection={<BookmarkSimple size={16} />} onClick={saveAsFavorite}>
+                    {t('meal.saveFavorite')}
+                  </Menu.Item>
+                )}
+                <Menu.Item
+                  leftSection={<Star size={16} />}
+                  onClick={() => setInsertFavoriteOpen(true)}
+                >
+                  {t('meal.insertFavorite')}
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+            <Button variant="default" style={{ flex: 1 }} onClick={onClose}>
+              {t('recipes.done')}
             </Button>
-          )}
-          <Button variant="light" onClick={() => setInsertFavoriteOpen(true)}>
-            {t('meal.insertFavorite')}
-          </Button>
-          <Button variant="default" onClick={onClose}>
-            {t('recipes.done')}
-          </Button>
+          </Group>
         </Stack>
       </Modal>
 
@@ -670,10 +737,19 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
         centered
       >
         <Stack gap="xs">
-          {(favorites?.length ?? 0) === 0 && (
-            <Text size="sm" c="dimmed">
-              {t('meal.noFavorites')}
-            </Text>
+          {favorites === undefined && (
+            <Stack gap={6}>
+              <Skeleton height={36} radius="md" />
+              <Skeleton height={36} radius="md" />
+            </Stack>
+          )}
+          {favorites?.length === 0 && (
+            <Stack gap={6} align="center" py="md">
+              <Star size={28} style={{ color: 'var(--mantine-color-dimmed)' }} />
+              <Text size="sm" c="dimmed" ta="center">
+                {t('meal.noFavorites')}
+              </Text>
+            </Stack>
           )}
           {favorites?.map((favorite) => (
             <Group key={favorite.id} justify="space-between" wrap="nowrap">

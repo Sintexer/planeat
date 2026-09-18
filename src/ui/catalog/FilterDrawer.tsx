@@ -1,4 +1,15 @@
-import { Button, Chip, Drawer, Group, MultiSelect, NumberInput, Stack, Text } from '@mantine/core'
+import {
+  Button,
+  Chip,
+  Divider,
+  Drawer,
+  Group,
+  MultiSelect,
+  NumberInput,
+  Stack,
+  Text,
+} from '@mantine/core'
+import { BowlFood, Carrot, Clock, Hash, Sun, Tag, Timer } from '@phosphor-icons/react'
 import { useState, type ReactNode } from 'react'
 import { EFFORT_LEVELS, MEAL_TYPES, RECIPE_ROLES } from '../../domain/shared/MealEnums'
 import { useLocalization } from '../localization/LocalizationContext'
@@ -12,12 +23,23 @@ import {
   type TagFacet,
 } from './catalogModel'
 
-function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
+function FilterGroup({
+  label,
+  icon,
+  children,
+}: {
+  label: string
+  icon?: ReactNode
+  children: ReactNode
+}) {
   return (
     <Stack gap={6}>
-      <Text size="xs" fw={700} c="dimmed" tt="uppercase">
-        {label}
-      </Text>
+      <Group gap={4}>
+        {icon}
+        <Text size="xs" fw={700} c="dimmed" tt="uppercase">
+          {label}
+        </Text>
+      </Group>
       <Group gap={6} wrap="wrap">
         {children}
       </Group>
@@ -61,9 +83,9 @@ export function FilterDrawer({
 }: FilterDrawerProps) {
   const { t, tPlural } = useLocalization()
   const [draft, setDraft] = useState<DishCatalogFilters>(appliedFilters)
-  const [wasOpened, setWasOpened] = useState(opened)
-  if (opened !== wasOpened) {
-    setWasOpened(opened)
+  const [draftForOpen, setDraftForOpen] = useState(false)
+  if (opened !== draftForOpen) {
+    setDraftForOpen(opened)
     if (opened) setDraft(appliedFilters)
   }
 
@@ -114,7 +136,7 @@ export function FilterDrawer({
       <Stack gap="md" justify="space-between" h="100%">
         <Stack gap="sm" style={{ overflowY: 'auto' }}>
           {showKindFilter && (
-            <FilterGroup label={t('filter.type')}>
+            <FilterGroup label={t('filter.type')} icon={<Tag size={13} />}>
               <Chip
                 size="xs"
                 radius="sm"
@@ -136,7 +158,7 @@ export function FilterDrawer({
             </FilterGroup>
           )}
 
-          <FilterGroup label={t('filter.occasion')}>
+          <FilterGroup label={t('filter.occasion')} icon={<Sun size={13} />}>
             <Chip.Group
               multiple
               value={draft.mealTypes}
@@ -150,7 +172,7 @@ export function FilterDrawer({
             </Chip.Group>
           </FilterGroup>
 
-          <FilterGroup label={t('filter.role')}>
+          <FilterGroup label={t('filter.role')} icon={<BowlFood size={13} />}>
             <Chip.Group
               multiple
               value={draft.roles}
@@ -164,7 +186,7 @@ export function FilterDrawer({
             </Chip.Group>
           </FilterGroup>
 
-          <FilterGroup label={t('filter.effort')}>
+          <FilterGroup label={t('filter.effort')} icon={<Timer size={13} />}>
             {EFFORT_LEVELS.map((effort) => (
               <Chip
                 key={effort}
@@ -178,9 +200,12 @@ export function FilterDrawer({
             ))}
           </FilterGroup>
 
+          <Divider label={t('filter.advanced')} labelPosition="left" />
+
           <NumberInput
             label={t('filter.maxTime')}
             description={t('filter.maxTimeHelp')}
+            leftSection={<Clock size={14} />}
             min={1}
             value={draft.maxTotalTimeMinutes}
             onChange={(next) =>
@@ -190,6 +215,12 @@ export function FilterDrawer({
 
           {ingredientOptions.length > 0 && (
             <Stack gap="sm">
+              <Group gap={4}>
+                <Carrot size={13} style={{ color: 'var(--mantine-color-dimmed)' }} />
+                <Text size="xs" fw={700} c="dimmed" tt="uppercase">
+                  {t('filter.ingredients')}
+                </Text>
+              </Group>
               <MultiSelect
                 label={t('filter.containsIngredient')}
                 placeholder={t('filter.pickCatalog')}
@@ -225,14 +256,14 @@ export function FilterDrawer({
           )}
 
           {tagFacets.length > 0 && (
-            <FilterGroup label={t('filter.tags')}>
+            <FilterGroup label={t('filter.tags')} icon={<Hash size={13} />}>
               <Chip.Group
                 multiple
                 value={draft.tagIds}
                 onChange={(value) => setDraftPatch({ tagIds: value as typeof draft.tagIds })}
               >
                 {tagFacets.map((tag) => (
-                  <Chip key={tag.id} size="xs" radius="xl" value={tag.id}>
+                  <Chip key={tag.id} size="xs" radius="sm" value={tag.id}>
                     {tag.name}
                   </Chip>
                 ))}

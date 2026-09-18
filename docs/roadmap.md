@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped through **Sprint 27C**. Optional Phase 4 follow-ups remain. Full cards and Status log: [`docs/sprints/plan.md`](sprints/plan.md).
+Shipped through **Sprint 27C**. Next sequenced work is **Phase 7** (automatic meal planning, Sprint 28). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
 
 ## Done — project initialization
 
@@ -120,6 +120,19 @@ Shipped through **Sprint 27C**. Optional Phase 4 follow-ups remain. Full cards a
 - Message catalog, interpolation, plurals, and locale-aware dates/week labels.
 - Russian UI language with an explicit Settings control. Household-authored content is not auto-translated.
 
-## Later (optional Phase 4 follow-ups)
+## Next — Phase 7 automatic meal planning (Sprints 28–38)
 
-Still out of scope unless separately backlogged: automatic weekly generation, backends, nutrition/barcode databases, food ontologies, pantry accounting, additional languages, local photo uploads.
+Local, explainable generation. Proposals only; apply through existing cooking events; grocery lists stay manual. No backend or LLM.
+
+| Gate                     | Sprints | Capability                                       |
+| ------------------------ | ------- | ------------------------------------------------ |
+| Initial generator        | 28–29   | Fill empty meals with preview and explicit apply |
+| Preference-aware planner | 30–32   | Hard restrictions and week-level search          |
+| Household meal planner   | 33–35   | Known compositions, leftovers, bounded batches   |
+| Core-feature release     | 36–38   | Locks, presets, performance hardening            |
+
+Start household trials on proposals from Sprint 29. Details: [`sprints/generation.md`](sprints/generation.md).
+
+## Later (still out of Phase 7)
+
+Still out of scope unless separately backlogged: backends and sync, nutrition/barcode databases, food ontologies, pantry accounting, additional languages beyond English/Russian, local photo uploads, inferred culinary pairings, automatic grocery updates, cross-week leftover inventory.

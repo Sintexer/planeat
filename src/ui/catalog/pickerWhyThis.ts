@@ -37,6 +37,19 @@ export function pickerWhyThisCopy(args: {
   return { type: 'kind', kind: args.kind }
 }
 
+export type ReasonBadgeCopy = { type: 'pairing' | 'favorite'; label: string }
+
+/** Surfaces the two "smart suggestion" reasons as a short badge, distinct
+ * from the generic subtitle prose that {@link formatWhyThis} produces. */
+export function reasonBadgeCopy(
+  t: Translate,
+  reason?: SuggestionCandidate['reason'],
+): ReasonBadgeCopy | undefined {
+  if (reason === 'pairing') return { type: 'pairing', label: t('picker.pairedBadge') }
+  if (reason === 'favorite') return { type: 'favorite', label: t('picker.favoriteBadge') }
+  return undefined
+}
+
 export function formatWhyThis(t: Translate, copy: WhyThisCopy): string {
   if (copy.type === 'pairing') {
     return copy.partner

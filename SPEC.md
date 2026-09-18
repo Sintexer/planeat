@@ -1,8 +1,8 @@
-Implementation status (what is shipped, what to build next) is in [`docs/sprints/plan.md`](docs/sprints/plan.md) (Status section) and [`docs/roadmap.md`](docs/roadmap.md). This file is the original product-rules document, not a live sprint board.
+Implementation status (what is shipped, what to build next) is in [`docs/sprints/plan.md`](docs/sprints/plan.md) (Status section) and [`docs/roadmap.md`](docs/roadmap.md). Phase 7 automatic-planning cards are in [`docs/sprints/generation.md`](docs/sprints/generation.md). This file is the original product-rules document, not a live sprint board.
 
 We have enough decisions to draft the MVP.
 
-**The main scope change: this first version is an offline, manual meal planner—not an automatic weekly planner.** It will establish recipes, component meals, batch preparation, and grocery lists. Automatic generation will come later, using the same model.
+**The main scope change for the first version was an offline, manual meal planner—not an automatic weekly planner.** It established recipes, component meals, batch preparation, and grocery lists. Automatic generation is now sequenced as Phase 7 (Sprints 28–38), using that same model: proposals only, existing cooking-event writes, no backend or LLM.
 
 # 1. MVP definition
 
@@ -23,9 +23,9 @@ We have enough decisions to draft the MVP.
 - Independent, editable grocery-list objects.
 - JSON backup and restore.
 
-### Explicitly excluded
+### Explicitly excluded from the original MVP
 
-- Automatic weekly generation.
+- Automatic weekly generation. _(Sequenced later as Phase 7; still excluded from the manual-planner MVP definition.)_
 - Backend, accounts, and device synchronization.
 - Pantry inventory, expiry dates, and “use soon.”
 - Actual cooking, consumption, or remaining-food tracking.
@@ -621,29 +621,29 @@ For MVP, restore can **replace all local data after a validated preflight confir
 
 Moved to [`docs/sprints/plan.md`](docs/sprints/plan.md).
 
-Upcoming sprints (library organization, measurements, planning/shopping) are in [`docs/sprints/plan.md`](docs/sprints/plan.md). Evolve the existing app; do not rebuild it. Detailed cards exist for Sprints 7–9; 10–22 are sequenced backlog.
+Upcoming sprints (automatic meal planning) are in [`docs/sprints/generation.md`](docs/sprints/generation.md). Status of shipped work is in [`docs/sprints/plan.md`](docs/sprints/plan.md). Evolve the existing app; do not rebuild it.
 
 ---
 
 # 8. Deferred roadmap
 
-| Feature                              | Foundation already provided                                    |
-| ------------------------------------ | -------------------------------------------------------------- |
-| Automatic weekly generation          | Roles, compatibility, preferences, cooking events, allocations |
-| Actual cooked/eaten tracking         | Separate cooking events and meal components                    |
-| Refrigerator/freezer inventory       | Planned output can later be distinguished from actual batches  |
-| Cross-week leftovers                 | Explicit batch references                                      |
-| Nutrition and individual portions    | Quantified yields and component allocations                    |
-| Diet/allergen constraints            | Canonical ingredients and recipe metadata                      |
-| Novelty/untried-recipe limits        | Recipe history and tags                                        |
-| Reliable URL importing               | Separate importer interface                                    |
-| Cross-device synchronization         | Stable IDs and repository boundary                             |
-| Pantry subtraction and package sizes | Ingredient catalog and grocery-generation service              |
-| Nutrition databases (USDA, etc.)     | Quantified yields; no runtime food-DB in Sprints 7–9           |
-| Barcodes / Open Food Facts           | Packaged-product identity is not required yet                  |
-| FoodOn / general food ontology       | Small app-owned vocabularies are enough                        |
-| Photos as portable blobs             | Optional `photoUrl` only; bytes not in backups                 |
-| Recipe-library coverage research     | Meal types, roles, and reusable combinations                   |
+| Feature                              | Foundation already provided                                                             |
+| ------------------------------------ | --------------------------------------------------------------------------------------- |
+| Automatic weekly generation          | Phase 7: roles, preferences, cooking events, allocations (`docs/sprints/generation.md`) |
+| Actual cooked/eaten tracking         | Separate cooking events and meal components                                             |
+| Refrigerator/freezer inventory       | Planned output can later be distinguished from actual batches                           |
+| Cross-week leftovers                 | Explicit batch references                                                               |
+| Nutrition and individual portions    | Quantified yields and component allocations                                             |
+| Diet/allergen constraints            | Canonical ingredients and recipe metadata                                               |
+| Novelty/untried-recipe limits        | Recipe history and tags                                                                 |
+| Reliable URL importing               | Separate importer interface                                                             |
+| Cross-device synchronization         | Stable IDs and repository boundary                                                      |
+| Pantry subtraction and package sizes | Ingredient catalog and grocery-generation service                                       |
+| Nutrition databases (USDA, etc.)     | Quantified yields; no runtime food-DB in Sprints 7–9                                    |
+| Barcodes / Open Food Facts           | Packaged-product identity is not required yet                                           |
+| FoodOn / general food ontology       | Small app-owned vocabularies are enough                                                 |
+| Photos as portable blobs             | Optional `photoUrl` only; bytes not in backups                                          |
+| Recipe-library coverage research     | Meal types, roles, and reusable combinations                                            |
 
 ## Two provisional details
 

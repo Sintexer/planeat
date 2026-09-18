@@ -1,4 +1,4 @@
-import { ActionIcon, Group, Stack, Title } from '@mantine/core'
+import { ActionIcon, Group, Stack, Text, Title } from '@mantine/core'
 import { CaretLeft } from '@phosphor-icons/react'
 import type { ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router'
@@ -58,16 +58,29 @@ export function ScreenHeader({ title, fallbackTo, actions }: ScreenHeaderProps) 
 
 interface PageTitleProps {
   children: ReactNode
+  subtitle?: ReactNode
   actions?: ReactNode
 }
 
 /** Large in-content title for tab root screens (no back). */
-export function PageTitle({ children, actions }: PageTitleProps) {
+export function PageTitle({ children, subtitle, actions }: PageTitleProps) {
+  const title = (
+    <Title order={1} style={{ fontSize: 30, lineHeight: 1.2, margin: '4px 0 0' }}>
+      {children}
+    </Title>
+  )
   return (
     <Group justify="space-between" align="flex-start" wrap="nowrap" gap="sm" mb={4}>
-      <Title order={1} style={{ fontSize: 30, lineHeight: 1.2, margin: '4px 0 0' }}>
-        {children}
-      </Title>
+      {subtitle ? (
+        <Stack gap={2} style={{ minWidth: 0, flex: 1 }}>
+          {title}
+          <Text size="sm" c="dimmed">
+            {subtitle}
+          </Text>
+        </Stack>
+      ) : (
+        title
+      )}
       {actions ? (
         <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
           {actions}

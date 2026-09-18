@@ -120,22 +120,36 @@ export function SettingsScreen() {
     },
   })
 
+  const preferredPrepDaysKey = settings?.preferredBatchPrepDays.join(',') ?? ''
+  const quickMealsDaysKey = settings?.quickMealsOnlyDays.join(',') ?? ''
+
   useEffect(() => {
-    if (settings) {
-      form.setValues({
-        householdSize: settings.householdSize,
-        weekStartDay: String(settings.weekStartDay),
-        maxBatchPrepUnits: settings.maxBatchPrepUnits,
-        preferredBatchPrepDays: settings.preferredBatchPrepDays.map(String),
-        quickMealsOnlyDays: settings.quickMealsOnlyDays.map(String),
-        avoidMultipleDemandingPreps: settings.avoidMultipleDemandingPreps,
-        favorVegetablesDaily: settings.favorVegetablesDaily,
-        uiLocale: settings.uiLocale,
-        measurementPreference: settings.measurementPreference,
-      })
-    }
+    if (!settings) return
+    form.setValues({
+      householdSize: settings.householdSize,
+      weekStartDay: String(settings.weekStartDay),
+      maxBatchPrepUnits: settings.maxBatchPrepUnits,
+      preferredBatchPrepDays: settings.preferredBatchPrepDays.map(String),
+      quickMealsOnlyDays: settings.quickMealsOnlyDays.map(String),
+      avoidMultipleDemandingPreps: settings.avoidMultipleDemandingPreps,
+      favorVegetablesDaily: settings.favorVegetablesDaily,
+      uiLocale: settings.uiLocale,
+      measurementPreference: settings.measurementPreference,
+    })
+    // Hydrate from stored fields, not the liveQuery object identity (a new
+    // mergeSettingsDefaults result every emit would retrigger setValues forever).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings])
+  }, [
+    preferredPrepDaysKey,
+    quickMealsDaysKey,
+    settings?.householdSize,
+    settings?.weekStartDay,
+    settings?.maxBatchPrepUnits,
+    settings?.avoidMultipleDemandingPreps,
+    settings?.favorVegetablesDaily,
+    settings?.uiLocale,
+    settings?.measurementPreference,
+  ])
 
   const handleSubmit = form.onSubmit(async (values) => {
     const weekStartDay = Number(values.weekStartDay) as WeekStartDay

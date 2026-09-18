@@ -11,6 +11,10 @@ export const enPlurals = {
     one: '{count} selected',
     other: '{count} selected',
   },
+  'catalog.itemCount': {
+    one: '{count} item',
+    other: '{count} items',
+  },
   'import.ingredientLines': {
     one: '{count} ingredient line',
     other: '{count} ingredient lines',

@@ -1,4 +1,5 @@
 import { Alert, Stack } from '@mantine/core'
+import { Info, Warning } from '@phosphor-icons/react'
 import type { SoftPrompt } from '../../domain/plans/softPrompts'
 import { useLocalization } from '../localization/LocalizationContext'
 import type { Translate } from '../localization/t'
@@ -42,7 +43,9 @@ export function SoftPromptAlerts({
         return (
           <Alert
             key={prompt.id}
-            color={prompt.severity === 'warning' ? 'yellow' : 'blue'}
+            color={prompt.severity === 'warning' ? 'warning' : 'dark'}
+            variant="light"
+            icon={prompt.severity === 'warning' ? <Warning size={16} /> : <Info size={16} />}
             title={prompt.severity === 'warning' ? t('prompt.warningTitle') : t('prompt.infoTitle')}
           >
             {text}

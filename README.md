@@ -4,20 +4,21 @@ Local-first family menu planner: seven-day meals, reusable prep, grocery lists, 
 
 ## Key Project Documentation
 
-| Document                                           | Description                                                                                               |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| [README.md](README.md)                             | This file — the developer front door                                                                      |
-| [AGENTS.md](AGENTS.md)                             | Commands, layering rules, conventions, and the libraries table — canonical agent/contributor instructions |
-| [CLAUDE.md](CLAUDE.md)                             | Alias for Claude Code; imports `AGENTS.md` verbatim                                                       |
-| [docs/architecture.md](docs/architecture.md)       | Stack, layers, library constraints, and design decisions                                                  |
-| [docs/data-model.md](docs/data-model.md)           | Dexie schema and backup format version history                                                            |
-| [docs/functional-spec.md](docs/functional-spec.md) | Screen-by-screen current product behavior                                                                 |
-| [docs/testing.md](docs/testing.md)                 | Test tooling, conventions, and how to run a single test                                                   |
-| [docs/DESIGN.md](docs/DESIGN.md)                   | UI conventions, Mantine theme, and component patterns                                                     |
-| [deployment/README.md](deployment/README.md)       | Building and hosting the static PWA output                                                                |
-| [docs/sprints/plan.md](docs/sprints/plan.md)       | Sprint cards and **what to build next** (Status at the bottom)                                            |
-| [docs/roadmap.md](docs/roadmap.md)                 | Phase-level shipped vs remaining                                                                          |
-| [SPEC.md](SPEC.md)                                 | Original product rules (MVP definition and domain rules)                                                  |
+| Document                                                 | Description                                                                                               |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| [README.md](README.md)                                   | This file — the developer front door                                                                      |
+| [AGENTS.md](AGENTS.md)                                   | Commands, layering rules, conventions, and the libraries table — canonical agent/contributor instructions |
+| [CLAUDE.md](CLAUDE.md)                                   | Alias for Claude Code; imports `AGENTS.md` verbatim                                                       |
+| [docs/architecture.md](docs/architecture.md)             | Stack, layers, library constraints, and design decisions                                                  |
+| [docs/data-model.md](docs/data-model.md)                 | Dexie schema and backup format version history                                                            |
+| [docs/functional-spec.md](docs/functional-spec.md)       | Screen-by-screen current product behavior                                                                 |
+| [docs/testing.md](docs/testing.md)                       | Test tooling, conventions, and how to run a single test                                                   |
+| [docs/DESIGN.md](docs/DESIGN.md)                         | UI conventions, Mantine theme, and component patterns                                                     |
+| [deployment/README.md](deployment/README.md)             | Building and hosting the static PWA output                                                                |
+| [docs/sprints/plan.md](docs/sprints/plan.md)             | Sprint cards and **what to build next** (Status at the bottom)                                            |
+| [docs/sprints/generation.md](docs/sprints/generation.md) | Phase 7 automatic-planning cards (Sprints 28–38)                                                          |
+| [docs/roadmap.md](docs/roadmap.md)                       | Phase-level shipped vs remaining                                                                          |
+| [SPEC.md](SPEC.md)                                       | Original product rules (MVP definition and domain rules)                                                  |
 
 ## Project Structure
 
@@ -25,13 +26,15 @@ Local-first family menu planner: seven-day meals, reusable prep, grocery lists, 
 planeat/
 ├── docs/                       # Architecture, data model, functional spec, testing, design, sprint plan
 │   ├── audits/                 # Point-in-time implementation audits
-│   └── sprints/plan.md         # Sprint-by-sprint roadmap and status log
+│   └── sprints/
+│       ├── plan.md             # Sprint-by-sprint roadmap and **Status** (what to build next)
+│       └── generation.md       # Phase 7 implementation cards (Sprints 28–38)
 ├── public/                     # Static assets, PWA icons (generated, see below)
 ├── src/
 │   ├── app/                    # Bootstrap, router, providers, theme — composition root
 │   ├── domain/                 # Pure types and rules — no React, no Dexie
 │   │   ├── ingredients/ tags/ recipes/ plans/ groceries/ simpleFoods/ favorites/
-│   │   ├── pairings/ planning/ libraryViews/
+│   │   ├── pairings/ libraryViews/
 │   │   └── shared/              # Cross-cutting domain types (Quantity, UnitRegistry, Locale, LocalDate, Settings)
 │   ├── application/            # Use-case services + repository contracts (ports)
 │   │   ├── ports/                # Repository interfaces implemented by infrastructure/
@@ -87,4 +90,4 @@ Run format, lint, typecheck, and test before considering any change complete —
 
 ## Next Work
 
-Sprints 1–27C are shipped (Lane A and Lane C). Next work is optional Lane B (shopping-section order) — see the Status section in [docs/sprints/plan.md](docs/sprints/plan.md). Do not invent work from older "Next" headings elsewhere or from Cursor plan files.
+Sprints 1–27C are shipped (Lane A and Lane C). Next work is **Sprint 28** (generate one empty meal) — Phase 7 cards in [docs/sprints/generation.md](docs/sprints/generation.md); Status in [docs/sprints/plan.md](docs/sprints/plan.md). Lane B (shopping-section order) remains optional. Do not invent work from older "Next" headings elsewhere or from Cursor plan files.

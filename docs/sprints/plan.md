@@ -2,7 +2,7 @@
 
 No dates. Keep the app releasable after every sprint. Each sprint delivers **one visible improvement**, including its UI, domain changes, persistence, backup support, and tests.
 
-**Current position:** Sprints 1–27A and checkpoints A/B/C are shipped. Lane A is complete. Lanes B and C remain optional.
+**Current position:** Sprints 1–27A, 26C–27C, and checkpoints A/B/C/D are shipped. Lane A and Lane C are complete. Lane B remains optional. Next sequenced work is Phase 7 (automatic meal planning), starting at Sprint 28 — cards in [`generation.md`](generation.md).
 
 Sprints 1–6 had no automated test runner. Vitest arrived in Sprint 8 (tags/backup). Measurement/grocery scenario tests landed in Sprint 13. Localization settings (`uiLocale`, `measurementPreference`) shipped before Phase 1; Sprint 14 applied them consistently to displayed quantities.
 
@@ -10,7 +10,7 @@ Sprints 1–6 had no automated test runner. Vitest arrived in Sprint 8 (tags/bac
 
 One developer, short sprints. The slices below are **scope boundaries**, not estimates. If a slice exceeds usual sprint capacity, split it rather than borrowing work from the next sprint.
 
-Sequence covers recipe organization **and** the measurement/localization foundations it depends on. Commit the next two or three sprints in detail; keep the rest as this sequenced backlog so direction stays clear without pretending we already know which later refinements households will value most.
+Phases 1–6 committed the next two or three library/shopping sprints in detail and kept later ideas as backlog. Phase 7 is a **committed ordered sequence** (Sprints 28–38): later generator slices depend on the proposal/apply contract. Still split a slice that overflows capacity; do not pull the next sprint’s algorithm into the current one.
 
 ### Rules for every sprint
 
@@ -20,7 +20,7 @@ Sequence covers recipe organization **and** the measurement/localization foundat
 - Core functionality works offline.
 - No hidden reinterpretation of legacy data.
 - New metadata is optional.
-- No backend, automatic weekly generation, nutrition, or pantry inventory.
+- No backend, nutrition, or pantry inventory. Automatic weekly generation is in scope only as Phase 7 (proposal + explicit apply, never silent plan or grocery mutation).
 - Finish the slice before starting the next migration.
 
 ### Split rule
@@ -691,27 +691,53 @@ Once the local product is reliable (after checkpoint D), decide which direction 
 | Recipe discovery product         | Content acquisition, licensing, search, importing                    |
 | Planning assistant               | Better structured data, preference modeling, explainable suggestions |
 
-Default: remain a private, local household utility until evidence shows another direction is necessary.
+**Chosen next investment (after Lanes A and C):** a planning assistant that remains a private, local household utility — Phase 7. Not collaborative sync, not recipe discovery as a product.
 
 Test one question early, though: is “family” a household using one shared device, or several people expecting the same plan on their own phones? If multi-device collaboration is essential to adoption, sync is a strategic requirement, not a small settings feature — it needs a separate architecture proposal and delivery program, not a sprint slotted into this sequence.
 
 ---
 
+# Phase 7 — Automatic meal planning
+
+Offline generator on the existing cooking-event model. **Next: Sprint 28.**
+
+Generation always produces a proposal. Apply goes through existing `PlanService` writes. Grocery lists never update as a side effect. Full implementation cards, module boundaries, acceptance tests, and demo scripts: [`generation.md`](generation.md).
+
+| Sprint | User-visible outcome                                                                   |
+| ------ | -------------------------------------------------------------------------------------- |
+| **28** | Fill one empty slot with one newly cooked eligible recipe; preview, apply, or cancel.  |
+| **29** | Fill selected empty slots for a week on a Web Worker; partial proposals; atomic apply. |
+| **30** | Configurable hard restrictions and unknown-data policies, with diagnostics.            |
+| **31** | Soft household preferences and explainable scores (lexicographic; weights internal).   |
+| **32** | Bounded chronological beam search with deterministic budgets.                          |
+| **33** | Known favorites, pairings, and eligible simple foods in those compositions.            |
+| **34** | Allocate existing leftovers without exceeding reserved remaining portions.             |
+| **35** | Bounded new batches and planned reuse inside the same week.                            |
+| **36** | Slot locks and explicit replacement of selected meals, with dependency confirmation.   |
+| **37** | Named generation presets (built-in + custom) layered on the same policy model.         |
+| **38** | Benchmarks, property tests, performance/PWA hardening, household-trial metrics.        |
+
+**Gates:** 28–29 initial generator · 30–32 preference-aware planner · 33–35 household meal planner · 36–38 core-feature release.
+
+Start household trials on generated proposals from Sprint 29. If a slice overflows, split at the user-visible boundary (see `generation.md`).
+
+---
+
 # Work intentionally not squeezed into this sequence
 
-These need their own bounded backlog if demand appears. Unless household research demonstrates demand, this also includes: automatic weekly generation, nutrition calculations, comprehensive food ontologies, pantry and expiry management, cross-week leftover inventory, external ingredient enrichment, social features, and AI-generated classification. Avoid adding more filters merely because the data model can support them, and avoid catalog favorites simply because they are familiar — first establish whether tags, saved views, and existing favorite meals leave a genuine gap.
+These need their own bounded backlog if demand appears. Unless household research demonstrates demand, this also includes: nutrition calculations, comprehensive food ontologies, pantry and expiry management, cross-week leftover inventory, external ingredient enrichment, social features, and AI-generated classification. Avoid adding more filters merely because the data model can support them, and avoid catalog favorites simply because they are familiar — first establish whether tags, saved views, and existing favorite meals leave a genuine gap. Automatic weekly generation is Phase 7, not this deferred list.
 
-| Feature                                       | Why deferred                                                                                                                                                     |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Full second-language UI                       | Requires translation inventory and screen-by-screen review; number formatting is not full localization. Lane C above is the bounded path in if/when it's chosen. |
-| Catalog recipe/food favorites                 | Useful, but separate from existing favorite meals; add if tags and views are insufficient.                                                                       |
-| Bulk tagging                                  | Shipped in Sprint 26A (library selection mode). Sprint 27A is cleanup views, not more bulk ops.                                                                  |
-| Cuisine normalization                         | Preserve current data until duplicates and filtering needs justify a migration.                                                                                  |
-| Dietary suitability system                    | Needs explicit provenance and uncertainty rules.                                                                                                                 |
-| Local photo uploads and portable image backup | Separate storage, quota, and backup concerns.                                                                                                                    |
-| Custom grocery aisle order                    | Shopping sections shipped in Sprint 20; per-household section _ordering_ is Lane B's Sprint 26B if chosen.                                                       |
-| External ingredient enrichment                | No current requirement justifies the dependency.                                                                                                                 |
-| Cloud sync / multi-device collaboration       | Strategic-scale decision, not a slice — see "Strategic decision" above. Needs its own architecture proposal.                                                     |
+| Feature                                       | Why deferred                                                                                                 |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Full second-language UI                       | English and Russian shipped (26C–27C). Further languages still need a full catalog pass.                     |
+| Catalog recipe/food favorites                 | Useful, but separate from existing favorite meals; add if tags and views are insufficient.                   |
+| Bulk tagging                                  | Shipped in Sprint 26A (library selection mode). Sprint 27A is cleanup views, not more bulk ops.              |
+| Cuisine normalization                         | Preserve current data until duplicates and filtering needs justify a migration.                              |
+| Dietary suitability system                    | Needs explicit provenance and uncertainty rules.                                                             |
+| Local photo uploads and portable image backup | Separate storage, quota, and backup concerns.                                                                |
+| Custom grocery aisle order                    | Shopping sections shipped in Sprint 20; per-household section _ordering_ is Lane B's Sprint 26B if chosen.   |
+| External ingredient enrichment                | No current requirement justifies the dependency.                                                             |
+| Cloud sync / multi-device collaboration       | Strategic-scale decision, not a slice — see "Strategic decision" above. Needs its own architecture proposal. |
 
 ---
 
@@ -781,4 +807,4 @@ Sprint 26C is done: remaining chrome messages go through a hand-rolled `t()` / `
 
 Sprint 27C is done: Russian (`ru`) is a second supported UI language. Settings exposes English / Русский once catalogs are complete. User-authored recipe, tag, grocery, and snapshot strings stay as stored. Backup `uiLocale` accepts `en` | `ru`. PWA manifest name stays English. Tests: `t.test.ts`.
 
-**Next:** Lane A and Lane C are complete. Lane B (shopping-section order) remains an optional alternative, not a queue.
+**Next:** Sprint 28 — generate one empty meal (preview + explicit apply). Phase 7 cards: [`generation.md`](generation.md). Lane B (shopping-section order) remains optional and is not a prerequisite.

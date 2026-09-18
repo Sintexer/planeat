@@ -198,3 +198,86 @@ body {
   --mantine-color-default-border: #3a312c;
   --mantine-color-error: var(--mantine-color-error-4);
 }
+
+/* Rows/cards that select on click: MealEditor prep rows, AddComponentFlow
+   choice cards and prep picker, DishCatalog item rows. Base/hover/selected
+   states share one rule set so a row's "static" tint (e.g. leftover) never
+   silently out-prioritizes its interactive states. */
+.selectable-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+}
+
+.selectable-row > * {
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.selectable-row[data-leftover='true'] > * {
+  background-color: var(--mantine-color-secondary-light);
+}
+
+.selectable-row:hover:not(:disabled) > *,
+.selectable-row:focus-visible > *,
+.selectable-row[data-selected='true'] > * {
+  border-color: var(--mantine-color-primary-filled);
+  background-color: var(--mantine-color-primary-light);
+}
+
+.selectable-row:disabled {
+  cursor: default;
+}
+
+.catalog-item-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+  border-radius: 0;
+  background: transparent;
+  transition: background-color 120ms ease;
+}
+
+.catalog-item-row[data-leftover='true'] {
+  background-color: var(--mantine-color-secondary-light);
+}
+
+.catalog-item-row:hover:not(:disabled),
+.catalog-item-row:focus-visible,
+.catalog-item-row[data-selected='true'] {
+  background-color: var(--mantine-color-primary-light);
+}
+
+.catalog-item-row[data-selected='true'] {
+  box-shadow: inset 3px 0 0 var(--mantine-color-primary-filled);
+}
+
+.catalog-item-row:focus-visible {
+  outline: 2px solid var(--mantine-color-primary-filled);
+  outline-offset: -2px;
+}
+
+@keyframes plan-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.step-transition {
+  animation: plan-step-in 160ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-transition {
+    animation: none;
+  }
+}

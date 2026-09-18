@@ -71,6 +71,23 @@ export type DishCatalogFilters = {
   cleanup: LibraryCleanupKind | ''
 }
 
+export function catalogActiveFilterCount(
+  filters: DishCatalogFilters,
+  showSuggested: boolean,
+): number {
+  let count = 0
+  if (showSuggested && filters.suggestedOnly) count += 1
+  if (filters.kind !== 'all') count += 1
+  count += filters.mealTypes.length
+  count += filters.roles.length
+  count += filters.tagIds.length
+  if (filters.effort !== 'all') count += 1
+  if (filters.maxTotalTimeMinutes !== '') count += 1
+  count += filters.containsIngredientIds.length
+  count += filters.excludeIngredientIds.length
+  return count
+}
+
 export function defaultDishCatalogFilters(
   mealType: MealType | 'all' = 'all',
   suggestedOnly = false,
@@ -467,4 +484,24 @@ export function groupCatalogItems(
   }
   groups.push(...groupRestByMode(rest, mode === 'none' ? 'kind' : mode))
   return groups
+}
+
+/** Tags shown on a catalog row, skipping labels already used by role chips. */
+export function catalogRowTagLabels(
+  tags: readonly string[],
+  roleLabels: readonly string[],
+  limit = 2,
+): string[] {
+  const taken = new Set(
+    roleLabels.map((label) => label.trim().toLowerCase()).filter((label) => label.length > 0),
+  )
+  const out: string[] = []
+  for (const tag of tags) {
+    const key = tag.trim().toLowerCase()
+    if (!key || taken.has(key)) continue
+    taken.add(key)
+    out.push(tag)
+    if (out.length >= limit) break
+  }
+  return out
 }

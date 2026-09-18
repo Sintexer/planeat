@@ -98,7 +98,7 @@ Backup format version **7** adds `libraryViews`.
 
 ## Still planned (not shipped)
 
-See [`docs/sprints/plan.md`](sprints/plan.md). Core sprints through 22 are shipped. Optional later: `externalRefs` on ingredients, `defaultRecipeMeasurementConvention`.
+See [`docs/sprints/plan.md`](sprints/plan.md). Core sprints through 27C are shipped. Phase 7 (generation policy, slot locks, presets) will add persisted fields documented in the sprint that introduces them. Optional later: `externalRefs` on ingredients, `defaultRecipeMeasurementConvention`.
 
 ## Starter library
 
