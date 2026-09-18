@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GroceryItem } from './GroceryItem'
 import {
+  clusterGroceryItems,
   groceryListView,
   shoppingSectionGroupKey,
   shoppingSectionSelectOptions,
@@ -83,6 +84,35 @@ describe('groceryListView', () => {
     if (view.mode !== 'grouped') return
     expect(view.groups.map((group) => group.key)).toEqual(['produce', 'pantry'])
     expect(view.groups[0]?.items.map((row) => row.id)).toEqual(['a'])
+  })
+})
+
+describe('clusterGroceryItems', () => {
+  it('keeps generated lines for one ingredient together', () => {
+    const grams = item({
+      id: 'p-g',
+      label: 'Potato',
+      ingredientId: 'potato',
+      quantity: { value: 400, unit: 'g' },
+    })
+    const pieces = item({
+      id: 'p-p',
+      label: 'Potato',
+      ingredientId: 'potato',
+      quantity: { value: 1, unit: 'piece' },
+    })
+    const flour = item({
+      id: 'f',
+      label: 'Flour',
+      ingredientId: 'flour',
+      quantity: { value: 200, unit: 'g' },
+    })
+    const manual = item({ id: 'm', label: 'Potato', origin: 'manual' })
+    expect(
+      clusterGroceryItems([grams, flour, pieces, manual]).map((cluster) =>
+        cluster.map((row) => row.id),
+      ),
+    ).toEqual([['p-g', 'p-p'], ['f'], ['m']])
   })
 })
 

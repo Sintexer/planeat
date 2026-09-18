@@ -451,6 +451,68 @@ describe('GroceryService.generateFromPlan aggregation', () => {
     ])
   })
 
+  it('merges an unspecified amount into the same ingredient numeric total', async () => {
+    const graph = buildGraph({
+      cookingEvents: [
+        buildCookingEvent({
+          id: 'event-1',
+          planId: 'plan-1',
+          name: 'Kasha',
+          ingredientLines: [baseIngredientLine('salt', { value: 2, unit: 'tsp' })],
+          yieldQty: { value: 1, unit: 'serving' },
+          outputQuantity: { value: 1, unit: 'serving' },
+        }),
+        buildCookingEvent({
+          id: 'event-2',
+          planId: 'plan-1',
+          name: 'Cutlets',
+          ingredientLines: [baseIngredientLine('salt', null)],
+          yieldQty: { value: 12, unit: 'piece' },
+          outputQuantity: { value: 6, unit: 'serving' },
+        }),
+      ],
+      components: [buildComponent('slot-1', 'event-1'), buildComponent('slot-2', 'event-2')],
+      slots: [buildSlot('slot-1'), buildSlot('slot-2')],
+    })
+    const { service, groceries } = makeService(graph)
+
+    const result = await service.generateFromPlan('plan-1')
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const saltItems = (await groceries.getItemsForList(result.list.id)).filter(
+      (item) => item.ingredientId === 'salt',
+    )
+    expect(saltItems).toHaveLength(1)
+    expect(saltItems[0]?.quantity).toEqual({ value: 2, unit: 'tsp' })
+    expect(saltItems[0]?.sources).toEqual([
+      expect.objectContaining({ dishName: 'Kasha', quantity: { value: 2, unit: 'tsp' } }),
+      expect.objectContaining({ dishName: 'Cutlets', quantity: null }),
+    ])
+  })
+
+  it('scales when yield and output use convertible units', async () => {
+    const graph = buildGraph({
+      cookingEvents: [
+        buildCookingEvent({
+          id: 'event-1',
+          planId: 'plan-1',
+          ingredientLines: [baseIngredientLine('salt', { value: 2, unit: 'tsp' })],
+          yieldQty: { value: 1, unit: 'kg' },
+          outputQuantity: { value: 500, unit: 'g' },
+        }),
+      ],
+      components: [buildComponent('slot-1', 'event-1')],
+    })
+    const { service, groceries } = makeService(graph)
+    const result = await service.generateFromPlan('plan-1')
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const salt = (await groceries.getItemsForList(result.list.id)).find(
+      (item) => item.ingredientId === 'salt',
+    )
+    expect(salt?.quantity).toEqual({ value: 1, unit: 'tsp' })
+  })
+
   it('200 g flour and 1 cup flour remain two separate lines', async () => {
     const graph = buildGraph({
       cookingEvents: [
@@ -732,6 +794,7 @@ describe('GroceryService.updateFromPlan manual-item preservation', () => {
     const itemsAfter = await groceries.getItemsForList(generated.list.id)
     const flourItemAfter = itemsAfter.find((item) => item.ingredientId === 'flour')
     expect(flourItemAfter?.checked).toBe(true)
+    expect(flourItemAfter?.id).toBe(flourItem.id)
   })
 
   it('emits a grocery row for an unlinked recipe line using displayText', async () => {
@@ -763,6 +826,255 @@ describe('GroceryService.updateFromPlan manual-item preservation', () => {
     expect(items[0]?.ingredientId).toBeUndefined()
     expect(items[0]?.label).toBe('flour')
     expect(items[0]?.quantity).toEqual({ value: 2, unit: 'cup' })
+  })
+})
+
+describe('GroceryService preview and patch-in-place update', () => {
+  const flourGraph = (quantity: Quantity) =>
+    buildGraph({
+      cookingEvents: [
+        buildCookingEvent({
+          id: 'event-1',
+          planId: 'plan-1',
+          ingredientLines: [baseIngredientLine('flour', quantity)],
+          yieldQty: { value: 1, unit: 'serving' },
+          outputQuantity: { value: 1, unit: 'serving' },
+        }),
+      ],
+      components: [buildComponent('slot-1', 'event-1')],
+    })
+
+  it('previews added, changed, and removed generated lines without writing', async () => {
+    const { service, groceries, plans } = makeService(flourGraph({ value: 200, unit: 'g' }))
+    const generated = await service.generateFromPlan('plan-1')
+    expect(generated.ok).toBe(true)
+    if (!generated.ok) return
+    await service.addManualItem(generated.list.id, 'Paper towels')
+
+    plans.setGraph(
+      buildGraph({
+        cookingEvents: [
+          buildCookingEvent({
+            id: 'event-1',
+            planId: 'plan-1',
+            ingredientLines: [
+              baseIngredientLine('flour', { value: 400, unit: 'g' }),
+              baseIngredientLine('carrot', { value: 500, unit: 'g' }),
+            ],
+            yieldQty: { value: 1, unit: 'serving' },
+            outputQuantity: { value: 1, unit: 'serving' },
+          }),
+        ],
+        components: [buildComponent('slot-1', 'event-1')],
+      }),
+    )
+
+    const before = structuredClone(await groceries.getItemsForList(generated.list.id))
+    const preview = await service.previewUpdateFromPlan(generated.list.id)
+    expect(preview.ok).toBe(true)
+    if (!preview.ok) return
+    expect(preview.preview.changed).toHaveLength(1)
+    expect(preview.preview.changed[0]?.from).toEqual({ value: 200, unit: 'g' })
+    expect(preview.preview.changed[0]?.to).toEqual({ value: 400, unit: 'g' })
+    expect(preview.preview.added.map((line) => line.label)).toEqual(['carrot'])
+    expect(preview.preview.removed).toHaveLength(0)
+    expect(preview.preview.manualKeptCount).toBe(1)
+    expect(await groceries.getItemsForList(generated.list.id)).toEqual(before)
+  })
+
+  it('does not list convert-equal quantities as changed', async () => {
+    const { service, plans } = makeService(flourGraph({ value: 1, unit: 'kg' }))
+    const generated = await service.generateFromPlan('plan-1')
+    expect(generated.ok).toBe(true)
+    if (!generated.ok) return
+    plans.setGraph(flourGraph({ value: 1000, unit: 'g' }))
+    const preview = await service.previewUpdateFromPlan(generated.list.id)
+    expect(preview.ok).toBe(true)
+    if (!preview.ok) return
+    expect(preview.preview.changed).toHaveLength(0)
+    expect(preview.preview.added).toHaveLength(0)
+    expect(preview.preview.removed).toHaveLength(0)
+    expect(preview.preview.unchangedCount).toBe(1)
+  })
+
+  it('keeps an overridden quantity by default and applies use-plan when chosen', async () => {
+    const { service, groceries, plans } = makeService(flourGraph({ value: 200, unit: 'g' }))
+    const generated = await service.generateFromPlan('plan-1')
+    expect(generated.ok).toBe(true)
+    if (!generated.ok) return
+    const flour = (await groceries.getItemsForList(generated.list.id)).find(
+      (item) => item.ingredientId === 'flour',
+    )
+    expect(flour).toBeDefined()
+    if (!flour) return
+    await service.updateItem(flour.id, { quantity: { value: 250, unit: 'g' } })
+    plans.setGraph(flourGraph({ value: 400, unit: 'g' }))
+
+    const preview = await service.previewUpdateFromPlan(generated.list.id)
+    expect(preview.ok).toBe(true)
+    if (!preview.ok) return
+    expect(preview.preview.overrides).toHaveLength(1)
+    expect(preview.preview.changed).toHaveLength(0)
+    expect(preview.preview.overrides[0]?.current).toEqual({ value: 250, unit: 'g' })
+    expect(preview.preview.overrides[0]?.planned).toEqual({ value: 400, unit: 'g' })
+
+    const kept = await service.updateFromPlan(generated.list.id)
+    expect(kept.ok).toBe(true)
+    const afterKeep = (await groceries.getItemsForList(generated.list.id)).find(
+      (item) => item.ingredientId === 'flour',
+    )
+    expect(afterKeep?.id).toBe(flour.id)
+    expect(afterKeep?.quantity).toEqual({ value: 250, unit: 'g' })
+    expect(afterKeep?.quantityManuallyEdited).toBe(true)
+
+    plans.setGraph(flourGraph({ value: 500, unit: 'g' }))
+    const usedPlan = await service.updateFromPlan(generated.list.id, {
+      quantityChoices: { [flour.id]: 'use-plan' },
+    })
+    expect(usedPlan.ok).toBe(true)
+    const afterPlan = (await groceries.getItemsForList(generated.list.id)).find(
+      (item) => item.ingredientId === 'flour',
+    )
+    expect(afterPlan?.quantity).toEqual({ value: 500, unit: 'g' })
+    expect(afterPlan?.quantityManuallyEdited).toBe(false)
+  })
+
+  it('unchecks a checked item when the required quantity increases', async () => {
+    const { service, groceries, plans } = makeService(flourGraph({ value: 200, unit: 'g' }))
+    const generated = await service.generateFromPlan('plan-1')
+    expect(generated.ok).toBe(true)
+    if (!generated.ok) return
+    const flour = (await groceries.getItemsForList(generated.list.id)).find(
+      (item) => item.ingredientId === 'flour',
+    )
+    expect(flour).toBeDefined()
+    if (!flour) return
+    await service.toggleChecked(flour.id)
+    plans.setGraph(flourGraph({ value: 400, unit: 'g' }))
+
+    const preview = await service.previewUpdateFromPlan(generated.list.id)
+    expect(preview.ok).toBe(true)
+    if (!preview.ok) return
+    expect(preview.preview.willUncheck).toHaveLength(1)
+    expect(preview.preview.willUncheck[0]?.from).toEqual({ value: 200, unit: 'g' })
+    expect(preview.preview.willUncheck[0]?.to).toEqual({ value: 400, unit: 'g' })
+
+    const updated = await service.updateFromPlan(generated.list.id)
+    expect(updated.ok).toBe(true)
+    const after = (await groceries.getItemsForList(generated.list.id)).find(
+      (item) => item.ingredientId === 'flour',
+    )
+    expect(after?.checked).toBe(false)
+    expect(after?.quantity).toEqual({ value: 400, unit: 'g' })
+  })
+
+  it('keeps a check when the required quantity decreases', async () => {
+    const { service, groceries, plans } = makeService(flourGraph({ value: 400, unit: 'g' }))
+    const generated = await service.generateFromPlan('plan-1')
+    expect(generated.ok).toBe(true)
+    if (!generated.ok) return
+    const flour = (await groceries.getItemsForList(generated.list.id)).find(
+      (item) => item.ingredientId === 'flour',
+    )
+    expect(flour).toBeDefined()
+    if (!flour) return
+    await service.toggleChecked(flour.id)
+    plans.setGraph(flourGraph({ value: 200, unit: 'g' }))
+
+    const preview = await service.previewUpdateFromPlan(generated.list.id)
+    expect(preview.ok).toBe(true)
+    if (!preview.ok) return
+    expect(preview.preview.willUncheck).toHaveLength(0)
+
+    await service.updateFromPlan(generated.list.id)
+    const after = (await groceries.getItemsForList(generated.list.id)).find(
+      (item) => item.ingredientId === 'flour',
+    )
+    expect(after?.checked).toBe(true)
+    expect(after?.quantity).toEqual({ value: 200, unit: 'g' })
+  })
+
+  it('treats incompatible unit buckets for one ingredient as separate lines', async () => {
+    const mixed = buildGraph({
+      cookingEvents: [
+        buildCookingEvent({
+          id: 'event-1',
+          planId: 'plan-1',
+          ingredientLines: [
+            baseIngredientLine('flour', { value: 200, unit: 'g' }),
+            baseIngredientLine('flour', { value: 2, unit: 'piece' }),
+          ],
+          yieldQty: { value: 1, unit: 'serving' },
+          outputQuantity: { value: 1, unit: 'serving' },
+        }),
+      ],
+      components: [buildComponent('slot-1', 'event-1')],
+    })
+    const { service, groceries, plans } = makeService(mixed)
+    const generated = await service.generateFromPlan('plan-1')
+    expect(generated.ok).toBe(true)
+    if (!generated.ok) return
+    expect(await groceries.getItemsForList(generated.list.id)).toHaveLength(2)
+
+    plans.setGraph(
+      buildGraph({
+        cookingEvents: [
+          buildCookingEvent({
+            id: 'event-1',
+            planId: 'plan-1',
+            ingredientLines: [
+              baseIngredientLine('flour', { value: 300, unit: 'g' }),
+              baseIngredientLine('flour', { value: 1, unit: 'cup' }),
+            ],
+            yieldQty: { value: 1, unit: 'serving' },
+            outputQuantity: { value: 1, unit: 'serving' },
+          }),
+        ],
+        components: [buildComponent('slot-1', 'event-1')],
+      }),
+    )
+
+    const preview = await service.previewUpdateFromPlan(generated.list.id)
+    expect(preview.ok).toBe(true)
+    if (!preview.ok) return
+    expect(preview.preview.changed).toHaveLength(1)
+    expect(preview.preview.changed[0]?.from).toEqual({ value: 200, unit: 'g' })
+    expect(preview.preview.changed[0]?.to).toEqual({ value: 300, unit: 'g' })
+    expect(preview.preview.removed).toHaveLength(1)
+    expect(preview.preview.removed[0]?.quantity).toEqual({ value: 2, unit: 'piece' })
+    expect(preview.preview.added).toHaveLength(1)
+    expect(preview.preview.added[0]?.quantity).toEqual({ value: 1, unit: 'cup' })
+  })
+
+  it('removes a generated line that the plan no longer requires', async () => {
+    const { service, groceries, plans } = makeService(
+      buildGraph({
+        cookingEvents: [
+          buildCookingEvent({
+            id: 'event-1',
+            planId: 'plan-1',
+            ingredientLines: [
+              baseIngredientLine('flour', { value: 200, unit: 'g' }),
+              baseIngredientLine('spinach', { value: 200, unit: 'g' }),
+            ],
+            yieldQty: { value: 1, unit: 'serving' },
+            outputQuantity: { value: 1, unit: 'serving' },
+          }),
+        ],
+        components: [buildComponent('slot-1', 'event-1')],
+      }),
+    )
+    const generated = await service.generateFromPlan('plan-1')
+    expect(generated.ok).toBe(true)
+    if (!generated.ok) return
+    plans.setGraph(flourGraph({ value: 200, unit: 'g' }))
+    const preview = await service.previewUpdateFromPlan(generated.list.id)
+    expect(preview.ok).toBe(true)
+    if (!preview.ok) return
+    expect(preview.preview.removed.map((line) => line.label)).toEqual(['spinach'])
+    await service.updateFromPlan(generated.list.id)
+    const labels = (await groceries.getItemsForList(generated.list.id)).map((item) => item.label)
+    expect(labels).toEqual(['flour'])
   })
 })
 

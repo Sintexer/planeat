@@ -111,3 +111,26 @@ export function groceryListView(
   if (!options.grouped) return { mode: 'flat', items: sorted }
   return { mode: 'grouped', groups: groupBySection(sorted) }
 }
+
+/**
+ * Generated lines that share a catalog ingredient stay together so grams and
+ * pieces (or a known amount plus unspecified) read as one shopping item.
+ */
+export function clusterGroceryItems(items: GroceryItem[]): GroceryItem[][] {
+  const clusters = new Map<string, GroceryItem[]>()
+  const order: string[] = []
+  for (const item of items) {
+    const key =
+      item.origin === 'generated' && item.ingredientId
+        ? `ing:${item.ingredientId}`
+        : `row:${item.id}`
+    const existing = clusters.get(key)
+    if (existing) {
+      existing.push(item)
+      continue
+    }
+    clusters.set(key, [item])
+    order.push(key)
+  }
+  return order.map((key) => clusters.get(key)!)
+}

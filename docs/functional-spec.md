@@ -1,12 +1,12 @@
 # Functional spec
 
-Present-tense product behavior as of Sprint 24. Remaining sequenced work lives in [`docs/sprints/plan.md`](sprints/plan.md).
+Present-tense product behavior as of Sprint 25. Remaining sequenced work lives in [`docs/sprints/plan.md`](sprints/plan.md).
 
 ## Plan
 
 Default home. Seven-day plan for the week containing today (or a specific `planId`), with day selection, week navigation, and a month calendar picker. Week start day comes from settings. `/today` and `/week` redirect here.
 
-Slots can be empty, filled with one or more components, or excluded (eating out). Empty and excluded must look different. Tap a slot to open the meal editor. Generate groceries from this screen (update existing vs create new).
+Slots can be empty, filled with one or more components, or excluded (eating out). Empty and excluded must look different. Tap a slot to open the meal editor. Generate groceries from this screen; if an open list is already linked, inspect the update preview (or create a new list) before any overwrite.
 
 Prep sessions and effort units, meal favorites, recipe pairings, fuzzy Suggested picker, and soft planning prompts are part of this flow.
 
@@ -22,7 +22,7 @@ The meal picker groups leftovers, pairings, favorites, suitable recipes, and All
 
 ## Lists
 
-Standalone grocery lists (open/closed). Generate from a week plan: scaled **live** library recipe ingredients (snapshot if the recipe is gone) plus simple-food allocations, aggregated when units are compatible. Same unit stays that unit; mixed convertible volumes total in milliliters. Culinary spoons (`tsp`, `tbsp`) stay spoons unless mixed with another volume type. Legacy unspecified `cup` does not mix with other volumes. Leftover reuse does not duplicate a cooking event. Generated lines keep a **Used by** breakdown of contributing meals (captured at generate/update time). Expand a generated row to see each dish and amount; leftover slots share one cooking-event contribution. A still-present meal links to that day on Plan. Manual items stay unmarked as plan sources. Ingredients marked “usually have at home” (`isCommon`) start checked but stay visible — this is not pantry tracking. Manual items, quantity/label edits, and checkmarks are saved on the list — plan edits do not overwrite silently; use Update existing vs Create new from Plan.
+Standalone grocery lists (open/closed). Generate from a week plan: scaled **live** library recipe ingredients (snapshot if the recipe is gone) plus simple-food allocations, aggregated when units are compatible. Same unit stays that unit; mixed convertible volumes total in milliliters. Culinary spoons (`tsp`, `tbsp`) stay spoons unless mixed with another volume type. Legacy unspecified `cup` does not mix with other volumes. Leftover reuse does not duplicate a cooking event. Generated lines keep a **Used by** breakdown of contributing meals (captured at generate/update time). Expand a generated row to see each dish and amount; leftover slots share one cooking-event contribution. A still-present meal links to that day on Plan. Manual items stay unmarked as plan sources. Ingredients marked “usually have at home” (`isCommon`) start checked but stay visible — this is not pantry tracking. Manual items, quantity/label edits, and checkmarks are saved on the list. Plan edits never mutate a list until the cook confirms **Update from plan**. The preview lists added requirements, quantity changes, lines no longer required, and generated quantities the shopper edited (default **Keep my quantity**, or **Use planned quantity**). Convert-equal amounts (for example 1 kg and 1000 g) are not treated as changes. A checked line whose stored amount will increase is unchecked so the extra is not treated as already handled. Manual items remain. **Cancel** writes nothing; **Create new** leaves the existing list as-is. Matching generated rows keep their ids, check state (unless unchecked for an increase), shopping section, and label. The same catalog ingredient is one shopping row: a known amount absorbs unspecified contributions from other meals; grams and pieces stay separate checkable amounts under that name.
 
 Displayed quantities follow the household measurement presentation preference without rewriting stored values. Lists can be shown grouped by shopping section (produce, bakery, chilled, pantry, frozen, other) or flat. Items without a section appear under Other. Checking an item does not reorder the list; a hide-checked toggle filters already-checked rows. Catalog ingredients can store an optional shopping section that new generated lines inherit. Manual lines can pick a section. This is not store-aisle mapping or pantry tracking.
 

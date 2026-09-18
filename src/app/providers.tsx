@@ -17,11 +17,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <MantineProvider theme={theme} defaultColorScheme="auto">
       <Notifications position="top-center" />
-      <ModalsProvider>
-        <ServicesContext.Provider value={services}>
-          <LocalizationProvider>{children}</LocalizationProvider>
-        </ServicesContext.Provider>
-      </ModalsProvider>
+      <ServicesContext.Provider value={services}>
+        <LocalizationProvider>
+          <ModalsProvider>{children}</ModalsProvider>
+        </LocalizationProvider>
+      </ServicesContext.Provider>
     </MantineProvider>
   )
 }

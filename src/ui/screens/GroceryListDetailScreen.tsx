@@ -10,6 +10,7 @@ import {
   Text,
   TextInput,
   Loader,
+  Paper,
   SegmentedControl,
   Switch,
   Title,
@@ -23,7 +24,11 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useServices } from '../../app/servicesContext'
 import type { GroceryItem, GroceryItemSource } from '../../domain/groceries/GroceryItem'
-import { groceryListView, shoppingSectionLabel } from '../../domain/groceries/shoppingSections'
+import {
+  groceryListView,
+  clusterGroceryItems,
+  shoppingSectionLabel,
+} from '../../domain/groceries/shoppingSections'
 import type { PlanGraph } from '../../domain/plans/PlanGraph'
 import type { Quantity } from '../../domain/shared/Quantity'
 import { MEAL_TYPE_LABELS, type MealType } from '../../domain/shared/MealEnums'
@@ -180,6 +185,17 @@ export function GroceryListDetailScreen() {
     }
   }
 
+  const handleToggleCluster = async (cluster: GroceryItem[], checked: boolean) => {
+    for (const item of cluster) {
+      if (item.checked === checked) continue
+      const result = await groceryService.toggleChecked(item.id)
+      if (!result.ok) {
+        notifications.show({ message: `Could not update item (${result.error})`, color: 'red' })
+        return
+      }
+    }
+  }
+
   const handleAdd = addForm.onSubmit(async (values) => {
     const result = await groceryService.addManualItem(
       list.id,
@@ -277,7 +293,7 @@ export function GroceryListDetailScreen() {
     })
   }
 
-  const renderItem = (item: GroceryItem) => (
+  const renderItem = (item: GroceryItem, hideLabel = false) => (
     <Group
       key={item.id}
       wrap="nowrap"
@@ -324,13 +340,19 @@ export function GroceryListDetailScreen() {
       ) : (
         <>
           <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+            {!hideLabel ? (
+              <Text
+                td={item.checked ? 'line-through' : undefined}
+                c={item.checked ? 'dimmed' : undefined}
+              >
+                {item.label}
+              </Text>
+            ) : null}
             <Text
-              td={item.checked ? 'line-through' : undefined}
-              c={item.checked ? 'dimmed' : undefined}
+              size={hideLabel ? 'md' : 'sm'}
+              td={hideLabel && item.checked ? 'line-through' : undefined}
+              c={item.checked || !hideLabel ? 'dimmed' : undefined}
             >
-              {item.label}
-            </Text>
-            <Text size="sm" c="dimmed">
               {formatQty(item.quantity)}
               {item.origin === 'manual' ? ' · manual' : ''}
             </Text>
@@ -401,6 +423,39 @@ export function GroceryListDetailScreen() {
     </Group>
   )
 
+  const renderCluster = (cluster: GroceryItem[]) => {
+    if (cluster.length === 1) return renderItem(cluster[0]!)
+    const label = cluster[0]!.label
+    const allChecked = cluster.every((item) => item.checked)
+    const someChecked = cluster.some((item) => item.checked)
+    return (
+      <Paper key={cluster.map((item) => item.id).join('-')} withBorder p={12} radius="md">
+        <Stack gap="xs">
+          <Group wrap="nowrap" gap="sm" style={{ minHeight: 44 }}>
+            <Checkbox
+              checked={allChecked}
+              indeterminate={someChecked && !allChecked}
+              disabled={closed}
+              onChange={() => void handleToggleCluster(cluster, !allChecked)}
+              aria-label={`Check all ${label}`}
+              style={{ flexShrink: 0 }}
+            />
+            <Text
+              fw={600}
+              td={allChecked ? 'line-through' : undefined}
+              c={allChecked ? 'dimmed' : undefined}
+            >
+              {label}
+            </Text>
+          </Group>
+          <Stack gap="xs" pl={32}>
+            {cluster.map((item) => renderItem(item, true))}
+          </Stack>
+        </Stack>
+      </Paper>
+    )
+  }
+
   const listBody =
     items.length === 0 ? (
       <Text c="dimmed">No items yet.</Text>
@@ -408,7 +463,7 @@ export function GroceryListDetailScreen() {
       view.items.length === 0 ? (
         <Text c="dimmed">All items are checked.</Text>
       ) : (
-        view.items.map(renderItem)
+        clusterGroceryItems(view.items).map(renderCluster)
       )
     ) : view.groups.length === 0 ? (
       <Text c="dimmed">All items are checked.</Text>
@@ -416,7 +471,7 @@ export function GroceryListDetailScreen() {
       view.groups.map((group) => (
         <Stack key={group.key} gap="sm">
           <Title order={4}>{shoppingSectionLabel(group.key)}</Title>
-          {group.items.map(renderItem)}
+          {clusterGroceryItems(group.items).map(renderCluster)}
         </Stack>
       ))
     )

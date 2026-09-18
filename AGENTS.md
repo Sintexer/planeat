@@ -2,6 +2,8 @@
 
 This is a local-first family menu planner: React + Mantine + Dexie (IndexedDB) + Vite PWA, no backend.
 
+Avoid using browser verification unles user asks for it
+
 ## Commands
 
 Use `bun`, not `npm`:
@@ -78,5 +80,5 @@ Prefer native browser APIs over a wrapper package for: IDs (`crypto.randomUUID()
 - `docs/architecture.md` — stack rationale and cross-cutting decisions about the supportive libraries (what each one is/isn't allowed to be used for), plus known limitations such as `cup-metric`'s unit conversion (no library equivalent, self-only by design — see the `convert-units` row in `AGENTS.md`'s Libraries table).
 - `docs/data-model.md` — Dexie schema version history (what each `.version(n)` block added) and how the Dexie schema version and backup format version are separate, independently-bumped contracts.
 - `docs/functional-spec.md` — screen-by-screen product behavior (Plan, Lists, Recipes, Settings).
-- `docs/sprints/plan.md` — sprint cards; **Status at the bottom is the source of truth for shipped work and the next sprint**. Check it before starting feature work. [`docs/roadmap.md`](docs/roadmap.md) is the phase-level view. [`README.md`](README.md) links the same Status section.
+- `docs/sprints/plan.md` — sprint cards; **Status at the bottom is the source of truth for shipped work and the next sprint**. Check it before starting feature work. `[docs/roadmap.md](docs/roadmap.md)` is the phase-level view. `[README.md](README.md)` links the same Status section.
 - `SPEC.md` — the full product specification.

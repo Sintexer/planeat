@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped through **Sprint 24**. Optional Phase 4 follow-ups remain. Full cards and Status log: [`docs/sprints/plan.md`](sprints/plan.md).
+Shipped through **Sprint 25**. Optional Phase 4 follow-ups remain. Full cards and Status log: [`docs/sprints/plan.md`](sprints/plan.md).
 
 ## Done — project initialization
 
@@ -99,6 +99,11 @@ Shipped through **Sprint 24**. Optional Phase 4 follow-ups remain. Full cards an
 
 - Generated lines store meal contributions (cooking event once, including leftover slots; simple-food allocations). Expand **Used by** on the list; incompatible units stay separate; leftover reuse does not double a requirement.
 - Link to the planned day when the slot still exists. Additive backup field only.
+
+## Done — Sprint 25 (preview grocery updates)
+
+- Update-from-plan preview before changing an open list: added, changed, no longer required, edited quantities, and checked rows whose amount increases.
+- Keep-my-quantity vs use-planned; cancel and create-new leave the existing list untouched. Matching generated rows keep their ids. No schema or backup-format bump.
 
 ## Later (optional Phase 4 follow-ups)
 

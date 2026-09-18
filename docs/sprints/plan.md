@@ -2,7 +2,7 @@
 
 No dates. Keep the app releasable after every sprint. Each sprint delivers **one visible improvement**, including its UI, domain changes, persistence, backup support, and tests.
 
-**Current position:** Sprints 1–24 and checkpoints A/B/C are shipped. Phase 5 finishes with Sprint 25 (grocery-update preview). After checkpoint D, choose a Phase 6 lane from evidence rather than by default. The Status section at the bottom is the log of what landed.
+**Current position:** Sprints 1–25 and checkpoints A/B/C are shipped. Phase 5 ends at checkpoint D (trust and transparency). After checkpoint D, choose a Phase 6 lane from evidence rather than by default. The Status section at the bottom is the log of what landed.
 
 Sprints 1–6 had no automated test runner. Vitest arrived in Sprint 8 (tags/backup). Measurement/grocery scenario tests landed in Sprint 13. Localization settings (`uiLocale`, `measurementPreference`) shipped before Phase 1; Sprint 14 applied them consistently to displayed quantities.
 
@@ -771,4 +771,6 @@ Sprint 23 is done: restore preflight on Settings (`BackupService.inspectBackup`)
 
 Sprint 24 is done: generated grocery lines store optional `sources` (cooking-event once per event including leftover slots, or simple-food allocation). Aggregation concatenates sources when units merge and keeps them on separate rows when units cannot convert. List **Used by** expand shows meal + dish + contribution quantity, links to `#/plan/:id?date=` when the slot still exists, and explains missing meals / pre-sprint lists without sources. Manual lines unchanged. Additive backup field only — no Dexie or backup-format bump. Tests: `GroceryService.test.ts`, `backupSchema.test.ts`.
 
-**Next:** Sprint 25 (preview grocery updates from the plan) — the rest of Phase 5, subject to reordering by household-trial findings. Sprints 26A/27A, 26B/27B, and 26C/27C (Phase 6) are lane options to choose from by evidence after checkpoint D, not a queue to work through in order.
+Sprint 25 is done: Plan **Generate groceries** on an open linked list shows an Update from plan preview (added / changed / no longer required / quantity you edited / will uncheck). Apply patches matching generated rows in place (`QuantityService.compare` for convert-equal amounts), keeps manual items, defaults overridden quantities to keep-my-quantity, and unchecks a row when the stored amount increases. Cancel and Create new do not mutate the existing list. No Dexie or backup-format bump. Tests: `GroceryService.test.ts`.
+
+**Next:** Release checkpoint D (another planning-and-shopping cycle) before choosing a Phase 6 lane. Sprints 26A/27A, 26B/27B, and 26C/27C are options by evidence, not a queue to work through in order.

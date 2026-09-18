@@ -26,7 +26,10 @@ export type CreateGroceryItemInput = {
 }
 
 export type UpdateGroceryItemInput = Partial<
-  Pick<GroceryItem, 'label' | 'quantity' | 'checked' | 'quantityManuallyEdited' | 'shoppingSection'>
+  Pick<
+    GroceryItem,
+    'label' | 'quantity' | 'checked' | 'quantityManuallyEdited' | 'shoppingSection' | 'sources'
+  >
 >
 
 export interface GroceryListWithItems {

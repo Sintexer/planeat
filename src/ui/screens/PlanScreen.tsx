@@ -23,6 +23,7 @@ import { notifications } from '@mantine/notifications'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { useServices } from '../../app/servicesContext'
+import type { GroceryUpdateChoices } from '../../application/groceries/GroceryService'
 import type { Recipe } from '../../domain/recipes/Recipe'
 import type { MealSlot } from '../../domain/plans/MealSlot'
 import { hasUnallocatedRemainder, isCarryoverRisk } from '../../domain/plans/CookingEventAllocation'
@@ -45,6 +46,7 @@ import {
   type LocalDate,
 } from '../../domain/shared/LocalDate'
 import { MEAL_TYPES } from '../../domain/shared/MealEnums'
+import { GroceryUpdatePreview } from '../components/GroceryUpdatePreview'
 import { MealEditor } from '../components/MealEditor'
 import { MealSlotCard } from '../components/MealSlotCard'
 import { PlanWeekPicker } from '../components/PlanWeekPicker'
@@ -223,8 +225,8 @@ export function PlanScreen() {
     navigate(`/lists/${result.list.id}`)
   }
 
-  const updateGroceryList = async (listId: string) => {
-    const result = await groceryService.updateFromPlan(listId)
+  const updateGroceryList = async (listId: string, choices?: GroceryUpdateChoices) => {
+    const result = await groceryService.updateFromPlan(listId, choices)
     if (!result.ok) {
       notifications.show({ message: `Could not update list (${result.error})`, color: 'red' })
       return
@@ -243,56 +245,29 @@ export function PlanScreen() {
 
     const revisionDrift = existing.sourcePlanRevision !== graph.plan.revision
     const previewResult = await groceryService.previewUpdateFromPlan(existing.id)
-    const preview = previewResult.ok ? previewResult.preview : undefined
+    if (!previewResult.ok) {
+      notifications.show({
+        message: `Could not preview list update (${previewResult.error})`,
+        color: 'red',
+      })
+      return
+    }
     modals.open({
       title: t('grocery.updateTitle'),
       children: (
-        <Stack gap="sm">
-          <Text size="sm">
-            An open list “{existing.title}” is linked to this plan
-            {revisionDrift ? ', and the plan has changed since that list was generated.' : '.'}
-          </Text>
-          <Text size="sm">{t('grocery.updateBody')}</Text>
-          {preview && (
-            <>
-              {preview.added.length > 0 && (
-                <Text size="sm">Added: {preview.added.map((line) => line.label).join(', ')}</Text>
-              )}
-              {preview.removed.length > 0 && (
-                <Text size="sm">
-                  Removed: {preview.removed.map((line) => line.label).join(', ')}
-                </Text>
-              )}
-              {preview.changed.length > 0 && (
-                <Text size="sm">Quantity changes: {preview.changed.length}</Text>
-              )}
-              <Text size="sm" c="dimmed">
-                Manual items kept: {preview.manualKeptCount}. Checkmarks preserved:{' '}
-                {preview.checksPreservedCount}.
-              </Text>
-            </>
-          )}
-          <Button
-            onClick={() => {
-              modals.closeAll()
-              void updateGroceryList(existing.id)
-            }}
-          >
-            {t('grocery.updateExisting')}
-          </Button>
-          <Button
-            variant="light"
-            onClick={() => {
-              modals.closeAll()
-              void createGroceryList()
-            }}
-          >
-            {t('grocery.createNew')}
-          </Button>
-          <Button variant="default" onClick={() => modals.closeAll()}>
-            Cancel
-          </Button>
-        </Stack>
+        <GroceryUpdatePreview
+          listTitle={existing.title}
+          revisionDrift={revisionDrift}
+          preview={previewResult.preview}
+          onUpdate={(choices) => {
+            modals.closeAll()
+            void updateGroceryList(existing.id, choices)
+          }}
+          onCreateNew={() => {
+            modals.closeAll()
+            void createGroceryList()
+          }}
+        />
       ),
     })
   }
