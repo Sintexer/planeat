@@ -5,6 +5,87 @@ import { mergeSettingsDefaults } from '../../domain/shared/Settings'
 import type { BackupRepository } from '../ports/BackupRepository'
 import { backupFileSchema } from './backupSchema'
 
+export type BackupRestoreError = 'invalid' | 'unsupported-version' | 'write-failed'
+
+export interface BackupRestoreSummary {
+  formatSupported: true
+  recipeCount: number
+  simpleFoodCount: number
+  planCount: number
+  groceryListCount: number
+  exportedAtDisplay: string | null
+}
+
+export type BackupRestoreResult =
+  | { ok: true; summary: BackupRestoreSummary }
+  | { ok: false; error: BackupRestoreError; foundVersion?: number }
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function reliableExportedAtDisplay(exportedAt: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}(T[\d:.+-Z]+)?$/.test(exportedAt)) return null
+  const parsed = Date.parse(exportedAt)
+  if (Number.isNaN(parsed)) return null
+  const date = new Date(parsed)
+  if (exportedAt.includes('T')) {
+    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
+      date,
+    )
+  }
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date)
+}
+
+function summaryFromBackup(backup: {
+  exportedAt: string
+  data: {
+    recipes: { length: number }
+    simpleFoods: { length: number }
+    plans: { length: number }
+    groceryLists: { length: number }
+  }
+}): BackupRestoreSummary {
+  return {
+    formatSupported: true,
+    recipeCount: backup.data.recipes.length,
+    simpleFoodCount: backup.data.simpleFoods.length,
+    planCount: backup.data.plans.length,
+    groceryListCount: backup.data.groceryLists.length,
+    exportedAtDisplay: reliableExportedAtDisplay(backup.exportedAt),
+  }
+}
+
+function inspectRaw(raw: unknown): BackupRestoreResult {
+  const parsed = backupFileSchema.safeParse(raw)
+  if (parsed.success) {
+    if (parsed.data.schemaVersion !== CURRENT_BACKUP_FORMAT_VERSION) {
+      return {
+        ok: false,
+        error: 'unsupported-version',
+        foundVersion: parsed.data.schemaVersion,
+      }
+    }
+    return { ok: true, summary: summaryFromBackup(parsed.data) }
+  }
+
+  if (
+    isRecord(raw) &&
+    raw.format === 'family-menu-planner' &&
+    typeof raw.schemaVersion === 'number'
+  ) {
+    if (raw.schemaVersion !== CURRENT_BACKUP_FORMAT_VERSION) {
+      return {
+        ok: false,
+        error: 'unsupported-version',
+        foundVersion: raw.schemaVersion,
+      }
+    }
+  }
+
+  return { ok: false, error: 'invalid' }
+}
+
 export class BackupService {
   private readonly backupRepository: BackupRepository
 
@@ -22,21 +103,27 @@ export class BackupService {
     }
   }
 
-  async restoreBackup(raw: unknown): Promise<void> {
-    const parsed = backupFileSchema.parse(raw)
+  inspectBackup(raw: unknown): BackupRestoreResult {
+    return inspectRaw(raw)
+  }
 
-    if (parsed.schemaVersion !== CURRENT_BACKUP_FORMAT_VERSION) {
-      throw new Error(`Unsupported backup schema version: ${parsed.schemaVersion}`)
-    }
+  async restoreBackup(raw: unknown): Promise<BackupRestoreResult> {
+    const inspected = inspectRaw(raw)
+    if (!inspected.ok) return inspected
+
+    const parsed = backupFileSchema.safeParse(raw)
+    if (!parsed.success) return { ok: false, error: 'invalid' }
 
     try {
       await this.backupRepository.replaceAll({
-        ...parsed.data,
-        settings: parsed.data.settings.map((row) => mergeSettingsDefaults(row)),
-        ingredients: parsed.data.ingredients.map((row) => mergeIngredientDefaults(row)),
+        ...parsed.data.data,
+        settings: parsed.data.data.settings.map((row) => mergeSettingsDefaults(row)),
+        ingredients: parsed.data.data.ingredients.map((row) => mergeIngredientDefaults(row)),
       })
     } catch {
-      throw new Error('Could not restore backup: local data was not modified.')
+      return { ok: false, error: 'write-failed' }
     }
+
+    return inspected
   }
 }

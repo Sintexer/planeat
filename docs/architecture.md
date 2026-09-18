@@ -2,6 +2,21 @@
 
 Local-first PWA. No backend service.
 
+## Design decisions (ADRs)
+
+The narrative "Decisions of note" list under [Supportive libraries](#supportive-libraries) below has the full rationale for each of these; this table is a scannable index into it.
+
+| Decision                                                                                   | Rationale                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Wrap `convert-units`/`fraction.js` behind `QuantityService`                                | Keep third-party unit-math APIs out of the rest of the app; persist only plain `{ value, unit }`, never a library instance.                                                                                               |
+| `UnitRegistry` as a small bundled unit list, not a full unit database                      | Give entry-time units explicit US/metric conventions (`cup-us`, `cup-metric`, `oz-mass`, `oz-fl`) without inventing a meaning for ambiguous legacy data (`cup`, `tbsp` stay self-only, never assumed to be US customary). |
+| Ingredient identity is the ID, never the display name                                      | Multiple names, aliases, and locale-scoped labels must resolve to one record; renaming or localizing a label must never fork identity.                                                                                    |
+| `fuse.js` for search only, never identity resolution                                       | Fuzzy match quality and ingredient-identity correctness are different problems — search proposes candidates, `IngredientService`/`TagService` decide identity.                                                            |
+| Services return every ambiguous candidate instead of the first match                       | Silently linking a typed name to the wrong record (when more than one match exists) is worse than asking the user to disambiguate.                                                                                        |
+| Additive-only schema evolution; Dexie `.version(n)` bumped only when indexed fields change | New optional fields round-trip through backups without forcing a migration; local household data survives every upgrade.                                                                                                  |
+| `eslint-plugin-boundaries` enforcing `ui → application → domain`                           | Catch an accidental cross-layer import (e.g. `ui → infrastructure`) automatically, which matters most once more than one contributor or agent is touching the codebase.                                                   |
+| `HashRouter`, no server-rendered routing                                                   | The app has no backend to serve arbitrary paths; a static host only needs to serve `index.html` once.                                                                                                                     |
+
 ## Stack
 
 | Concern            | Decision                                                                                |

@@ -15,7 +15,13 @@ import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import dayjs from 'dayjs'
 import { useEffect } from 'react'
+import type {
+  BackupService,
+  BackupRestoreError,
+  BackupRestoreSummary,
+} from '../../application/backup/BackupService'
 import { useServices } from '../../app/servicesContext'
+import { CURRENT_BACKUP_FORMAT_VERSION } from '../../domain/shared/BackupFormatVersion'
 import {
   DEFAULT_MEASUREMENT_PREFERENCE,
   DEFAULT_UI_LOCALE,
@@ -45,6 +51,44 @@ const weekStartOptions = ([0, 1, 2, 3, 4, 5, 6] as const).map((day) => ({
 }))
 
 const weekdayMultiOptions = weekStartOptions
+
+async function downloadCurrentBackup(backupService: BackupService): Promise<void> {
+  const backup = await backupService.createBackup()
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `planeat-backup-${dayjs().format('YYYY-MM-DD')}.json`
+  link.click()
+  URL.revokeObjectURL(url)
+  notifications.show({ message: 'Backup exported', color: 'green' })
+}
+
+function restoreErrorMessage(error: BackupRestoreError, foundVersion?: number): string {
+  if (error === 'unsupported-version') {
+    const found = foundVersion === undefined ? 'unknown' : String(foundVersion)
+    return `This backup uses format version ${found}. This app supports version ${CURRENT_BACKUP_FORMAT_VERSION}. The household data on this device was not changed.`
+  }
+  if (error === 'write-failed') {
+    return 'Could not restore backup: local data was not modified.'
+  }
+  return 'This file is not a valid PlanEat backup. The household data on this device was not changed.'
+}
+
+function BackupCounts({ summary }: { summary: BackupRestoreSummary }) {
+  return (
+    <Stack gap={4}>
+      <Text size="sm">Backup format: supported</Text>
+      <Text size="sm">Recipes: {summary.recipeCount}</Text>
+      <Text size="sm">Simple foods: {summary.simpleFoodCount}</Text>
+      <Text size="sm">Meal plans: {summary.planCount}</Text>
+      <Text size="sm">Grocery lists: {summary.groceryListCount}</Text>
+      {summary.exportedAtDisplay ? (
+        <Text size="sm">Exported: {summary.exportedAtDisplay}</Text>
+      ) : null}
+    </Stack>
+  )
+}
 
 function SectionLabel({ children }: { children: string }) {
   return (
@@ -114,50 +158,73 @@ export function SettingsScreen() {
     notifications.show({ message: 'Settings saved', color: 'green' })
   })
 
-  const handleExport = async () => {
-    const backup = await backupService.createBackup()
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `planeat-backup-${dayjs().format('YYYY-MM-DD')}.json`
-    link.click()
-    URL.revokeObjectURL(url)
-    notifications.show({ message: 'Backup exported', color: 'green' })
+  const handleExport = () => downloadCurrentBackup(backupService)
+
+  const showRestoreSuccess = (summary: BackupRestoreSummary) => {
+    modals.open({
+      title: 'Backup restored',
+      children: (
+        <Stack gap="sm">
+          <Text size="sm">This device now has the household data from the backup.</Text>
+          <BackupCounts summary={summary} />
+          <Button onClick={() => modals.closeAll()}>OK</Button>
+        </Stack>
+      ),
+    })
   }
 
   const restoreBackup = async (parsed: unknown) => {
-    try {
-      await backupService.restoreBackup(parsed)
-      notifications.show({ message: 'Backup restored', color: 'green' })
-    } catch (error) {
+    const result = await backupService.restoreBackup(parsed)
+    if (!result.ok) {
       notifications.show({
-        message: error instanceof Error ? error.message : 'Could not restore backup',
+        message: restoreErrorMessage(result.error, result.foundVersion),
         color: 'red',
       })
+      return
     }
+    modals.closeAll()
+    showRestoreSuccess(result.summary)
   }
 
   const handleFilePicked = async (file: File | null) => {
     if (!file) return
+    let parsed: unknown
     try {
-      const parsed = JSON.parse(await file.text())
-      modals.openConfirmModal({
-        title: 'Restore backup',
-        children: (
-          <Text>
-            This replaces all local recipes, ingredients, simple foods, meal plans, grocery lists,
-            favorites, pairings, tags, saved library views, and settings with the contents of this
-            file. Continue?
-          </Text>
-        ),
-        labels: { confirm: 'Replace local data', cancel: 'Cancel' },
-        confirmProps: { color: 'red' },
-        onConfirm: () => restoreBackup(parsed),
-      })
+      parsed = JSON.parse(await file.text())
     } catch {
       notifications.show({ message: 'That file is not valid JSON', color: 'red' })
+      return
     }
+
+    const inspected = backupService.inspectBackup(parsed)
+    if (!inspected.ok) {
+      notifications.show({
+        message: restoreErrorMessage(inspected.error, inspected.foundVersion),
+        color: 'red',
+      })
+      return
+    }
+
+    modals.open({
+      title: 'Restore this backup?',
+      children: (
+        <Stack gap="sm">
+          <BackupCounts summary={inspected.summary} />
+          <Text size="sm">This will replace the household data on this device.</Text>
+          <Button variant="default" onClick={() => void downloadCurrentBackup(backupService)}>
+            Export current data
+          </Button>
+          <Group justify="space-between">
+            <Button variant="default" onClick={() => modals.closeAll()}>
+              Cancel
+            </Button>
+            <Button color="red" onClick={() => void restoreBackup(parsed)}>
+              Replace and restore
+            </Button>
+          </Group>
+        </Stack>
+      ),
+    })
   }
 
   return (
@@ -263,7 +330,8 @@ export function SettingsScreen() {
         <Paper withBorder p={12} radius="md">
           <Stack gap="sm">
             <Text c="dimmed" size="sm">
-              Export a backup file, or restore one — restoring replaces all local data.
+              Export a backup file, or restore one. Restore shows what the file contains first and
+              replaces all local data only after you confirm.
             </Text>
             <Text c="dimmed" size="sm">
               {t('settings.backupPhotos')}

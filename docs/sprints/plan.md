@@ -2,7 +2,7 @@
 
 No dates. Keep the app releasable after every sprint. Each sprint delivers **one visible improvement**, including its UI, domain changes, persistence, backup support, and tests.
 
-**Current position:** Sprints 1–22 and checkpoints A/B/C are shipped. Optional follow-up slices remain. The Status section at the bottom is the log of what landed.
+**Current position:** Sprints 1–23 and checkpoints A/B/C are shipped. Phase 5 continues with Sprint 24 (explainable groceries) and Sprint 25 (grocery-update preview); a household trial can still reorder those remaining slices. After checkpoint D, choose a Phase 6 lane from evidence rather than by default. The Status section at the bottom is the log of what landed.
 
 Sprints 1–6 had no automated test runner. Vitest arrived in Sprint 8 (tags/backup). Measurement/grocery scenario tests landed in Sprint 13. Localization settings (`uiLocale`, `measurementPreference`) shipped before Phase 1; Sprint 14 applied them consistently to displayed quantities.
 
@@ -545,20 +545,173 @@ Prioritize from household feedback. Do not automatically commit these after Spri
 
 ---
 
+# Phase 5 — Reliability and household validation
+
+After Sprint 22, the app has a strong foundation for organizing recipes, planning meals, and shopping. **The next step is not another long sequence of taxonomy features.** This phase is a reliability and household-validation pass, then a deliberate choice of what to build next based on observed use — not a default continuation of the classification/filtering arc.
+
+Recommended sequence: **validate the complete workflow → protect household data → make grocery updates explainable → remove proven friction → decide whether to expand the product.**
+
+## Run a complete household trial before committing further sprints
+
+Release the completed app (through Sprint 22) to a small group of target households for two or three weekly planning cycles before starting Sprint 23. No analytics backend is required — interviews, observed sessions, and voluntary feedback are enough.
+
+**Test these journeys:**
+
+| Journey                             | What to learn                                                    |
+| ----------------------------------- | ---------------------------------------------------------------- |
+| Import several real recipes         | Are ingredient and measurement corrections understandable?       |
+| Plan a normal week                  | Where does planning become repetitive or confusing?              |
+| Reuse a cooked batch                | Is cooking new versus using leftovers obvious?                   |
+| Generate groceries                  | Do households trust the quantities and organization?             |
+| Change a plan after shopping starts | Are manual edits and checked items preserved predictably?        |
+| Find a recipe again                 | Are search, tags, and saved views actually helping?              |
+| Move data to another device         | Can someone export and restore without assistance?               |
+| Use the app offline                 | Are any important screens unexpectedly dependent on the network? |
+
+**Record a small set of signals:** time to find and add a suitable meal; imports requiring correction; grocery quantities users report as wrong; failed or confusing backup/restore attempts; whether households return for another planning week; features people ignore; repeated requests (not just isolated suggestions).
+
+**Do not treat planned meals as meals actually cooked.** The app has no evidence of completion today. Use trial findings to confirm or reorder Sprints 23–25 below — they are the committed default, not a fixed sequence immune to what the trial finds.
+
+## Sprint 23 — Safe, understandable restore
+
+**User outcome:** “I can restore my household without accidentally destroying the wrong data.”
+
+The local-only model makes this more important than another discovery feature.
+
+**Deliver.** A backup restore preflight:
+
+```text
+Restore this backup?
+
+Backup format: supported
+Recipes: 84
+Simple foods: 16
+Meal plans: 12
+Grocery lists: 9
+
+This will replace the household data on this device.
+
+[Export current data]
+[Cancel]                     [Replace and restore]
+```
+
+Full validation before replacement; a clear summary of recognized contents; an explicit replacement warning; an opportunity to export current data first; transactional replacement; actionable errors for unsupported or invalid backups; a post-restore success summary. Show backup dates only when the file actually contains reliable date metadata.
+
+**Exclude.** Cloud backup. Automatic background file writes. Backup merging. Image uploads or portable photo archives.
+
+**Done when.** An invalid backup leaves the existing household untouched, and a nontechnical user can understand what a valid restore will replace.
+
+## Sprint 24 — Explain generated grocery quantities
+
+**User outcome:** “I can see why this item is on my list.”
+
+**Deliver.** Expandable source information on generated grocery lines:
+
+```text
+Rice                         1.5 kg
+
+Used by:
+  Tuesday dinner — Curry       500 g
+  Friday dinner — Rice bake      1 kg
+```
+
+Contributions from cooking events; a clear distinction between generated and manual lines; incompatible measurements shown separately; links back to the relevant planned meal when it still exists; a graceful explanation when a historical source is no longer available. If contribution tracking already exists in `GroceryService`, this sprint should primarily expose it rather than rebuild it.
+
+**Exclude.** Grocery grouping by recipe. Duplicate rows for every contributing meal. Nutrition. Package-size optimization.
+
+**Done when.** A household can explain a total without manually inspecting every recipe, and leftover reuse contributes no duplicate requirements.
+
+## Sprint 25 — Preview grocery updates from the plan
+
+**User outcome:** “Changing my plan does not unexpectedly change my shopping list.”
+
+**Deliver.** A preview before applying an update:
+
+```text
+Update from plan
+
+Added
+  Carrots                     500 g
+
+Changed
+  Rice                 1 kg → 1.5 kg
+
+No longer required by plan
+  Spinach                     200 g
+
+Your manual items will remain.
+```
+
+Explicit policies for: added requirements; changed generated quantities; requirements removed from the plan; manually overridden quantities; checked items whose required quantity increases. For an overridden quantity, offer an explicit choice — keep my quantity, or use the new planned quantity. A checked item whose requirement increases must not silently imply the additional amount has already been purchased.
+
+**Exclude.** Live automatic grocery updates. Inventory reconciliation. Automatically deleting manual items.
+
+**Done when.** Users can inspect and accept changes, cancel without side effects, and understand how their edits will be handled.
+
+### Release checkpoint D — trust and transparency
+
+Release Sprints 23–25 together or individually. Run another full planning-and-shopping cycle before expanding scope past this checkpoint.
+
+---
+
+# Phase 6 — Choose a product lane
+
+After Sprint 25, do not automatically schedule every remaining idea below. Choose the lane that addresses the strongest problem the household trial actually surfaced.
+
+## Lane A — Large libraries are becoming hard to maintain
+
+**Sprint 26A — Bulk household tagging.** Outcome: organize several items without opening each editor. Deliver: explicit selection mode; add tags to selected items; remove a selected tag; clear selected-item count; transactional application. Exclude bulk deletion and bulk ingredient replacement initially.
+
+**Sprint 27A — Library cleanup views.** Outcome: find incomplete or inconsistent catalog entries. Deliver optional views for missing meal occasion, missing dish type, missing recorded time, and unresolved ingredient lines. These are maintenance tools, not warnings on the main screen — do not turn missing optional metadata into an error.
+
+## Lane B — Shopping is still the biggest source of friction
+
+**Sprint 26B — Household shopping-section order.** Outcome: the list follows the household's usual shopping route. Deliver: reorder shopping sections; rename household-defined sections where supported; preserve a sensible fallback for unassigned items; use that order consistently across lists. Exclude multiple stores initially.
+
+**Sprint 27B — Remember ingredient section corrections.** Outcome: users do not repeatedly move the same ingredient. Deliver: “Move this item only”; “Use this section for this ingredient in future lists”; clear handling for manual, unlinked lines. Keep this separate from pantry availability.
+
+## Lane C — A second language is needed
+
+Do not expose a language option while most of the application remains untranslated.
+
+**Sprint 26C — Translation readiness and formatting gaps.** Outcome: eliminate hard-coded presentation inconsistencies while keeping the current language fully usable. Deliver: audit and externalize remaining UI messages; plural-aware quantities and counts; consistent validation and error messages; long-text and locale-fallback tests. If this work is already complete, skip the sprint.
+
+**Sprint 27C — One additional supported language.** Outcome: a target household can use the whole application in its language. Deliver: reviewed translations for one language; Recipe, Plan, Groceries, Settings, import, and restore flows; localized controlled vocabulary; accessibility and mobile layout review; an explicit language setting. User-authored recipe content remains unchanged. If the translation inventory is too large, split implementation by workflow but expose the language only once it meets the release criteria.
+
+---
+
+# Strategic decision — which business are we building?
+
+Once the local product is reliable (after checkpoint D), decide which direction the product is actually pursuing before any major expansion:
+
+| Direction                        | Main investment                                                      |
+| -------------------------------- | -------------------------------------------------------------------- |
+| Private, local household utility | Backup, portability, polish, offline reliability                     |
+| Collaborative family planner     | Accounts, household membership, synchronization, conflict handling   |
+| Recipe discovery product         | Content acquisition, licensing, search, importing                    |
+| Planning assistant               | Better structured data, preference modeling, explainable suggestions |
+
+Default: remain a private, local household utility until evidence shows another direction is necessary.
+
+Test one question early, though: is “family” a household using one shared device, or several people expecting the same plan on their own phones? If multi-device collaboration is essential to adoption, sync is a strategic requirement, not a small settings feature — it needs a separate architecture proposal and delivery program, not a sprint slotted into this sequence.
+
+---
+
 # Work intentionally not squeezed into this sequence
 
-These need their own bounded backlog if demand appears:
+These need their own bounded backlog if demand appears. Unless household research demonstrates demand, this also includes: automatic weekly generation, nutrition calculations, comprehensive food ontologies, pantry and expiry management, cross-week leftover inventory, external ingredient enrichment, social features, and AI-generated classification. Avoid adding more filters merely because the data model can support them, and avoid catalog favorites simply because they are familiar — first establish whether tags, saved views, and existing favorite meals leave a genuine gap.
 
-| Feature                                       | Why deferred                                                                                            |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Full second-language UI                       | Requires translation inventory and screen-by-screen review; number formatting is not full localization. |
-| Catalog recipe/food favorites                 | Useful, but separate from existing favorite meals; add if tags and views are insufficient.              |
-| Bulk tagging                                  | Valuable mainly once catalogs become large.                                                             |
-| Cuisine normalization                         | Preserve current data until duplicates and filtering needs justify a migration.                         |
-| Dietary suitability system                    | Needs explicit provenance and uncertainty rules.                                                        |
-| Local photo uploads and portable image backup | Separate storage, quota, and backup concerns.                                                           |
-| Custom grocery aisle order                    | Useful after basic shopping sections are validated.                                                     |
-| External ingredient enrichment                | No current requirement justifies the dependency.                                                        |
+| Feature                                       | Why deferred                                                                                                                                                     |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Full second-language UI                       | Requires translation inventory and screen-by-screen review; number formatting is not full localization. Lane C above is the bounded path in if/when it's chosen. |
+| Catalog recipe/food favorites                 | Useful, but separate from existing favorite meals; add if tags and views are insufficient.                                                                       |
+| Bulk tagging                                  | Valuable mainly once catalogs become large; Lane A above is the bounded path in if/when it's chosen.                                                             |
+| Cuisine normalization                         | Preserve current data until duplicates and filtering needs justify a migration.                                                                                  |
+| Dietary suitability system                    | Needs explicit provenance and uncertainty rules.                                                                                                                 |
+| Local photo uploads and portable image backup | Separate storage, quota, and backup concerns.                                                                                                                    |
+| Custom grocery aisle order                    | Shopping sections shipped in Sprint 20; per-household section _ordering_ is Lane B's Sprint 26B if chosen.                                                       |
+| External ingredient enrichment                | No current requirement justifies the dependency.                                                                                                                 |
+| Cloud sync / multi-device collaboration       | Strategic-scale decision, not a slice — see "Strategic decision" above. Needs its own architecture proposal.                                                     |
 
 ---
 
@@ -614,4 +767,6 @@ Sprint 21 is done: tag lifecycle on `TagService`/`TagRepository` — archive (as
 
 Sprint 22 is done: named saved library views (`LibraryView` + Dexie `libraryViews` table) store query, filters, sort, and grouping. Recipes library can pick, rename, and delete a view; a dirty indicator appears when browse differs from the loaded view; **Update view** writes explicitly and **Save as new** keeps the previous view. Restoring a view re-runs criteria against the live catalog. Archived tag filters still apply; deleted tag/ingredient ids stay visible to clear and are skipped while matching so the library is not emptied. Dexie schema v7 and backup format version 7. Tests: `LibraryView.test.ts`, `LibraryViewService.test.ts`, `catalogModel.test.ts`, `backupSchema.test.ts`.
 
-**Next:** optional follow-up slices (see the table above). No further sequenced sprint is committed.
+Sprint 23 is done: restore preflight on Settings (`BackupService.inspectBackup`) fully validates a file before any write, shows recipe / simple-food / meal-plan / grocery-list counts (and `exportedAt` only when it is a reliable ISO datetime), offers export of current data from the modal, and maps invalid / unsupported-version / write-failed results instead of throwing. `restoreBackup` re-validates, then uses the existing Dexie transactional `replaceAll`. Invalid or unsupported files never call `replaceAll`. No Dexie or backup-format bump. Tests: `BackupService.test.ts`.
+
+**Next:** Sprint 24 (explain generated grocery quantities), then Sprint 25 (preview grocery updates from the plan) — the rest of Phase 5, subject to reordering by household-trial findings. Sprints 26A/27A, 26B/27B, and 26C/27C (Phase 6) are lane options to choose from by evidence after checkpoint D, not a queue to work through in order.

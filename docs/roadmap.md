@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped through **Sprint 22**. Optional Phase 4 follow-ups remain. Full cards and Status log: [`docs/sprints/plan.md`](sprints/plan.md).
+Shipped through **Sprint 23**. Optional Phase 4 follow-ups remain. Full cards and Status log: [`docs/sprints/plan.md`](sprints/plan.md).
 
 ## Done — project initialization
 
@@ -89,6 +89,11 @@ Shipped through **Sprint 22**. Optional Phase 4 follow-ups remain. Full cards an
 - Named views for Recipes query, filters, sort, and grouping; pick / rename / delete; unsaved indicator; explicit Update vs Save as new.
 - Live catalog matching; stale archived/deleted tag (and missing ingredient) refs stay visible and do not crash or blank the library.
 - Dexie schema v7 (`libraryViews`), backup format 7.
+
+## Done — Sprint 23 (safe restore)
+
+- Restore preflight: validate the file first, show recipe / simple-food / plan / grocery-list counts, optional reliable export date, export current data before replace.
+- Invalid or unsupported backups leave local data untouched. Success repeats the same counts. No schema or backup-format bump.
 
 ## Later (optional Phase 4 follow-ups)
 

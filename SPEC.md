@@ -613,7 +613,7 @@ type BackupFile = {
 }
 ```
 
-For MVP, restore can **replace all local data after confirmation**. Merge-importing two household databases is a separate future feature.
+For MVP, restore can **replace all local data after a validated preflight confirmation**. Merge-importing two household databases is a separate future feature.
 
 ---
 

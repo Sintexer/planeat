@@ -40,6 +40,6 @@ Structured import (JSON / JSON-LD / HTML with embedded JSON-LD) prefills a draft
 
 ## Settings
 
-Household size, week-start day, planning preferences, catalog sort/group, UI locale, measurement presentation (default as-entered), JSON backup export/restore (replace-all), including saved library views.
+Household size, week-start day, planning preferences, catalog sort/group, UI locale, measurement presentation (default as-entered), JSON backup export/restore (replace-all after a validated preflight: counts, optional export date, export current data first), including saved library views. An invalid or unsupported backup leaves existing household data untouched.
 
 Locale and measurement presentation must not change stored quantities, IDs, or local calendar dates.
