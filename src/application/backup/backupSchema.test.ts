@@ -631,4 +631,29 @@ describe('backupFileSchema — saved library views (Sprint 22)', () => {
       perSlotCandidateLimit: 3,
     })
   })
+
+  it('accepts optional generationCompositionBounds on settings', () => {
+    const data = emptyData()
+    data.settings = [
+      {
+        ...DEFAULT_SETTINGS,
+        generationCompositionBounds: {
+          maxPairingsPerRecipe: 1,
+          maxComponentsPerCandidate: 3,
+        },
+      },
+    ]
+    const result = backupFileSchema.safeParse({
+      format: 'family-menu-planner',
+      schemaVersion: CURRENT_BACKUP_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    })
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.data.data.settings[0].generationCompositionBounds).toEqual({
+      maxPairingsPerRecipe: 1,
+      maxComponentsPerCandidate: 3,
+    })
+  })
 })

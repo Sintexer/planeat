@@ -34,6 +34,8 @@ export const enMessages = {
   'generation.generate': 'Generate',
   'generation.previewTitle': 'Suggested meal',
   'generation.previewBody': '{name} for {meal}, scaled to {quantity}.',
+  'generation.previewSourceFavorite': 'From favorite “{name}”.',
+  'generation.previewSourcePairing': 'From a saved pairing.',
   'generation.applied': 'Meal added',
   'generation.noEligible': 'No complete recipes for this meal yet.',
   'generation.slotNotEmpty': 'This meal already has a dish.',
@@ -164,6 +166,10 @@ export const enMessages = {
   'settings.beamWidth': 'Search beam width',
   'settings.perSlotCandidateLimit': 'Candidates considered per meal',
   'settings.expansionBudget': 'Maximum search expansions',
+  'settings.compositionBoundsHelp':
+    'These cap how many stored pairings and components a generated meal may use. The generator never invents a main and side that were not saved as a favorite or pairing.',
+  'settings.maxPairingsPerRecipe': 'Pairings considered per recipe',
+  'settings.maxComponentsPerCandidate': 'Maximum dishes in one generated meal',
   'settings.missingGenerationRefs':
     'Missing from this library — still applied: recipes {recipes}, tags {tags}, ingredients {ingredients}.',
   'settings.backupMissingGenerationRefs':

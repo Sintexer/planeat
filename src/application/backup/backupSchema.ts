@@ -151,6 +151,12 @@ const settingsSchema = z.object({
       perSlotCandidateLimit: z.number(),
     })
     .optional(),
+  generationCompositionBounds: z
+    .object({
+      maxPairingsPerRecipe: z.number(),
+      maxComponentsPerCandidate: z.number(),
+    })
+    .optional(),
 })
 
 const planSchema = z.object({

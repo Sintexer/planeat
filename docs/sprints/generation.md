@@ -329,6 +329,8 @@ Soft preferences: quick-meal days, effort, recipe repetition (include `maxPrefer
 
 **Workload:** count each **new** cooking event once; use recorded **active** time as the workload proxy. Do not sum recipe total times and call that elapsed preparation time.
 
+**Shipped.** Composition candidates in `compositions.ts` (`algorithmVersion` `33`): standalone complete recipes, enabled simple foods, stored favorites, and capped stored pairings. Hard excludes apply per component; includes are meal-level. Apply uses `PlanService.addGeneratedMealComponents` in one Dexie transaction. Additive `generationCompositionBounds` on Settings (backup optional object). Preview lists each component and favorite/pairing source. No Dexie or backup-format bump.
+
 ---
 
 ## Sprint 34 — Allocate existing leftovers

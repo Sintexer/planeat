@@ -1,7 +1,12 @@
-import type { Recipe } from '../../recipes/Recipe'
 import type { Quantity } from '../../shared/Quantity'
 import type { MealSlot } from '../MealSlot'
-import { eligibleStandaloneRecipes } from './candidates'
+import {
+  assignmentFromCandidate,
+  enumerateCompositionCandidates,
+  foodsInComposition,
+  recipesInComposition,
+  type CompositionCandidate,
+} from './compositions'
 import { buildGenerationDiagnostics, DEFAULT_GENERATION_HARD_POLICY } from './constraints'
 import {
   fingerprintFromInput,
@@ -21,12 +26,13 @@ import {
 } from './proposalValidation'
 import {
   addAssignmentToObjective,
-  candidateScoreTuple,
+  compositionScoreTuple,
   compareScoreTuples,
   compareWeekObjectives,
   DEFAULT_GENERATION_SOFT_PREFS,
   emptyWeekObjective,
-  scoreReasonsForPick,
+  scoreReasonsForComposition,
+  type ScoreableComposition,
   type ScoringContext,
   type WeekObjective,
 } from './scoring'
@@ -104,27 +110,41 @@ function scoringContext(
   }
 }
 
+function scoreable(candidate: CompositionCandidate): ScoreableComposition {
+  return {
+    id: candidate.id,
+    recipes: recipesInComposition(candidate),
+    foods: foodsInComposition(candidate),
+  }
+}
+
 function limitedCandidates(
-  eligible: readonly Recipe[],
+  eligible: readonly CompositionCandidate[],
   ctx: ScoringContext,
   limit: number,
   random: () => number,
-): Recipe[] {
+): CompositionCandidate[] {
   const ranked = [...eligible].sort((a, b) => {
-    const tuple = compareScoreTuples(candidateScoreTuple(a, ctx), candidateScoreTuple(b, ctx))
+    const tuple = compareScoreTuples(
+      compositionScoreTuple(scoreable(a), ctx),
+      compositionScoreTuple(scoreable(b), ctx),
+    )
     if (tuple !== 0) return tuple
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
   })
-  const groups: Recipe[][] = []
-  for (const recipe of ranked) {
+  const groups: CompositionCandidate[][] = []
+  for (const candidate of ranked) {
     const last = groups[groups.length - 1]
     if (
       last &&
-      compareScoreTuples(candidateScoreTuple(recipe, ctx), candidateScoreTuple(last[0], ctx)) === 0
+      compareScoreTuples(
+        compositionScoreTuple(scoreable(candidate), ctx),
+        compositionScoreTuple(scoreable(last[0]), ctx),
+      ) === 0
     ) {
-      last.push(recipe)
+      last.push(candidate)
     } else {
-      groups.push([recipe])
+      groups.push([candidate])
     }
   }
   return groups.flatMap((group) => seededShuffle(group, random)).slice(0, limit)
@@ -132,7 +152,14 @@ function limitedCandidates(
 
 function assignmentKey(node: SearchNode): string {
   const assigned = node.assignments
-    .map((row) => `${row.slotId}:${row.recipeId}`)
+    .map((row) => {
+      const ids = row.components
+        .map((component) =>
+          component.type === 'recipe' ? component.recipeId : component.simpleFoodId,
+        )
+        .join('+')
+      return `${row.slotId}:${ids}`
+    })
     .sort()
     .join(',')
   const empty = node.unfilled
@@ -143,7 +170,13 @@ function assignmentKey(node: SearchNode): string {
 }
 
 function uniqueRecipeCount(node: SearchNode): number {
-  return new Set(node.assignments.map((row) => row.recipeId)).size
+  return new Set(
+    node.assignments.flatMap((row) =>
+      row.components.flatMap((component) =>
+        component.type === 'recipe' ? [component.recipeId] : [],
+      ),
+    ),
+  ).size
 }
 
 function pruneBeam(nodes: SearchNode[], width: number): SearchNode[] {
@@ -189,49 +222,35 @@ function withUnfilled(
 function withAssignment(
   node: SearchNode,
   row: RequestedGenerationSlot,
-  recipe: Recipe,
-  quantity: Quantity,
-  eligible: readonly Recipe[],
+  candidate: CompositionCandidate,
+  assignment: SlotAssignment,
+  eligible: readonly CompositionCandidate[],
   ctx: ScoringContext,
 ): SearchNode {
+  const recipes = recipesInComposition(candidate)
   const cooksByDate = new Map(node.cooksByDate)
   const demandingByDate = new Map(node.demandingByDate)
-  cooksByDate.set(row.slot.date, (cooksByDate.get(row.slot.date) ?? 0) + 1)
-  if (recipe.effort === 'demanding') {
-    demandingByDate.set(row.slot.date, (demandingByDate.get(row.slot.date) ?? 0) + 1)
+  cooksByDate.set(row.slot.date, (cooksByDate.get(row.slot.date) ?? 0) + recipes.length)
+  const demandingAdded = recipes.filter((recipe) => recipe.effort === 'demanding').length
+  if (demandingAdded > 0) {
+    demandingByDate.set(row.slot.date, (demandingByDate.get(row.slot.date) ?? 0) + demandingAdded)
   }
+  const scored = scoreable(candidate)
   return {
     nextSlotIndex: node.nextSlotIndex + 1,
     assignments: [
       ...node.assignments,
       {
-        slotId: row.slot.id,
-        recipeId: recipe.id,
-        recipeName: recipe.name,
-        mealType: row.slot.mealType,
-        outputQuantity: quantity,
-        allocatedQuantity: quantity,
-        scoreReasons: scoreReasonsForPick(recipe, eligible, ctx),
+        ...assignment,
+        scoreReasons: scoreReasonsForComposition(scored, eligible.map(scoreable), ctx),
       },
     ],
     unfilled: [...node.unfilled],
-    weekRecipeIds: [...node.weekRecipeIds, recipe.id],
+    weekRecipeIds: [...node.weekRecipeIds, ...recipes.map((recipe) => recipe.id)],
     demandingByDate,
     cooksByDate,
-    objective: addAssignmentToObjective(node.objective, candidateScoreTuple(recipe, ctx)),
+    objective: addAssignmentToObjective(node.objective, compositionScoreTuple(scored, ctx)),
   }
-}
-
-function scaledQuantity(
-  input: GenerationInput,
-  slotId: string,
-  recipe: Recipe,
-  scale: ScaleQuantity,
-): Quantity | undefined {
-  const override = input.quantityOverrides?.[slotId]
-  const scaled = override ?? scale(recipe.defaultPortionPerPerson, input.peopleCount)
-  if (!scaled || !isValidPositiveQuantity(scaled)) return undefined
-  return scaled
 }
 
 function initialNode(input: GenerationInput): SearchNode {
@@ -329,22 +348,26 @@ export function weekObjectiveForAssignments(
   const bySlot = new Map(assignments.map((row) => [row.slotId, row]))
   let node = initialNode(input)
   let objective = emptyWeekObjective()
-  const policy = input.policy ?? DEFAULT_GENERATION_HARD_POLICY
   for (const row of requested) {
     const assignment = bySlot.get(row.slot.id)
     if (!assignment) continue
-    const recipe = input.recipes.find((item) => item.id === assignment.recipeId)
-    if (!recipe) continue
     const ctx = scoringContext(input, row, node)
-    objective = addAssignmentToObjective(objective, candidateScoreTuple(recipe, ctx))
-    node = withAssignment(
-      node,
-      row,
-      recipe,
-      assignment.outputQuantity,
-      eligibleStandaloneRecipes(input.recipes, row.slot.mealType, policy),
-      ctx,
+    const eligible = enumerateCompositionCandidates(input, row.slot.mealType)
+    const candidate = eligible.find((item) =>
+      assignment.components.every((component, index) => {
+        const part = item.parts[index]
+        if (component.type === 'recipe') {
+          return part?.type === 'recipe' && part.recipe.id === component.recipeId
+        }
+        return part?.type === 'simple-food' && part.food.id === component.simpleFoodId
+      }),
     )
+    if (!candidate) continue
+    objective = addAssignmentToObjective(
+      objective,
+      compositionScoreTuple(scoreable(candidate), ctx),
+    )
+    node = withAssignment(node, row, candidate, assignment, eligible, ctx)
   }
   return objective
 }
@@ -354,7 +377,6 @@ export function runGenerationSearch(
   requestId: string,
   scale: ScaleQuantity,
 ): WeekGenerationProposal {
-  const policy = input.policy ?? DEFAULT_GENERATION_HARD_POLICY
   const budget = mergeGenerationSearchBudget(input.searchBudget)
   const requested = sortRequestedSlots(input.requestedSlots)
   const random = mulberry32(hashSeed(input.seed))
@@ -378,7 +400,7 @@ export function runGenerationSearch(
         continue
       }
       const ctx = scoringContext(input, row, parent)
-      const eligible = eligibleStandaloneRecipes(input.recipes, row.slot.mealType, policy)
+      const eligible = enumerateCompositionCandidates(input, row.slot.mealType)
       if (eligible.length === 0) {
         const child = withUnfilled(parent, row.slot, 'no-eligible-candidates')
         best = considerBest(best, child)
@@ -387,16 +409,33 @@ export function runGenerationSearch(
       }
       const candidates = limitedCandidates(eligible, ctx, budget.perSlotCandidateLimit, random)
       let branched = false
-      for (const recipe of candidates) {
+      for (const candidate of candidates) {
         if (expansionsUsed >= budget.expansionBudget) {
           exhausted = true
           break
         }
-        const quantity = scaledQuantity(input, row.slot.id, recipe, scale)
-        if (!quantity) continue
+        const assignment = assignmentFromCandidate(
+          candidate,
+          row.slot.id,
+          row.slot.mealType,
+          input.peopleCount,
+          scale,
+          input.quantityOverrides?.[row.slot.id],
+        )
+        if (!assignment) continue
+        if (
+          assignment.components.some((component) =>
+            component.type === 'recipe'
+              ? !isValidPositiveQuantity(component.outputQuantity) ||
+                !isValidPositiveQuantity(component.allocatedQuantity)
+              : !isValidPositiveQuantity(component.allocatedQuantity),
+          )
+        ) {
+          continue
+        }
         expansionsUsed += 1
         branched = true
-        const child = withAssignment(parent, row, recipe, quantity, eligible, ctx)
+        const child = withAssignment(parent, row, candidate, assignment, eligible, ctx)
         best = considerBest(best, child)
         next.push(child)
         if (expansionsUsed >= budget.expansionBudget) {

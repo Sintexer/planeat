@@ -8,9 +8,12 @@ import type { SettingsRepository } from '../ports/SettingsRepository'
 import type { SimpleFoodRepository } from '../ports/SimpleFoodRepository'
 import type { TagRepository } from '../ports/TagRepository'
 import type { IngredientRepository } from '../ports/IngredientRepository'
+import type { MealFavoriteRepository } from '../ports/MealFavoriteRepository'
+import type { PairingRepository } from '../ports/PairingRepository'
 import {
   type GenerationInput,
   type WeekGenerationProposal,
+  mergeGenerationCompositionBounds,
   mergeGenerationSearchBudget,
 } from '../../domain/plans/generation/proposal'
 import {
@@ -55,6 +58,8 @@ export class GenerationService {
   private readonly simpleFoods: SimpleFoodRepository
   private readonly tags: TagRepository
   private readonly ingredients: IngredientRepository
+  private readonly favorites: MealFavoriteRepository
+  private readonly pairings: PairingRepository
   private activeRequestId: string | undefined
 
   constructor(
@@ -67,6 +72,8 @@ export class GenerationService {
     simpleFoods: SimpleFoodRepository,
     tags: TagRepository,
     ingredients: IngredientRepository,
+    favorites: MealFavoriteRepository,
+    pairings: PairingRepository,
   ) {
     this.plans = plans
     this.recipes = recipes
@@ -77,6 +84,8 @@ export class GenerationService {
     this.simpleFoods = simpleFoods
     this.tags = tags
     this.ingredients = ingredients
+    this.favorites = favorites
+    this.pairings = pairings
   }
 
   async prepareGeneration(
@@ -147,12 +156,10 @@ export class GenerationService {
     const issue = validateProposalAgainstLive(proposal, live.value)
     if (issue) return { ok: false, error: issue }
 
-    const result = await this.planService.addNewCookingEventComponents(
+    const result = await this.planService.addGeneratedMealComponents(
       proposal.assignments.map((row) => ({
         slotId: row.slotId,
-        recipeId: row.recipeId,
-        outputQuantity: row.outputQuantity,
-        allocatedQuantity: row.allocatedQuantity,
+        components: row.components,
       })),
     )
     if (!result.ok) return result
@@ -189,13 +196,16 @@ export class GenerationService {
     if (!plan) return { ok: false, error: 'not-found' }
     const graph = await this.plans.getGraph(planId)
     if (!graph) return { ok: false, error: 'not-found' }
-    const [recipes, settings, simpleFoods, tags, ingredients] = await Promise.all([
-      this.recipes.getAll(),
-      this.settings.get(),
-      this.simpleFoods.getAll(),
-      this.tags.getAll(),
-      this.ingredients.getAll(),
-    ])
+    const [recipes, settings, simpleFoods, tags, ingredients, favorites, pairings] =
+      await Promise.all([
+        this.recipes.getAll(),
+        this.settings.get(),
+        this.simpleFoods.getAll(),
+        this.tags.getAll(),
+        this.ingredients.getAll(),
+        this.favorites.list(),
+        this.pairings.list(),
+      ])
     const previousStart = addDays(plan.startDate, -7)
     const previous = await this.plans.getByStartDate(previousStart)
     const previousGraph = previous ? await this.plans.getGraph(previous.id) : undefined
@@ -219,6 +229,9 @@ export class GenerationService {
         planRevision: plan.revision,
         peopleCount: plan.peopleCount,
         recipes,
+        simpleFoods,
+        favorites,
+        pairings,
         requestedSlots,
         quantityOverrides,
         seed,
@@ -239,6 +252,7 @@ export class GenerationService {
         previousWeekRecipeIds,
         tagNamesById,
         searchBudget: mergeGenerationSearchBudget(settings.generationSearchBudget),
+        compositionBounds: mergeGenerationCompositionBounds(settings.generationCompositionBounds),
       },
     }
   }

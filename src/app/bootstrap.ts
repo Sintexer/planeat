@@ -93,6 +93,8 @@ export function bootstrap(): AppServices {
       simpleFoodRepository,
       tagRepository,
       ingredientRepository,
+      mealFavoriteRepository,
+      pairingRepository,
     ),
     groceryService: new GroceryService(
       groceryRepository,

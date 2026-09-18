@@ -3,6 +3,7 @@ import type { Recipe } from '../../recipes/Recipe'
 import {
   compareScoredCandidates,
   compareWeekObjectives,
+  compositionScoreTuple,
   DEFAULT_GENERATION_SOFT_PREFS,
   scoreReasonsForPick,
   selectBestCandidate,
@@ -97,6 +98,20 @@ describe('compareScoredCandidates', () => {
     const only = recipe({ id: 'only', effort: 'demanding' })
     expect(selectBestCandidate([only], context())?.recipe.id).toBe('only')
     expect(selectBestCandidate([], context())).toBeUndefined()
+  })
+})
+
+describe('compositionScoreTuple', () => {
+  it('counts two new cooks in one slot against the workload cap', () => {
+    const first = recipe({ id: 'cutlets', effort: 'regular' })
+    const second = recipe({ id: 'buckwheat', effort: 'regular' })
+    const ctx = context({
+      prefs: { ...DEFAULT_GENERATION_SOFT_PREFS, maxBatchPrepUnits: 1 },
+    })
+    const oneCook = compositionScoreTuple({ id: 'one', recipes: [first], foods: [] }, ctx)
+    const twoCooks = compositionScoreTuple({ id: 'two', recipes: [first, second], foods: [] }, ctx)
+    expect(oneCook[2]).toBe(0)
+    expect(twoCooks[2]).toBe(1)
   })
 })
 

@@ -3,7 +3,11 @@ import { GenerationService } from './GenerationService'
 import { createSyncGenerationRunner, type GenerationSearchRunner } from './generationRunner'
 import { PlanService } from './PlanService'
 import { QuantityService } from '../quantities/QuantityService'
-import type { AddCookingEventComponentInput, PlanRepository } from '../ports/PlanRepository'
+import type {
+  AddCookingEventComponentInput,
+  AddGeneratedComponentInput,
+  PlanRepository,
+} from '../ports/PlanRepository'
 import type { RecipeRepository } from '../ports/RecipeRepository'
 import type { SettingsRepository } from '../ports/SettingsRepository'
 import type { SimpleFoodRepository } from '../ports/SimpleFoodRepository'
@@ -17,6 +21,11 @@ import type { PlanGraph } from '../../domain/plans/PlanGraph'
 import type { Recipe } from '../../domain/recipes/Recipe'
 import type { Tag } from '../../domain/tags/Tag'
 import { DEFAULT_SETTINGS, type Settings } from '../../domain/shared/Settings'
+import type { MealFavoriteRepository } from '../ports/MealFavoriteRepository'
+import type { PairingRepository } from '../ports/PairingRepository'
+import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
+import type { MealFavorite } from '../../domain/favorites/MealFavorite'
+import type { RecipePairing } from '../../domain/pairings/RecipePairing'
 import type { WeekGenerationProposal } from '../../domain/plans/generation/proposal'
 
 function baseRecipe(overrides: Partial<Recipe> = {}): Recipe {
@@ -101,32 +110,87 @@ class FakePlanRepository implements PlanRepository {
   }
 
   async addCookingEventComponents(planId: PlanId, inputs: AddCookingEventComponentInput[]) {
-    this.batchCalls.push(inputs)
+    return this.addGeneratedComponents(
+      planId,
+      inputs.map((input) => ({ kind: 'cooking-event' as const, ...input })),
+    )
+  }
+
+  async addSimpleFoodComponent(
+    planId: PlanId,
+    input: Parameters<PlanRepository['addSimpleFoodComponent']>[1],
+  ) {
+    const [component] = await this.addGeneratedComponents(planId, [
+      { kind: 'simple-food', ...input },
+    ])
+    return component
+  }
+
+  async addGeneratedComponents(planId: PlanId, inputs: AddGeneratedComponentInput[]) {
+    const cookInputs = inputs.flatMap((input) =>
+      input.kind === 'cooking-event'
+        ? [
+            {
+              slotId: input.slotId,
+              recipeId: input.recipeId,
+              recipeSnapshot: input.recipeSnapshot,
+              outputQuantity: input.outputQuantity,
+              allocatedQuantity: input.allocatedQuantity,
+              role: input.role,
+              scheduledDate: input.scheduledDate,
+            },
+          ]
+        : [],
+    )
+    if (cookInputs.length > 0) this.batchCalls.push(cookInputs)
     const components: MealComponent[] = []
     for (const input of inputs) {
-      this.addCalls.push(input)
-      const event: CookingEvent = {
-        id: `event-${this.addCalls.length}`,
-        planId,
-        sessionId: 'session-1',
-        recipeId: input.recipeId,
-        recipeSnapshot: input.recipeSnapshot,
-        outputQuantity: input.outputQuantity,
-        scheduledDate: input.scheduledDate,
+      if (input.kind === 'cooking-event') {
+        this.addCalls.push({
+          slotId: input.slotId,
+          recipeId: input.recipeId,
+          recipeSnapshot: input.recipeSnapshot,
+          outputQuantity: input.outputQuantity,
+          allocatedQuantity: input.allocatedQuantity,
+          role: input.role,
+          scheduledDate: input.scheduledDate,
+        })
+        const event: CookingEvent = {
+          id: `event-${this.addCalls.length}`,
+          planId,
+          sessionId: 'session-1',
+          recipeId: input.recipeId,
+          recipeSnapshot: input.recipeSnapshot,
+          outputQuantity: input.outputQuantity,
+          scheduledDate: input.scheduledDate,
+        }
+        const component: MealComponent = {
+          id: `component-${this.graph.components.length + 1}`,
+          slotId: input.slotId,
+          source: { type: 'cooking-event', cookingEventId: event.id },
+          allocatedQuantity: input.allocatedQuantity,
+          role: input.role,
+        }
+        this.graph = {
+          ...this.graph,
+          cookingEvents: [...this.graph.cookingEvents, event],
+          components: [...this.graph.components, component],
+        }
+        components.push(component)
+      } else {
+        const component: MealComponent = {
+          id: `food-${this.graph.components.length + 1}`,
+          slotId: input.slotId,
+          source: { type: 'simple-food', simpleFoodId: input.simpleFoodId },
+          allocatedQuantity: input.allocatedQuantity,
+          role: input.role,
+        }
+        this.graph = {
+          ...this.graph,
+          components: [...this.graph.components, component],
+        }
+        components.push(component)
       }
-      const component: MealComponent = {
-        id: `component-${this.addCalls.length}`,
-        slotId: input.slotId,
-        source: { type: 'cooking-event', cookingEventId: event.id },
-        allocatedQuantity: input.allocatedQuantity,
-        role: input.role,
-      }
-      this.graph = {
-        ...this.graph,
-        cookingEvents: [...this.graph.cookingEvents, event],
-        components: [...this.graph.components, component],
-      }
-      components.push(component)
     }
     this.graph = {
       ...this.graph,
@@ -147,9 +211,6 @@ class FakePlanRepository implements PlanRepository {
     throw new Error('not implemented')
   }
   linkCookingEventComponent: PlanRepository['linkCookingEventComponent'] = () => {
-    throw new Error('not implemented')
-  }
-  addSimpleFoodComponent: PlanRepository['addSimpleFoodComponent'] = () => {
     throw new Error('not implemented')
   }
   updateComponentAllocation: PlanRepository['updateComponentAllocation'] = () => {
@@ -249,15 +310,13 @@ class FakeTagRepository implements TagRepository {
   }
 }
 
-function unusedSimpleFoods(): SimpleFoodRepository {
+function unusedSimpleFoods(rows: SimpleFood[] = []): SimpleFoodRepository {
   return {
     create: () => {
       throw new Error('not implemented')
     },
-    getAll: async () => [],
-    getById: () => {
-      throw new Error('not implemented')
-    },
+    getAll: async () => [...rows],
+    getById: async (id) => rows.find((row) => row.id === id),
     update: () => {
       throw new Error('not implemented')
     },
@@ -298,6 +357,41 @@ function unusedIngredients(): IngredientRepository {
   }
 }
 
+function unusedPairings(rows: RecipePairing[] = []): PairingRepository {
+  return {
+    list: async () => [...rows],
+    listForRecipe: async (recipeId) => rows.filter((row) => row.recipeId === recipeId),
+    getById: async (id) => rows.find((row) => row.id === id),
+    findDuplicate: async () => undefined,
+    create: () => {
+      throw new Error('not implemented')
+    },
+    delete: () => {
+      throw new Error('not implemented')
+    },
+  }
+}
+
+class FakeMealFavoriteRepository implements MealFavoriteRepository {
+  rows: MealFavorite[]
+
+  constructor(rows: MealFavorite[] = []) {
+    this.rows = rows
+  }
+
+  async list() {
+    return [...this.rows]
+  }
+
+  async getById(id: string) {
+    return this.rows.find((row) => row.id === id)
+  }
+
+  findByNameNormalized: MealFavoriteRepository['findByNameNormalized'] = async () => undefined
+  create: MealFavoriteRepository['create'] = async () => undefined
+  delete: MealFavoriteRepository['delete'] = async () => undefined
+}
+
 function makeGraph(
   overrides: {
     slots?: MealSlot[]
@@ -323,15 +417,23 @@ function makeServices(
   runner?: GenerationSearchRunner,
   settings: Settings = DEFAULT_SETTINGS,
   previous?: PlanGraph,
+  extras: {
+    simpleFoods?: SimpleFood[]
+    favorites?: MealFavorite[]
+    pairings?: RecipePairing[]
+  } = {},
 ) {
   const plans = new FakePlanRepository(graph, previous)
   const recipeRepo = new FakeRecipeRepository(recipes)
   const quantities = new QuantityService()
   const tags = new FakeTagRepository()
+  const simpleFoods = unusedSimpleFoods(extras.simpleFoods ?? [])
+  const favorites = new FakeMealFavoriteRepository(extras.favorites ?? [])
+  const pairings = unusedPairings(extras.pairings ?? [])
   const planService = new PlanService(
     plans,
     recipeRepo,
-    unusedSimpleFoods(),
+    simpleFoods,
     unusedSettings(),
     quantities,
     tags,
@@ -343,11 +445,13 @@ function makeServices(
     planService,
     runner ?? createSyncGenerationRunner(quantities),
     unusedSettings(settings),
-    unusedSimpleFoods(),
+    simpleFoods,
     tags,
     unusedIngredients(),
+    favorites,
+    pairings,
   )
-  return { plans, recipeRepo, generation, quantities }
+  return { plans, recipeRepo, generation, quantities, favorites }
 }
 
 describe('GenerationService', () => {
@@ -360,10 +464,15 @@ describe('GenerationService', () => {
     const ran = generation.runGeneration(prepared.value, 'req-1')
     expect(ran.ok).toBe(true)
     if (!ran.ok) return
-    expect(ran.value.assignments[0].recipeId).toBe('recipe-soup')
-    expect(ran.value.assignments[0].outputQuantity).toEqual(
-      quantities.scale(soup.defaultPortionPerPerson, 3),
-    )
+    expect(ran.value.assignments[0].components[0]).toMatchObject({
+      type: 'recipe',
+      recipeId: 'recipe-soup',
+    })
+    expect(
+      ran.value.assignments[0].components[0]?.type === 'recipe'
+        ? ran.value.assignments[0].components[0].outputQuantity
+        : undefined,
+    ).toEqual(quantities.scale(soup.defaultPortionPerPerson, 3))
   })
 
   it('apply writes assigned slots in one batch and freezes tag labels', async () => {
@@ -578,7 +687,10 @@ describe('GenerationService', () => {
     const started = await generation.startGeneration(['slot-dinner'], { seed: 'seed-1' })
     expect(started.ok).toBe(true)
     if (!started.ok) return
-    expect(started.value.assignments[0].recipeId).toBe('rice')
+    expect(started.value.assignments[0].components[0]).toMatchObject({
+      type: 'recipe',
+      recipeId: 'rice',
+    })
     expect(started.value.diagnostics.fixedConflicts).toEqual([
       {
         slotId: 'slot-planned',
@@ -629,5 +741,104 @@ describe('GenerationService', () => {
   it('does not construct or call a grocery service', () => {
     const { generation } = makeServices(makeGraph(), [baseRecipe()])
     expect(generation).toBeInstanceOf(GenerationService)
+  })
+
+  it('applies a mixed favorite of cook-new and simple food in one batch', async () => {
+    const toast = baseRecipe({
+      id: 'toast',
+      name: 'Toast',
+      roles: ['main'],
+      mealTypes: ['dinner'],
+    })
+    const yogurt: SimpleFood = {
+      id: 'yogurt',
+      ingredientId: 'ing-yogurt',
+      name: 'Yogurt',
+      defaultPortion: { value: 1, unit: 'cup' },
+      roles: ['complete'],
+      mealTypes: ['dinner'],
+      tagIds: [],
+      enabledInSuggestions: false,
+      createdAt: 0,
+      updatedAt: 0,
+    }
+    const { generation, plans } = makeServices(
+      makeGraph(),
+      [toast],
+      undefined,
+      DEFAULT_SETTINGS,
+      undefined,
+      {
+        simpleFoods: [yogurt],
+        favorites: [
+          {
+            id: 'fav-yogurt',
+            name: 'Toast and yogurt',
+            components: [
+              {
+                type: 'recipe',
+                recipeId: 'toast',
+                allocatedQuantity: { value: 2, unit: 'serving' },
+              },
+              {
+                type: 'simple-food',
+                simpleFoodId: 'yogurt',
+                allocatedQuantity: { value: 1, unit: 'cup' },
+              },
+            ],
+            createdAt: 0,
+            updatedAt: 1,
+          },
+        ],
+      },
+    )
+    const started = await generation.startGeneration(['slot-dinner'], { seed: 'seed-1' })
+    if (!started.ok) throw new Error(started.error)
+    expect(started.value.assignments[0]?.components).toHaveLength(2)
+    const applied = await generation.applyProposal(started.value)
+    expect(applied.ok).toBe(true)
+    expect(plans.batchCalls).toHaveLength(1)
+    expect(plans.batchCalls[0]).toHaveLength(1)
+    expect(plans.graph.components).toHaveLength(2)
+    expect(plans.graph.components.map((row) => row.source.type).sort()).toEqual([
+      'cooking-event',
+      'simple-food',
+    ])
+    expect(plans.graph.plan.revision).toBe(2)
+  })
+
+  it('rejects apply when a favorite fingerprint goes stale', async () => {
+    const toast = baseRecipe({ id: 'toast', name: 'Toast', roles: ['main'] })
+    const { generation, plans, favorites } = makeServices(
+      makeGraph(),
+      [toast],
+      undefined,
+      DEFAULT_SETTINGS,
+      undefined,
+      {
+        favorites: [
+          {
+            id: 'fav-1',
+            name: 'Toast only',
+            components: [
+              {
+                type: 'recipe',
+                recipeId: 'toast',
+                allocatedQuantity: { value: 2, unit: 'serving' },
+              },
+            ],
+            createdAt: 0,
+            updatedAt: 1,
+          },
+        ],
+      },
+    )
+    const started = await generation.startGeneration(['slot-dinner'], { seed: 'seed-1' })
+    if (!started.ok) throw new Error(started.error)
+    favorites.rows = [{ ...favorites.rows[0], updatedAt: 99 }]
+    const applied = await generation.applyProposal(started.value)
+    expect(applied).toEqual({ ok: false, error: 'stale-proposal' })
+    expect(plans.batchCalls).toHaveLength(0)
+    expect(plans.graph.plan.revision).toBe(1)
   })
 })

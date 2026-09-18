@@ -1,5 +1,6 @@
 import type {
   AddCookingEventComponentInput,
+  AddGeneratedComponentInput,
   CookingEventDependent,
   PlanRepository,
 } from '../ports/PlanRepository'
@@ -30,6 +31,7 @@ import type { Quantity } from '../../domain/shared/Quantity'
 import type { RecipeId } from '../../domain/recipes/Recipe'
 import type { SimpleFoodId } from '../../domain/simpleFoods/SimpleFood'
 import type { FavoriteComponent } from '../../domain/favorites/MealFavorite'
+import type { GeneratedComponent } from '../../domain/plans/generation/proposal'
 
 export type PlanError =
   | 'not-found'
@@ -194,6 +196,55 @@ export class PlanService {
     }
     if (!planId) return { ok: false, error: 'not-found' }
     const components = await this.plans.addCookingEventComponents(planId, inputs)
+    return { ok: true, components }
+  }
+
+  async addGeneratedMealComponents(
+    items: Array<{ slotId: MealSlotId; components: GeneratedComponent[] }>,
+  ): Promise<{ ok: true; components: MealComponent[] } | { ok: false; error: PlanError }> {
+    if (items.length === 0) return { ok: true, components: [] }
+    const inputs: AddGeneratedComponentInput[] = []
+    let planId: PlanId | undefined
+    for (const item of items) {
+      for (const component of item.components) {
+        if (component.type === 'recipe') {
+          const built = await this.buildCookingEventComponentInput(
+            item.slotId,
+            component.recipeId,
+            {
+              outputQuantity: component.outputQuantity,
+              allocatedQuantity: component.allocatedQuantity,
+              role: component.role,
+            },
+          )
+          if (!built.ok) return built
+          if (planId !== undefined && built.planId !== planId)
+            return { ok: false, error: 'not-found' }
+          planId = built.planId
+          inputs.push({ kind: 'cooking-event', ...built.input })
+        } else {
+          const ctx = await this.slotPlanContext(item.slotId)
+          if (!ctx.ok) return ctx
+          if (planId !== undefined && ctx.plan.id !== planId)
+            return { ok: false, error: 'not-found' }
+          planId = ctx.plan.id
+          const food = await this.simpleFoods.getById(component.simpleFoodId)
+          if (!food) return { ok: false, error: 'simple-food-not-found' }
+          if (!this.isValidPositiveQuantity(component.allocatedQuantity)) {
+            return { ok: false, error: 'invalid-quantity' }
+          }
+          inputs.push({
+            kind: 'simple-food',
+            slotId: item.slotId,
+            simpleFoodId: food.id,
+            allocatedQuantity: component.allocatedQuantity,
+            role: component.role ?? food.roles[0],
+          })
+        }
+      }
+    }
+    if (!planId) return { ok: false, error: 'not-found' }
+    const components = await this.plans.addGeneratedComponents(planId, inputs)
     return { ok: true, components }
   }
 

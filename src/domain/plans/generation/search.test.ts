@@ -8,6 +8,7 @@ import {
   mergeGenerationSearchBudget,
   DEFAULT_GENERATION_SEARCH_BUDGET,
   type GenerationInput,
+  type SlotAssignment,
 } from './proposal'
 import { compareWeekObjectives, DEFAULT_GENERATION_SOFT_PREFS } from './scoring'
 import {
@@ -47,6 +48,16 @@ function slot(overrides: Partial<MealSlot> = {}): MealSlot {
   }
 }
 
+function firstRecipeId(assignment: SlotAssignment): string | undefined {
+  const component = assignment.components.find((row) => row.type === 'recipe')
+  return component?.type === 'recipe' ? component.recipeId : undefined
+}
+
+function firstRecipeQuantity(assignment: SlotAssignment) {
+  const component = assignment.components.find((row) => row.type === 'recipe')
+  return component?.type === 'recipe' ? component.outputQuantity : undefined
+}
+
 function input(overrides: Partial<GenerationInput> = {}): GenerationInput {
   const dinner = slot()
   return {
@@ -84,8 +95,8 @@ describe('runGenerationSearch', () => {
       scaleQuantity,
     )
     expect(proposal.assignments.map((row) => row.slotId)).toEqual(['slot-lunch', 'slot-dinner'])
-    expect(proposal.assignments[0].recipeId).toBe('oats')
-    expect(proposal.assignments[1].recipeId).toBe('soup')
+    expect(firstRecipeId(proposal.assignments[0])).toBe('oats')
+    expect(firstRecipeId(proposal.assignments[1])).toBe('soup')
     expect(proposal.unfilled).toEqual([])
     expect(proposal.seed).toBe('seed-1')
   })
@@ -131,7 +142,7 @@ describe('runGenerationSearch', () => {
     const b = runGenerationSearch(snapshot, 'req-b', scaleQuantity)
     expect(a.fingerprint).toBe(b.fingerprint)
     expect(a.assignments).toEqual(b.assignments)
-    expect(a.algorithmVersion).toBe('32')
+    expect(a.algorithmVersion).toBe('33')
   })
 
   it('uses a per-slot quantity override', () => {
@@ -142,7 +153,7 @@ describe('runGenerationSearch', () => {
       'req-1',
       scaleQuantity,
     )
-    expect(proposal.assignments[0].outputQuantity).toEqual({ value: 9, unit: 'serving' })
+    expect(firstRecipeQuantity(proposal.assignments[0])).toEqual({ value: 9, unit: 'serving' })
   })
 
   it('does not pick an excluded ingredient and reports a fixed conflict', () => {
@@ -181,7 +192,7 @@ describe('runGenerationSearch', () => {
       scaleQuantity,
     )
     expect(proposal.assignments).toHaveLength(1)
-    expect(proposal.assignments[0].recipeId).toBe('rice')
+    expect(firstRecipeId(proposal.assignments[0])).toBe('rice')
     expect(proposal.diagnostics.fixedConflicts[0]).toMatchObject({
       slotId: 'slot-mon',
       reasons: ['exclude-ingredients'],
@@ -201,7 +212,7 @@ describe('runGenerationSearch', () => {
       'req-1',
       scaleQuantity,
     )
-    expect(proposal.assignments[0].recipeId).toBe('zzz')
+    expect(firstRecipeId(proposal.assignments[0])).toBe('zzz')
     expect(proposal.assignments[0].scoreReasons.some((row) => row.code === 'quick-day')).toBe(true)
   })
 })
@@ -292,8 +303,8 @@ describe('bounded weekly search', () => {
     const snapshot = lookaheadInput()
     const greedy = runIndependentGreedySearch(snapshot, 'req-g', scaleQuantity)
     const beam = runGenerationSearch(snapshot, 'req-b', scaleQuantity)
-    expect(greedy.assignments.map((row) => row.recipeId)).toEqual(['oats', 'oats'])
-    expect(beam.assignments.map((row) => `${row.slotId}:${row.recipeId}`)).toEqual([
+    expect(greedy.assignments.map((row) => firstRecipeId(row))).toEqual(['oats', 'oats'])
+    expect(beam.assignments.map((row) => `${row.slotId}:${firstRecipeId(row)}`)).toEqual([
       'slot-lunch:pasta',
       'slot-dinner:oats',
     ])
@@ -350,14 +361,14 @@ describe('bounded weekly search', () => {
       perSlotCandidateLimit: 1,
       expansionBudget: 20,
     }
-    const picked = ['seed-a', 'seed-b', 'seed-c', 'seed-d', 'seed-e', 'seed-f'].map(
-      (seed) =>
-        runGenerationSearch(
-          input({ recipes: twins, seed, searchBudget: tight }),
-          'req-1',
-          scaleQuantity,
-        ).assignments[0]?.recipeId,
-    )
+    const picked = ['seed-a', 'seed-b', 'seed-c', 'seed-d', 'seed-e', 'seed-f'].map((seed) => {
+      const proposal = runGenerationSearch(
+        input({ recipes: twins, seed, searchBudget: tight }),
+        'req-1',
+        scaleQuantity,
+      )
+      return firstRecipeId(proposal.assignments[0])
+    })
     expect(new Set(picked).size).toBeGreaterThan(1)
   })
 
@@ -415,6 +426,112 @@ describe('bounded weekly search', () => {
       'req-1',
       scaleQuantity,
     )
-    expect(proposal.assignments[0].recipeId).toBe('rice')
+    expect(firstRecipeId(proposal.assignments[0])).toBe('rice')
+  })
+
+  it('fills a dinner from a two-recipe favorite', () => {
+    const cutlets = recipe({
+      id: 'cutlets',
+      name: 'Cutlets',
+      roles: ['main'],
+      mealTypes: ['dinner'],
+    })
+    const buckwheat = recipe({
+      id: 'buckwheat',
+      name: 'Buckwheat',
+      roles: ['side'],
+      mealTypes: ['dinner'],
+    })
+    const proposal = runGenerationSearch(
+      input({
+        recipes: [cutlets, buckwheat],
+        favorites: [
+          {
+            id: 'fav-1',
+            name: 'Cutlets and buckwheat',
+            components: [
+              {
+                type: 'recipe',
+                recipeId: 'cutlets',
+                allocatedQuantity: { value: 2, unit: 'serving' },
+              },
+              {
+                type: 'recipe',
+                recipeId: 'buckwheat',
+                allocatedQuantity: { value: 2, unit: 'serving' },
+              },
+            ],
+            createdAt: 0,
+            updatedAt: 1,
+          },
+        ],
+      }),
+      'req-1',
+      scaleQuantity,
+    )
+    expect(proposal.assignments[0]?.source).toEqual({
+      type: 'favorite',
+      favoriteId: 'fav-1',
+      favoriteName: 'Cutlets and buckwheat',
+    })
+    expect(
+      proposal.assignments[0]?.components.map((row) => row.type === 'recipe' && row.recipeId),
+    ).toEqual(['cutlets', 'buckwheat'])
+  })
+
+  it('does not invent a main and side that were never paired', () => {
+    const main = recipe({ id: 'cutlets', name: 'Cutlets', roles: ['complete'] })
+    const side = recipe({ id: 'buckwheat', name: 'Buckwheat', roles: ['complete'] })
+    const proposal = runGenerationSearch(input({ recipes: [main, side] }), 'req-1', scaleQuantity)
+    expect(proposal.assignments[0]?.components).toHaveLength(1)
+    expect(proposal.assignments[0]?.source).toEqual({ type: 'standalone' })
+  })
+
+  it('can pick an explicit pairing of two non-complete recipes', () => {
+    const cutlets = recipe({ id: 'cutlets', name: 'Cutlets', roles: ['main'] })
+    const buckwheat = recipe({ id: 'buckwheat', name: 'Buckwheat', roles: ['side'] })
+    const proposal = runGenerationSearch(
+      input({
+        recipes: [cutlets, buckwheat],
+        pairings: [
+          {
+            id: 'pair-1',
+            recipeId: 'cutlets',
+            target: { type: 'recipe', id: 'buckwheat' },
+            relationship: 'pairs-with',
+          },
+        ],
+      }),
+      'req-1',
+      scaleQuantity,
+    )
+    expect(proposal.assignments[0]?.source).toEqual({ type: 'pairing', pairingId: 'pair-1' })
+    expect(proposal.assignments[0]?.components).toHaveLength(2)
+  })
+
+  it('never picks suggestion-disabled yogurt on its own', () => {
+    const proposal = runGenerationSearch(
+      input({
+        recipes: [],
+        simpleFoods: [
+          {
+            id: 'yogurt',
+            ingredientId: 'ing-yogurt',
+            name: 'Yogurt',
+            defaultPortion: { value: 1, unit: 'cup' },
+            roles: ['complete'],
+            mealTypes: ['dinner'],
+            tagIds: [],
+            enabledInSuggestions: false,
+            createdAt: 0,
+            updatedAt: 0,
+          },
+        ],
+      }),
+      'req-1',
+      scaleQuantity,
+    )
+    expect(proposal.assignments).toEqual([])
+    expect(proposal.unfilled[0]?.reason).toBe('no-eligible-candidates')
   })
 })

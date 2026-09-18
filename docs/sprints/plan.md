@@ -2,7 +2,7 @@
 
 No dates. Keep the app releasable after every sprint. Each sprint delivers **one visible improvement**, including its UI, domain changes, persistence, backup support, and tests.
 
-**Current position:** Sprints 1–32, 26C–27C, and checkpoints A/B/C/D are shipped. Lane A and Lane C are complete. Lane B remains optional. Next sequenced work is Sprint 33 — cards in [`generation.md`](generation.md).
+**Current position:** Sprints 1–33, 26C–27C, and checkpoints A/B/C/D are shipped. Lane A and Lane C are complete. Lane B remains optional. Next sequenced work is Sprint 34 — cards in [`generation.md`](generation.md).
 
 Sprints 1–6 had no automated test runner. Vitest arrived in Sprint 8 (tags/backup). Measurement/grocery scenario tests landed in Sprint 13. Localization settings (`uiLocale`, `measurementPreference`) shipped before Phase 1; Sprint 14 applied them consistently to displayed quantities.
 
@@ -699,7 +699,7 @@ Test one question early, though: is “family” a household using one shared de
 
 # Phase 7 — Automatic meal planning
 
-Offline generator on the existing cooking-event model. **Next: Sprint 33.**
+Offline generator on the existing cooking-event model. **Next: Sprint 34.**
 
 Generation always produces a proposal. Apply goes through existing `PlanService` writes. Grocery lists never update as a side effect. Full implementation cards, module boundaries, acceptance tests, and demo scripts: [`generation.md`](generation.md).
 
@@ -817,4 +817,6 @@ Sprint 31 is done: lexicographic scoring among hard-eligible recipes (quick-meal
 
 Sprint 32 is done: chronological beam search (`algorithmVersion` 32) with household `generationSearchBudget` (beam width, per-slot candidate limit, expansion budget); seeded equal-score exploration; best-so-far under a lexicographic week objective (coverage first); `search-incomplete` when the budget ends; preview distinguishes that from no eligible recipes. No Dexie or backup-format bump.
 
-**Next:** Sprint 33 — known multi-component meals. Phase 7 cards: [`generation.md`](generation.md). Lane B remains optional.
+Sprint 33 is done: generate can fill a slot with a stored favorite, a stored pairing, a standalone complete recipe, or an enabled simple food (`algorithmVersion` 33); pairing expansion is capped; includes are meal-level, excludes apply to every component; Apply writes mixed cook-new and simple-food components in one transaction. Additive `generationCompositionBounds`. No Dexie or backup-format bump.
+
+**Next:** Sprint 34 — allocate existing leftovers. Phase 7 cards: [`generation.md`](generation.md). Lane B remains optional.

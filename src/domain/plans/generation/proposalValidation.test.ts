@@ -63,7 +63,7 @@ function proposal(
   const target = snapshot.requestedSlots[0]
   return {
     requestId: 'req-1',
-    algorithmVersion: '32',
+    algorithmVersion: '33',
     policyVersion: '31',
     seed: snapshot.seed,
     fingerprint: fingerprintFromInput(snapshot),
@@ -71,11 +71,17 @@ function proposal(
     assignments: [
       {
         slotId: target.slot.id,
-        recipeId: selected.id,
-        recipeName: selected.name,
         mealType: target.slot.mealType,
-        outputQuantity: { value: 2, unit: 'serving' },
-        allocatedQuantity: { value: 2, unit: 'serving' },
+        source: { type: 'standalone' },
+        components: [
+          {
+            type: 'recipe',
+            recipeId: selected.id,
+            recipeName: selected.name,
+            outputQuantity: { value: 2, unit: 'serving' },
+            allocatedQuantity: { value: 2, unit: 'serving' },
+          },
+        ],
         scoreReasons: [],
       },
     ],
@@ -140,6 +146,16 @@ describe('validateProposalAgainstLive', () => {
     const original = live()
     const next = live({
       policy: { ...DEFAULT_GENERATION_HARD_POLICY, excludedRecipeIds: ['soup'] },
+    })
+    expect(validateProposalAgainstLive(proposal(original), next)).toBe('stale-proposal')
+  })
+
+  it('rejects a fingerprint after composition bounds change', () => {
+    const original = live({
+      compositionBounds: { maxPairingsPerRecipe: 2, maxComponentsPerCandidate: 4 },
+    })
+    const next = live({
+      compositionBounds: { maxPairingsPerRecipe: 1, maxComponentsPerCandidate: 4 },
     })
     expect(validateProposalAgainstLive(proposal(original), next)).toBe('stale-proposal')
   })

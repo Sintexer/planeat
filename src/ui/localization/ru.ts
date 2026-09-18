@@ -38,6 +38,8 @@ export const ruMessages = {
   'generation.generate': 'Подобрать',
   'generation.previewTitle': 'Предложение',
   'generation.previewBody': '{name} на {meal}, порции: {quantity}.',
+  'generation.previewSourceFavorite': 'Из избранного «{name}».',
+  'generation.previewSourcePairing': 'Из сохранённой пары.',
   'generation.applied': 'Блюдо добавлено',
   'generation.noEligible': 'Нет полных блюд для этого приёма пищи.',
   'generation.slotNotEmpty': 'На этот приём уже есть блюдо.',
@@ -167,6 +169,10 @@ export const ruMessages = {
   'settings.beamWidth': 'Ширина луча поиска',
   'settings.perSlotCandidateLimit': 'Кандидатов на один приём пищи',
   'settings.expansionBudget': 'Максимум расширений поиска',
+  'settings.compositionBoundsHelp':
+    'Эти значения ограничивают, сколько сохранённых пар и частей может быть в подобранном приёме. Подбор не составляет гарнир с основным блюдом, если это не избранное или явная пара.',
+  'settings.maxPairingsPerRecipe': 'Пар на один рецепт',
+  'settings.maxComponentsPerCandidate': 'Максимум блюд в одном подобранном приёме',
   'settings.missingGenerationRefs':
     'Нет в этой библиотеке — ограничение сохраняется: рецепты {recipes}, метки {tags}, ингредиенты {ingredients}.',
   'settings.backupMissingGenerationRefs':

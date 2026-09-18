@@ -1,7 +1,6 @@
 import type { Quantity } from '../../shared/Quantity'
 import type { MealSlot } from '../MealSlot'
-import { isStandaloneEligible } from './candidates'
-import { DEFAULT_GENERATION_HARD_POLICY } from './constraints'
+import { compositionStillEligible } from './compositions'
 import { fingerprintFromInput, type GenerationInput, type WeekGenerationProposal } from './proposal'
 
 export type GenerationSlotError = 'slot-excluded' | 'slot-not-empty'
@@ -12,6 +11,7 @@ export type GenerationApplyError =
   | 'not-found'
   | 'stale-proposal'
   | 'recipe-not-found'
+  | 'simple-food-not-found'
   | 'invalid-quantity'
 
 export function isValidPositiveQuantity(quantity: Quantity): boolean {
@@ -35,28 +35,31 @@ export function validateProposalAgainstLive(
   if (fingerprintFromInput(live) !== proposal.fingerprint) return 'stale-proposal'
 
   const liveById = new Map(live.requestedSlots.map((row) => [row.slot.id, row]))
+  const recipes = new Map((live.recipes ?? []).map((recipe) => [recipe.id, recipe]))
+  const foods = new Map((live.simpleFoods ?? []).map((food) => [food.id, food]))
 
   for (const assignment of proposal.assignments) {
     const requested = liveById.get(assignment.slotId)
     if (!requested) return 'slot-not-found'
     const slotIssue = validateSlotForGeneration(requested.slot, requested.componentCount)
     if (slotIssue) return slotIssue
-    const recipe = live.recipes.find((row) => row.id === assignment.recipeId)
-    if (!recipe) return 'recipe-not-found'
-    if (
-      !isStandaloneEligible(
-        recipe,
-        requested.slot.mealType,
-        live.policy ?? DEFAULT_GENERATION_HARD_POLICY,
-      )
-    ) {
-      return 'stale-proposal'
+    if (assignment.components.length === 0) return 'stale-proposal'
+    for (const component of assignment.components) {
+      if (component.type === 'recipe') {
+        if (!recipes.has(component.recipeId)) return 'recipe-not-found'
+        if (
+          !isValidPositiveQuantity(component.outputQuantity) ||
+          !isValidPositiveQuantity(component.allocatedQuantity)
+        ) {
+          return 'invalid-quantity'
+        }
+      } else {
+        if (!foods.has(component.simpleFoodId)) return 'simple-food-not-found'
+        if (!isValidPositiveQuantity(component.allocatedQuantity)) return 'invalid-quantity'
+      }
     }
-    if (
-      !isValidPositiveQuantity(assignment.outputQuantity) ||
-      !isValidPositiveQuantity(assignment.allocatedQuantity)
-    ) {
-      return 'invalid-quantity'
+    if (!compositionStillEligible(assignment, live, requested.slot.mealType)) {
+      return 'stale-proposal'
     }
   }
 

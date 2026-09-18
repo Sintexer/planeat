@@ -212,6 +212,53 @@ export function restrictionReasonsForRecipe(
   return reasons
 }
 
+const COMPONENT_EXCLUDE_REASONS = new Set<ConstraintReason>([
+  'excluded-recipe',
+  'excluded-tags',
+  'exclude-ingredients',
+  'unknown-ingredients',
+  'unknown-time',
+  'max-total-time',
+])
+
+export function recipeExcludeReasons(
+  recipe: Recipe,
+  policy: GenerationHardPolicy,
+): ConstraintReason[] {
+  return restrictionReasonsForRecipe(recipe, policy).filter((reason) =>
+    COMPONENT_EXCLUDE_REASONS.has(reason),
+  )
+}
+
+export function simpleFoodExcludeReasons(
+  food: { ingredientId: string; tagIds: readonly string[] },
+  policy: GenerationHardPolicy,
+): ConstraintReason[] {
+  return restrictionReasonsForSimpleFood(food, policy).filter((reason) =>
+    COMPONENT_EXCLUDE_REASONS.has(reason),
+  )
+}
+
+export function compositionSatisfiesIncludes(
+  parts: readonly {
+    tagIds: readonly string[]
+    linkedIngredientIds: readonly string[]
+  }[],
+  policy: GenerationHardPolicy,
+): boolean {
+  if (policy.requiredTagIds.length > 0) {
+    const ok = parts.some((part) => policy.requiredTagIds.some((id) => part.tagIds.includes(id)))
+    if (!ok) return false
+  }
+  if (policy.includeIngredientIds.length > 0) {
+    const ok = parts.some((part) =>
+      policy.includeIngredientIds.some((id) => part.linkedIngredientIds.includes(id)),
+    )
+    if (!ok) return false
+  }
+  return true
+}
+
 export function restrictionReasonsForSimpleFood(
   food: { ingredientId: string; tagIds: readonly string[] },
   policy: GenerationHardPolicy,

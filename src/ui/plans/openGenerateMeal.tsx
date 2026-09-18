@@ -3,7 +3,10 @@ import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import type { GenerationService } from '../../application/plans/GenerationService'
 import type { ConstraintReason } from '../../domain/plans/generation/constraints'
-import type { WeekGenerationProposal } from '../../domain/plans/generation/proposal'
+import type {
+  GeneratedComponent,
+  WeekGenerationProposal,
+} from '../../domain/plans/generation/proposal'
 import type { MealSlotId } from '../../domain/plans/MealSlot'
 import type { Quantity } from '../../domain/shared/Quantity'
 import { generationErrorMessage } from '../localization/errors'
@@ -48,13 +51,25 @@ export function openProposalPreview(args: {
       <Stack gap="sm">
         {proposal.assignments.map((row) => (
           <Stack gap={2} key={row.slotId}>
-            <Text size="sm">
-              {t('generation.previewBody', {
-                name: row.recipeName,
-                meal: mealTypeLabel(t, row.mealType),
-                quantity: formatQty(row.allocatedQuantity),
-              })}
-            </Text>
+            {row.source.type === 'favorite' && (
+              <Text size="xs" c="dimmed">
+                {t('generation.previewSourceFavorite', { name: row.source.favoriteName })}
+              </Text>
+            )}
+            {row.source.type === 'pairing' && (
+              <Text size="xs" c="dimmed">
+                {t('generation.previewSourcePairing')}
+              </Text>
+            )}
+            {row.components.map((component) => (
+              <Text size="sm" key={componentKey(component)}>
+                {t('generation.previewBody', {
+                  name: component.type === 'recipe' ? component.recipeName : component.name,
+                  meal: mealTypeLabel(t, row.mealType),
+                  quantity: formatQty(component.allocatedQuantity),
+                })}
+              </Text>
+            ))}
             {row.scoreReasons.map((reason, index) => (
               <Text size="xs" c="dimmed" key={`${row.slotId}-${reason.code}-${index}`}>
                 {scoreReasonLine(t, reason)}
@@ -135,6 +150,12 @@ export function openProposalPreview(args: {
       </Stack>
     ),
   })
+}
+
+function componentKey(component: GeneratedComponent): string {
+  return component.type === 'recipe'
+    ? `recipe:${component.recipeId}`
+    : `food:${component.simpleFoodId}`
 }
 
 function scoreReasonLine(t: Translate, reason: ScoreReason): string {

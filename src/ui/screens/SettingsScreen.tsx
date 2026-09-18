@@ -46,7 +46,9 @@ import {
   type UnknownDataPolicy,
 } from '../../domain/plans/generation/constraints'
 import {
+  DEFAULT_GENERATION_COMPOSITION_BOUNDS,
   DEFAULT_GENERATION_SEARCH_BUDGET,
+  mergeGenerationCompositionBounds,
   mergeGenerationSearchBudget,
 } from '../../domain/plans/generation/proposal'
 
@@ -72,6 +74,8 @@ interface SettingsForm {
   beamWidth: number
   expansionBudget: number
   perSlotCandidateLimit: number
+  maxPairingsPerRecipe: number
+  maxComponentsPerCandidate: number
 }
 
 async function downloadCurrentBackup(
@@ -178,6 +182,8 @@ export function SettingsScreen() {
       beamWidth: DEFAULT_GENERATION_SEARCH_BUDGET.beamWidth,
       expansionBudget: DEFAULT_GENERATION_SEARCH_BUDGET.expansionBudget,
       perSlotCandidateLimit: DEFAULT_GENERATION_SEARCH_BUDGET.perSlotCandidateLimit,
+      maxPairingsPerRecipe: DEFAULT_GENERATION_COMPOSITION_BOUNDS.maxPairingsPerRecipe,
+      maxComponentsPerCandidate: DEFAULT_GENERATION_COMPOSITION_BOUNDS.maxComponentsPerCandidate,
     },
   })
 
@@ -189,6 +195,10 @@ export function SettingsScreen() {
   const searchBudget = settings?.generationSearchBudget
   const searchBudgetKey = searchBudget
     ? JSON.stringify(mergeGenerationSearchBudget(searchBudget))
+    : ''
+  const compositionBounds = settings?.generationCompositionBounds
+  const compositionBoundsKey = compositionBounds
+    ? JSON.stringify(mergeGenerationCompositionBounds(compositionBounds))
     : ''
 
   useEffect(() => {
@@ -215,6 +225,8 @@ export function SettingsScreen() {
       beamWidth: settings.generationSearchBudget.beamWidth,
       expansionBudget: settings.generationSearchBudget.expansionBudget,
       perSlotCandidateLimit: settings.generationSearchBudget.perSlotCandidateLimit,
+      maxPairingsPerRecipe: settings.generationCompositionBounds.maxPairingsPerRecipe,
+      maxComponentsPerCandidate: settings.generationCompositionBounds.maxComponentsPerCandidate,
     })
     // Hydrate from stored fields, not the liveQuery object identity (a new
     // mergeSettingsDefaults result every emit would retrigger setValues forever).
@@ -232,6 +244,7 @@ export function SettingsScreen() {
     policyKey,
     preferredTagsKey,
     searchBudgetKey,
+    compositionBoundsKey,
   ])
 
   const handleSubmit = form.onSubmit(async (values) => {
@@ -262,6 +275,10 @@ export function SettingsScreen() {
         beamWidth: values.beamWidth,
         expansionBudget: values.expansionBudget,
         perSlotCandidateLimit: values.perSlotCandidateLimit,
+      }),
+      generationCompositionBounds: mergeGenerationCompositionBounds({
+        maxPairingsPerRecipe: values.maxPairingsPerRecipe,
+        maxComponentsPerCandidate: values.maxComponentsPerCandidate,
       }),
     })
     notifications.show({ message: t('settings.saved'), color: 'success' })
@@ -587,6 +604,23 @@ export function SettingsScreen() {
                   max={10000}
                   disabled={!settings}
                   {...form.getInputProps('expansionBudget')}
+                />
+                <Text size="sm" c="dimmed">
+                  {t('settings.compositionBoundsHelp')}
+                </Text>
+                <NumberInput
+                  label={t('settings.maxPairingsPerRecipe')}
+                  min={1}
+                  max={8}
+                  disabled={!settings}
+                  {...form.getInputProps('maxPairingsPerRecipe')}
+                />
+                <NumberInput
+                  label={t('settings.maxComponentsPerCandidate')}
+                  min={1}
+                  max={8}
+                  disabled={!settings}
+                  {...form.getInputProps('maxComponentsPerCandidate')}
                 />
                 {missingRefCount > 0 && (
                   <Text size="sm" c="dimmed">

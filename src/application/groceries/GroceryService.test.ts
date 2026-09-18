@@ -170,6 +170,9 @@ class FakePlanRepository implements PlanRepository {
   addSimpleFoodComponent: PlanRepository['addSimpleFoodComponent'] = () => {
     throw new Error('not implemented')
   }
+  addGeneratedComponents: PlanRepository['addGeneratedComponents'] = () => {
+    throw new Error('not implemented')
+  }
   updateComponentAllocation: PlanRepository['updateComponentAllocation'] = () => {
     throw new Error('not implemented')
   }

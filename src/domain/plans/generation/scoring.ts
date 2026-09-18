@@ -2,6 +2,7 @@ import type { Recipe } from '../../recipes/Recipe'
 import type { MealType } from '../../shared/MealEnums'
 import type { LocalDate, WeekStartDay } from '../../shared/LocalDate'
 import { weekdayOf } from '../../shared/LocalDate'
+import type { SimpleFood } from '../../simpleFoods/SimpleFood'
 import { effortUnits } from '../prepEffort'
 import { compareCandidateRecipes } from './candidates'
 
@@ -115,52 +116,95 @@ export function recipeProvidesVegetable(
   return recipe.tagIds.some((id) => tagNamesById[id]?.toLowerCase() === 'vegetable')
 }
 
-function effortRank(recipe: Recipe): number {
-  if (recipe.effort === 'quick') return 0
-  if (recipe.effort === 'demanding') return 2
+export function foodProvidesVegetable(
+  food: SimpleFood,
+  tagNamesById: Readonly<Record<string, string>>,
+): boolean {
+  if (food.roles.includes('vegetable')) return true
+  return food.tagIds.some((id) => tagNamesById[id]?.toLowerCase() === 'vegetable')
+}
+
+export type ScoreableComposition = {
+  id: string
+  recipes: readonly Recipe[]
+  foods: readonly SimpleFood[]
+}
+
+export function scoreableFromRecipe(recipe: Recipe): ScoreableComposition {
+  return { id: recipe.id, recipes: [recipe], foods: [] }
+}
+
+function effortRankValue(effort: Recipe['effort'] | undefined): number {
+  if (effort === 'quick') return 0
+  if (effort === 'demanding') return 2
+  if (effort === undefined) return 0
   return 1
 }
 
-export function candidateScoreTuple(recipe: Recipe, ctx: ScoringContext): number[] {
+function worstEffort(recipes: readonly Recipe[]): number {
+  if (recipes.length === 0) return 0
+  return Math.max(...recipes.map((recipe) => effortRankValue(recipe.effort)))
+}
+
+export function compositionScoreTuple(
+  composition: ScoreableComposition,
+  ctx: ScoringContext,
+): number[] {
   const weekday = weekdayOf(ctx.date)
   const isQuickDay = ctx.prefs.quickMealsOnlyDays.includes(weekday)
-  const weekUses = ctx.weekRecipeIds.filter((id) => id === recipe.id).length
-  const historyUses = ctx.previousWeekRecipeIds.filter((id) => id === recipe.id).length
+  const recipes = composition.recipes
+  const cooks = recipes.length
+  const demanding = recipes.some((recipe) => recipe.effort === 'demanding')
   const demandingStack =
-    ctx.prefs.avoidMultipleDemandingPreps &&
-    recipe.effort === 'demanding' &&
-    ctx.demandingCooksOnDate >= 1
-      ? 1
-      : 0
-  const nextUnits = effortUnits(ctx.cookingEventCountOnDate + 1)
-  const workload = nextUnits > ctx.prefs.maxBatchPrepUnits ? 1 : 0
-  let repetition = weekUses
-  if (recipe.maxPreferredRepeats !== undefined && weekUses + 1 > recipe.maxPreferredRepeats) {
-    repetition += 1
+    ctx.prefs.avoidMultipleDemandingPreps && demanding && ctx.demandingCooksOnDate >= 1 ? 1 : 0
+  const nextUnits = effortUnits(ctx.cookingEventCountOnDate + cooks)
+  const workload = cooks > 0 && nextUnits > ctx.prefs.maxBatchPrepUnits ? 1 : 0
+  let repetition = 0
+  for (const recipe of recipes) {
+    const weekUses = ctx.weekRecipeIds.filter((id) => id === recipe.id).length
+    repetition += weekUses
+    if (recipe.maxPreferredRepeats !== undefined && weekUses + 1 > recipe.maxPreferredRepeats) {
+      repetition += 1
+    }
   }
-  const vegMiss =
-    ctx.prefs.favorVegetablesDaily && !recipeProvidesVegetable(recipe, ctx.tagNamesById) ? 1 : 0
+  const historyUses = recipes.reduce(
+    (sum, recipe) => sum + ctx.previousWeekRecipeIds.filter((id) => id === recipe.id).length,
+    0,
+  )
+  const providesVeg =
+    recipes.some((recipe) => recipeProvidesVegetable(recipe, ctx.tagNamesById)) ||
+    composition.foods.some((food) => foodProvidesVegetable(food, ctx.tagNamesById))
+  const vegMiss = ctx.prefs.favorVegetablesDaily && !providesVeg ? 1 : 0
   const preferred = ctx.prefs.generationPreferredTagIds
-  const tagMiss =
-    preferred.length > 0 && !preferred.some((id) => recipe.tagIds.includes(id)) ? 1 : 0
+  const hasPreferred =
+    preferred.length === 0 ||
+    recipes.some((recipe) => preferred.some((id) => recipe.tagIds.includes(id))) ||
+    composition.foods.some((food) => preferred.some((id) => food.tagIds.includes(id)))
+  const tagMiss = preferred.length > 0 && !hasPreferred ? 1 : 0
   const offPrep =
     ctx.prefs.preferredBatchPrepDays.length > 0 &&
     !ctx.prefs.preferredBatchPrepDays.includes(weekday)
       ? 1
       : 0
+  const missingTime = recipes.some((recipe) => recipe.totalTimeMinutes === undefined) ? 1 : 0
+  const effort = worstEffort(recipes)
 
   return [
-    isQuickDay && recipe.effort !== 'quick' ? 1 : 0,
+    isQuickDay && effort > 0 ? 1 : 0,
     demandingStack,
     workload,
     repetition,
     historyUses,
-    effortRank(recipe),
+    effort,
     vegMiss,
     tagMiss,
     offPrep,
-    recipe.totalTimeMinutes === undefined ? 1 : 0,
+    missingTime,
   ]
+}
+
+export function candidateScoreTuple(recipe: Recipe, ctx: ScoringContext): number[] {
+  return compositionScoreTuple(scoreableFromRecipe(recipe), ctx)
 }
 
 export function compareScoreTuples(left: readonly number[], right: readonly number[]): number {
@@ -203,13 +247,13 @@ export function compareWeekObjectives(a: WeekObjective, b: WeekObjective): numbe
   return compareScoreTuples(a.penalties, b.penalties)
 }
 
-export function scoreReasonsForPick(
-  winner: Recipe,
-  eligible: readonly Recipe[],
+export function scoreReasonsForComposition(
+  winner: ScoreableComposition,
+  eligible: readonly ScoreableComposition[],
   ctx: ScoringContext,
 ): ScoreReason[] {
   const weekday = weekdayOf(ctx.date)
-  const winnerTuple = candidateScoreTuple(winner, ctx)
+  const winnerTuple = compositionScoreTuple(winner, ctx)
   const reasons: ScoreReason[] = []
   const seen = new Set<string>()
 
@@ -220,35 +264,49 @@ export function scoreReasonsForPick(
     reasons.push(reason)
   }
 
-  if (ctx.prefs.quickMealsOnlyDays.includes(weekday) && winner.effort === 'quick') {
+  if (ctx.prefs.quickMealsOnlyDays.includes(weekday) && worstEffort(winner.recipes) === 0) {
     push({ code: 'quick-day' })
   }
 
   for (const other of eligible) {
     if (other.id === winner.id) continue
-    const otherTuple = candidateScoreTuple(other, ctx)
+    const otherTuple = compositionScoreTuple(other, ctx)
     for (const { index, code, source } of SCORE_REASONS) {
       if (winnerTuple[index] < otherTuple[index]) push({ code, source })
     }
   }
 
+  const winnerIds = new Set(winner.recipes.map((recipe) => recipe.id))
   if (
-    ctx.previousWeekRecipeIds.includes(winner.id) ||
-    eligible.some(
-      (recipe) => recipe.id !== winner.id && ctx.previousWeekRecipeIds.includes(recipe.id),
-    )
+    eligible.some((row) => row.id !== winner.id) &&
+    ([...winnerIds].some((id) => ctx.previousWeekRecipeIds.includes(id)) ||
+      eligible.some(
+        (row) =>
+          row.id !== winner.id &&
+          row.recipes.some((recipe) => ctx.previousWeekRecipeIds.includes(recipe.id)),
+      ))
   ) {
-    if (eligible.some((recipe) => recipe.id !== winner.id)) {
-      const historyIndex = 4
-      const historyInfluenced = eligible.some((recipe) => {
-        if (recipe.id === winner.id) return false
-        return candidateScoreTuple(recipe, ctx)[historyIndex] > winnerTuple[historyIndex]
-      })
-      if (historyInfluenced) push({ code: 'planned-history', source: 'planned-history' })
-    }
+    const historyIndex = 4
+    const historyInfluenced = eligible.some((row) => {
+      if (row.id === winner.id) return false
+      return compositionScoreTuple(row, ctx)[historyIndex] > winnerTuple[historyIndex]
+    })
+    if (historyInfluenced) push({ code: 'planned-history', source: 'planned-history' })
   }
 
   return reasons
+}
+
+export function scoreReasonsForPick(
+  winner: Recipe,
+  eligible: readonly Recipe[],
+  ctx: ScoringContext,
+): ScoreReason[] {
+  return scoreReasonsForComposition(
+    scoreableFromRecipe(winner),
+    eligible.map(scoreableFromRecipe),
+    ctx,
+  )
 }
 
 export function selectBestCandidate(

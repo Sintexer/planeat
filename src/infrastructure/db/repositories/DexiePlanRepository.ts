@@ -1,5 +1,6 @@
 import type {
   AddCookingEventComponentInput,
+  AddGeneratedComponentInput,
   AddSimpleFoodComponentInput,
   CookingEventDependent,
   LinkCookingEventComponentInput,
@@ -175,6 +176,61 @@ export class DexiePlanRepository implements PlanRepository {
         await this.db.mealComponents.add(component)
         await this.bumpRevisionInTx(planId)
         return component
+      },
+    )
+  }
+
+  async addGeneratedComponents(
+    planId: PlanId,
+    inputs: AddGeneratedComponentInput[],
+  ): Promise<MealComponent[]> {
+    if (inputs.length === 0) return []
+    return this.db.transaction(
+      'rw',
+      this.db.plans,
+      this.db.mealSlots,
+      this.db.mealComponents,
+      this.db.cookingEvents,
+      this.db.prepSessions,
+      async () => {
+        const components: MealComponent[] = []
+        for (const input of inputs) {
+          await this.db.mealSlots.update(input.slotId, { excluded: false })
+          if (input.kind === 'cooking-event') {
+            const sessionId = await this.ensureSessionInTx(planId, input.scheduledDate)
+            const cookingEvent: CookingEvent = {
+              id: crypto.randomUUID(),
+              planId,
+              sessionId,
+              recipeId: input.recipeId,
+              recipeSnapshot: structuredClone(input.recipeSnapshot),
+              outputQuantity: input.outputQuantity,
+              scheduledDate: input.scheduledDate,
+            }
+            await this.db.cookingEvents.add(cookingEvent)
+            const component: MealComponent = {
+              id: crypto.randomUUID(),
+              slotId: input.slotId,
+              source: { type: 'cooking-event', cookingEventId: cookingEvent.id },
+              allocatedQuantity: input.allocatedQuantity,
+              role: input.role,
+            }
+            await this.db.mealComponents.add(component)
+            components.push(component)
+          } else {
+            const component: MealComponent = {
+              id: crypto.randomUUID(),
+              slotId: input.slotId,
+              source: { type: 'simple-food', simpleFoodId: input.simpleFoodId },
+              allocatedQuantity: input.allocatedQuantity,
+              role: input.role,
+            }
+            await this.db.mealComponents.add(component)
+            components.push(component)
+          }
+        }
+        await this.bumpRevisionInTx(planId)
+        return components
       },
     )
   }

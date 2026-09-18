@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped through **Sprint 32**. Next sequenced work is **Sprint 33** (known multi-component meals). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
+Shipped through **Sprint 33**. Next sequenced work is **Sprint 34** (allocate existing leftovers). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
 
 ## Done — project initialization
 
@@ -147,7 +147,13 @@ Shipped through **Sprint 32**. Next sequenced work is **Sprint 33** (known multi
 - Household search budget (beam width, per-slot candidate limit, expansion budget) on Settings; additive backup; proposal records budget used. Exhaustion yields `search-incomplete`, not infeasibility.
 - Same snapshot + seed + version + budget is deterministic. No Dexie or backup-format bump.
 
-## Next — Phase 7 automatic meal planning (Sprints 33–38)
+## Done — Sprint 33 (known multi-component meals)
+
+- Generate can propose a stored favorite, a stored pairing, a standalone complete recipe, or an enabled simple food. It does not invent main+side combinations.
+- Suggestion-disabled simple foods are not standalone picks; they may still appear inside a known composition.
+- Apply writes mixed cook-new and simple-food components in one transaction. Additive `generationCompositionBounds`. No Dexie or backup-format bump.
+
+## Next — Phase 7 automatic meal planning (Sprints 34–38)
 
 Local, explainable generation. Proposals only; apply through existing cooking events; grocery lists stay manual. No backend or LLM.
 

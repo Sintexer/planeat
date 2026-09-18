@@ -34,6 +34,10 @@ export interface AddSimpleFoodComponentInput {
   role?: RecipeRole
 }
 
+export type AddGeneratedComponentInput =
+  | ({ kind: 'cooking-event' } & AddCookingEventComponentInput)
+  | ({ kind: 'simple-food' } & AddSimpleFoodComponentInput)
+
 export interface CookingEventDependent {
   componentId: MealComponentId
   slotId: MealSlotId
@@ -62,6 +66,10 @@ export interface PlanRepository {
     input: LinkCookingEventComponentInput,
   ): Promise<MealComponent>
   addSimpleFoodComponent(planId: PlanId, input: AddSimpleFoodComponentInput): Promise<MealComponent>
+  addGeneratedComponents(
+    planId: PlanId,
+    inputs: AddGeneratedComponentInput[],
+  ): Promise<MealComponent[]>
   updateComponentAllocation(
     planId: PlanId,
     componentId: MealComponentId,

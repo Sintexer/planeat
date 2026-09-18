@@ -1,8 +1,12 @@
-import type { Recipe, RecipeId } from '../../recipes/Recipe'
+import type { Recipe } from '../../recipes/Recipe'
 import type { MealType } from '../../shared/MealEnums'
 import type { Quantity } from '../../shared/Quantity'
+import type { RecipeRole } from '../../shared/MealEnums'
 import type { MealSlot, MealSlotId } from '../MealSlot'
 import type { PlanId } from '../Plan'
+import type { MealFavorite } from '../../favorites/MealFavorite'
+import type { RecipePairing } from '../../pairings/RecipePairing'
+import type { SimpleFood } from '../../simpleFoods/SimpleFood'
 import { eligibleStandaloneRecipes } from './candidates'
 import {
   canonicalizeGenerationHardPolicy,
@@ -18,7 +22,7 @@ import {
   type ScoreReason,
 } from './scoring'
 
-export const GENERATION_ALGORITHM_VERSION = '32'
+export const GENERATION_ALGORITHM_VERSION = '33'
 export const GENERATION_POLICY_VERSION = '31'
 
 export type GenerationSearchBudget = {
@@ -73,6 +77,41 @@ export function canonicalizeGenerationSearchBudget(
   return mergeGenerationSearchBudget(budget)
 }
 
+export type GenerationCompositionBounds = {
+  maxPairingsPerRecipe: number
+  maxComponentsPerCandidate: number
+}
+
+export const DEFAULT_GENERATION_COMPOSITION_BOUNDS: GenerationCompositionBounds = {
+  maxPairingsPerRecipe: 2,
+  maxComponentsPerCandidate: 4,
+}
+
+export function mergeGenerationCompositionBounds(
+  row?: Partial<GenerationCompositionBounds> | null,
+): GenerationCompositionBounds {
+  return {
+    maxPairingsPerRecipe: clampBudgetInt(
+      row?.maxPairingsPerRecipe,
+      DEFAULT_GENERATION_COMPOSITION_BOUNDS.maxPairingsPerRecipe,
+      1,
+      8,
+    ),
+    maxComponentsPerCandidate: clampBudgetInt(
+      row?.maxComponentsPerCandidate,
+      DEFAULT_GENERATION_COMPOSITION_BOUNDS.maxComponentsPerCandidate,
+      1,
+      8,
+    ),
+  }
+}
+
+export function canonicalizeGenerationCompositionBounds(
+  bounds: GenerationCompositionBounds,
+): GenerationCompositionBounds {
+  return mergeGenerationCompositionBounds(bounds)
+}
+
 export type RequestedGenerationSlot = {
   slot: MealSlot
   componentCount: number
@@ -89,6 +128,9 @@ export type GenerationInput = {
   planRevision: number
   peopleCount: number
   recipes: readonly Recipe[]
+  simpleFoods?: readonly SimpleFood[]
+  favorites?: readonly MealFavorite[]
+  pairings?: readonly RecipePairing[]
   requestedSlots: readonly RequestedGenerationSlot[]
   quantityOverrides?: Readonly<Record<string, Quantity>>
   seed: string
@@ -99,15 +141,36 @@ export type GenerationInput = {
   previousWeekRecipeIds: readonly string[]
   tagNamesById: Readonly<Record<string, string>>
   searchBudget?: GenerationSearchBudget
+  compositionBounds?: GenerationCompositionBounds
 }
+
+export type SlotAssignmentSource =
+  | { type: 'standalone' }
+  | { type: 'favorite'; favoriteId: string; favoriteName: string }
+  | { type: 'pairing'; pairingId: string }
+
+export type GeneratedComponent =
+  | {
+      type: 'recipe'
+      recipeId: string
+      recipeName: string
+      outputQuantity: Quantity
+      allocatedQuantity: Quantity
+      role?: RecipeRole
+    }
+  | {
+      type: 'simple-food'
+      simpleFoodId: string
+      name: string
+      allocatedQuantity: Quantity
+      role?: RecipeRole
+    }
 
 export type SlotAssignment = {
   slotId: MealSlotId
-  recipeId: RecipeId
-  recipeName: string
   mealType: MealType
-  outputQuantity: Quantity
-  allocatedQuantity: Quantity
+  source: SlotAssignmentSource
+  components: GeneratedComponent[]
   scoreReasons: ScoreReason[]
 }
 
@@ -151,6 +214,10 @@ export type GenerationFingerprintParts = {
   softPrefs: GenerationSoftPrefs
   previousWeekRecipeIds: readonly string[]
   searchBudget: GenerationSearchBudget
+  compositionBounds: GenerationCompositionBounds
+  simpleFoods: readonly { id: string; updatedAt: number }[]
+  favorites: readonly { id: string; updatedAt: number }[]
+  pairings: readonly { id: string }[]
 }
 
 export function generationInputFingerprint(parts: GenerationFingerprintParts): string {
@@ -179,6 +246,10 @@ export function generationInputFingerprint(parts: GenerationFingerprintParts): s
       a < b ? -1 : a > b ? 1 : 0,
     ),
     searchBudget: canonicalizeGenerationSearchBudget(parts.searchBudget),
+    compositionBounds: canonicalizeGenerationCompositionBounds(parts.compositionBounds),
+    simpleFoods: [...parts.simpleFoods].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+    favorites: [...parts.favorites].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+    pairings: [...parts.pairings].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
   })
 }
 
@@ -186,6 +257,7 @@ export function fingerprintFromInput(input: GenerationInput): string {
   const policy = input.policy ?? DEFAULT_GENERATION_HARD_POLICY
   const softPrefs = input.softPrefs ?? DEFAULT_GENERATION_SOFT_PREFS
   const searchBudget = mergeGenerationSearchBudget(input.searchBudget)
+  const compositionBounds = mergeGenerationCompositionBounds(input.compositionBounds)
   const mealTypes = [...new Set(input.requestedSlots.map((row) => row.slot.mealType))]
   const eligibleIds = new Map<string, number>()
   for (const mealType of mealTypes) {
@@ -215,5 +287,15 @@ export function fingerprintFromInput(input: GenerationInput): string {
     softPrefs,
     previousWeekRecipeIds: input.previousWeekRecipeIds ?? [],
     searchBudget,
+    compositionBounds,
+    simpleFoods: (input.simpleFoods ?? []).map((food) => ({
+      id: food.id,
+      updatedAt: food.updatedAt,
+    })),
+    favorites: (input.favorites ?? []).map((favorite) => ({
+      id: favorite.id,
+      updatedAt: favorite.updatedAt,
+    })),
+    pairings: (input.pairings ?? []).map((pairing) => ({ id: pairing.id })),
   })
 }
