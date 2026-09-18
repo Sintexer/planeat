@@ -8,6 +8,7 @@ import {
   Tooltip,
   UnstyledButton,
   Loader,
+  Modal,
   Paper,
 } from '@mantine/core'
 import {
@@ -16,6 +17,7 @@ import {
   CaretLeft,
   CaretRight,
   CaretUp,
+  MagicWand,
   ShoppingBag,
   Warning,
 } from '@phosphor-icons/react'
@@ -57,6 +59,7 @@ import { useSettings } from '../hooks/useSettings'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
 import { confirmClearSlot, confirmExcludeSlot } from '../plans/slotConfirmations'
 import { openGenerateMealPreview } from '../plans/openGenerateMeal'
+import { GenerateMealsModal } from '../plans/GenerateMealsModal'
 import { PlanWeekGrid } from '../plans/PlanWeekGrid'
 import { buildSlotDisplays, groupDisplaysByDate, type SlotDisplay } from '../plans/slotDisplay'
 import type { Quantity } from '../../domain/shared/Quantity'
@@ -116,6 +119,7 @@ export function PlanScreen() {
   const [viewMode, setViewMode] = useState<'week' | 'day'>(() => (dateQuery ? 'day' : 'week'))
   const [dayOverride, setDayOverride] = useState<LocalDate | undefined>(undefined)
   const [calendarOpen, setCalendarOpen] = useState(false)
+  const [generateMealsOpen, setGenerateMealsOpen] = useState(false)
   const [calendarMonth, setCalendarMonth] = useState<{ year: number; month: number }>(() =>
     monthFromDate(today),
   )
@@ -360,6 +364,18 @@ export function PlanScreen() {
     </Button>
   )
 
+  const generateMealsAction = (
+    <Button
+      variant="default"
+      radius="xl"
+      size="compact-sm"
+      leftSection={<MagicWand size={15} />}
+      onClick={() => setGenerateMealsOpen(true)}
+    >
+      {t('generation.weekGenerate')}
+    </Button>
+  )
+
   return (
     <Stack gap="lg">
       {viewMode === 'week' ? (
@@ -372,6 +388,7 @@ export function PlanScreen() {
                 </Badge>
               ) : null}
               {groceryAction}
+              {generateMealsAction}
             </Group>
           }
         >
@@ -395,6 +412,7 @@ export function PlanScreen() {
               </Badge>
             ) : null}
             {groceryAction}
+            {generateMealsAction}
           </Group>
         </Group>
       )}
@@ -633,6 +651,19 @@ export function PlanScreen() {
           components={editorDisplay?.components ?? []}
         />
       )}
+      <Modal
+        opened={generateMealsOpen}
+        onClose={() => setGenerateMealsOpen(false)}
+        title={t('generation.weekTitle')}
+        centered
+      >
+        <GenerateMealsModal
+          key={`${graph.plan.id}-${graph.plan.revision}-${generateMealsOpen}`}
+          graph={graph}
+          formatQty={formatQty}
+          onClose={() => setGenerateMealsOpen(false)}
+        />
+      </Modal>
     </Stack>
   )
 }

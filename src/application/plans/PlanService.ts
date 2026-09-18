@@ -1,4 +1,8 @@
-import type { CookingEventDependent, PlanRepository } from '../ports/PlanRepository'
+import type {
+  AddCookingEventComponentInput,
+  CookingEventDependent,
+  PlanRepository,
+} from '../ports/PlanRepository'
 import type { RecipeRepository } from '../ports/RecipeRepository'
 import type { SettingsRepository } from '../ports/SettingsRepository'
 import type { SimpleFoodRepository } from '../ports/SimpleFoodRepository'
@@ -161,60 +165,36 @@ export class PlanService {
     recipeId: RecipeId,
     options: AddNewCookingEventOptions = {},
   ): Promise<{ ok: true; component: MealComponent } | { ok: false; error: PlanError }> {
-    const ctx = await this.slotPlanContext(slotId)
-    if (!ctx.ok) return ctx
-
-    const recipe = await this.recipes.getById(recipeId)
-    if (!recipe) return { ok: false, error: 'recipe-not-found' }
-
-    const defaultQty = this.quantities.scale(recipe.defaultPortionPerPerson, ctx.plan.peopleCount)
-    if (!defaultQty || !Number.isFinite(defaultQty.value) || defaultQty.value <= 0) {
-      return { ok: false, error: 'invalid-quantity' }
-    }
-
-    const outputQuantity = options.outputQuantity ?? defaultQty
-    const allocatedQuantity = options.allocatedQuantity ?? defaultQty
-    const scheduledDate = options.scheduledDate ?? ctx.slot.date
-    const role = options.role ?? recipe.roles[0]
-
-    if (
-      !this.isValidPositiveQuantity(outputQuantity) ||
-      !this.isValidPositiveQuantity(allocatedQuantity)
-    ) {
-      return { ok: false, error: 'invalid-quantity' }
-    }
-
-    const reuse = checkReusePolicy(recipe.reusePolicy, scheduledDate, ctx.slot.date)
-    if (reuse !== 'ok') return { ok: false, error: reuse }
-
-    if (outputQuantity.unit !== allocatedQuantity.unit) {
-      if (!this.quantities.canConvert(outputQuantity, allocatedQuantity)) {
-        return { ok: false, error: 'incompatible-quantity' }
-      }
-    }
-
-    const cmp = this.quantities.compare(allocatedQuantity, outputQuantity)
-    if (cmp === null) return { ok: false, error: 'incompatible-quantity' }
-    if (cmp > 0) return { ok: false, error: 'over-allocated' }
-
-    const tagRows = await this.tags.getByIds(recipe.tagIds)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { tagIds, ...recipeRest } = recipe
-    const recipeSnapshot: RecipeSnapshot = {
-      ...recipeRest,
-      tags: tagRows.map((tag) => tag.name),
-    }
-
-    const component = await this.plans.addCookingEventComponent(ctx.plan.id, {
-      slotId,
-      recipeId: recipe.id,
-      recipeSnapshot,
-      outputQuantity,
-      allocatedQuantity,
-      role,
-      scheduledDate,
-    })
+    const built = await this.buildCookingEventComponentInput(slotId, recipeId, options)
+    if (!built.ok) return built
+    const component = await this.plans.addCookingEventComponent(built.planId, built.input)
     return { ok: true, component }
+  }
+
+  async addNewCookingEventComponents(
+    items: Array<{
+      slotId: MealSlotId
+      recipeId: RecipeId
+      outputQuantity?: Quantity
+      allocatedQuantity?: Quantity
+    }>,
+  ): Promise<{ ok: true; components: MealComponent[] } | { ok: false; error: PlanError }> {
+    if (items.length === 0) return { ok: true, components: [] }
+    const inputs: AddCookingEventComponentInput[] = []
+    let planId: PlanId | undefined
+    for (const item of items) {
+      const built = await this.buildCookingEventComponentInput(item.slotId, item.recipeId, {
+        outputQuantity: item.outputQuantity,
+        allocatedQuantity: item.allocatedQuantity,
+      })
+      if (!built.ok) return built
+      if (planId !== undefined && built.planId !== planId) return { ok: false, error: 'not-found' }
+      planId = built.planId
+      inputs.push(built.input)
+    }
+    if (!planId) return { ok: false, error: 'not-found' }
+    const components = await this.plans.addCookingEventComponents(planId, inputs)
+    return { ok: true, components }
   }
 
   async linkExistingCookingEvent(
@@ -559,6 +539,73 @@ export class PlanService {
     const plan = await this.plans.getById(slot.planId)
     if (!plan) return { ok: false, error: 'not-found' }
     return { ok: true, slot, plan }
+  }
+
+  private async buildCookingEventComponentInput(
+    slotId: MealSlotId,
+    recipeId: RecipeId,
+    options: AddNewCookingEventOptions,
+  ): Promise<
+    | { ok: true; planId: PlanId; input: AddCookingEventComponentInput }
+    | { ok: false; error: PlanError }
+  > {
+    const ctx = await this.slotPlanContext(slotId)
+    if (!ctx.ok) return ctx
+
+    const recipe = await this.recipes.getById(recipeId)
+    if (!recipe) return { ok: false, error: 'recipe-not-found' }
+
+    const defaultQty = this.quantities.scale(recipe.defaultPortionPerPerson, ctx.plan.peopleCount)
+    if (!defaultQty || !Number.isFinite(defaultQty.value) || defaultQty.value <= 0) {
+      return { ok: false, error: 'invalid-quantity' }
+    }
+
+    const outputQuantity = options.outputQuantity ?? defaultQty
+    const allocatedQuantity = options.allocatedQuantity ?? defaultQty
+    const scheduledDate = options.scheduledDate ?? ctx.slot.date
+    const role = options.role ?? recipe.roles[0]
+
+    if (
+      !this.isValidPositiveQuantity(outputQuantity) ||
+      !this.isValidPositiveQuantity(allocatedQuantity)
+    ) {
+      return { ok: false, error: 'invalid-quantity' }
+    }
+
+    const reuse = checkReusePolicy(recipe.reusePolicy, scheduledDate, ctx.slot.date)
+    if (reuse !== 'ok') return { ok: false, error: reuse }
+
+    if (outputQuantity.unit !== allocatedQuantity.unit) {
+      if (!this.quantities.canConvert(outputQuantity, allocatedQuantity)) {
+        return { ok: false, error: 'incompatible-quantity' }
+      }
+    }
+
+    const cmp = this.quantities.compare(allocatedQuantity, outputQuantity)
+    if (cmp === null) return { ok: false, error: 'incompatible-quantity' }
+    if (cmp > 0) return { ok: false, error: 'over-allocated' }
+
+    const tagRows = await this.tags.getByIds(recipe.tagIds)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { tagIds, ...recipeRest } = recipe
+    const recipeSnapshot: RecipeSnapshot = {
+      ...recipeRest,
+      tags: tagRows.map((tag) => tag.name),
+    }
+
+    return {
+      ok: true,
+      planId: ctx.plan.id,
+      input: {
+        slotId,
+        recipeId: recipe.id,
+        recipeSnapshot,
+        outputQuantity,
+        allocatedQuantity,
+        role,
+        scheduledDate,
+      },
+    }
   }
 
   private isValidPositiveQuantity(q: Quantity): boolean {

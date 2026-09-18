@@ -2,7 +2,7 @@ import { Button, Group, Stack, Text } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import type { GenerationService } from '../../application/plans/GenerationService'
-import type { MealGenerationProposal } from '../../domain/plans/generation/proposal'
+import type { WeekGenerationProposal } from '../../domain/plans/generation/proposal'
 import type { MealSlotId } from '../../domain/plans/MealSlot'
 import type { Quantity } from '../../domain/shared/Quantity'
 import { generationErrorMessage } from '../localization/errors'
@@ -16,28 +16,41 @@ export async function openGenerateMealPreview(args: {
   formatQty: (quantity: Quantity) => string
 }): Promise<void> {
   const { slotId, generationService, t, formatQty } = args
-  const prepared = await generationService.prepareGeneration(slotId)
-  if (!prepared.ok) {
-    notifications.show({ message: generationErrorMessage(t, prepared.error), color: 'error' })
-    return
-  }
-  const ran = generationService.runGeneration(prepared.value)
+  const ran = await generationService.startGeneration([slotId])
   if (!ran.ok) {
-    notifications.show({ message: generationErrorMessage(t, ran.error), color: 'error' })
+    if (ran.error !== 'cancelled') {
+      notifications.show({ message: generationErrorMessage(t, ran.error), color: 'error' })
+    }
     return
   }
-  const proposal = ran.value
+  openProposalPreview({ proposal: ran.value, generationService, t, formatQty })
+}
+
+export function openProposalPreview(args: {
+  proposal: WeekGenerationProposal
+  generationService: GenerationService
+  t: Translate
+  formatQty: (quantity: Quantity) => string
+}): void {
+  const { proposal, generationService, t, formatQty } = args
   modals.open({
     title: t('generation.previewTitle'),
     children: (
       <Stack gap="sm">
-        <Text size="sm">
-          {t('generation.previewBody', {
-            name: proposal.recipeName,
-            meal: mealTypeLabel(t, proposal.mealType),
-            quantity: formatQty(proposal.allocatedQuantity),
-          })}
-        </Text>
+        {proposal.assignments.map((row) => (
+          <Text size="sm" key={row.slotId}>
+            {t('generation.previewBody', {
+              name: row.recipeName,
+              meal: mealTypeLabel(t, row.mealType),
+              quantity: formatQty(row.allocatedQuantity),
+            })}
+          </Text>
+        ))}
+        {proposal.unfilled.map((row) => (
+          <Text size="sm" c="dimmed" key={row.slotId}>
+            {t('generation.unfilledRow', { meal: mealTypeLabel(t, row.mealType) })}
+          </Text>
+        ))}
         <Group>
           <Button
             onClick={() => {
@@ -64,7 +77,7 @@ export async function openGenerateMealPreview(args: {
 
 async function applyProposal(
   generationService: GenerationService,
-  proposal: MealGenerationProposal,
+  proposal: WeekGenerationProposal,
   t: Translate,
 ): Promise<void> {
   const result = await generationService.applyProposal(proposal)
@@ -72,5 +85,9 @@ async function applyProposal(
     notifications.show({ message: generationErrorMessage(t, result.error), color: 'error' })
     return
   }
-  notifications.show({ message: t('generation.applied'), color: 'success' })
+  notifications.show({
+    message:
+      proposal.assignments.length > 1 ? t('generation.weekApplied') : t('generation.applied'),
+    color: 'success',
+  })
 }

@@ -60,7 +60,7 @@ src/infrastructure/planning/
 
 `eslint-plugin-boundaries` already allows `infrastructure → domain + application`. The worker may import generation domain functions. It must not import Dexie, React, or `ui/`.
 
-`prepareGeneration` runs on the main thread, loads repositories, and builds an **immutable generation input snapshot**. `runGeneration` is a pure function of that snapshot (main thread in Sprint 28; worker from Sprint 29). `applyProposal` re-reads live data, revalidates, then commits through `PlanService` in one Dexie transaction.
+`prepareGeneration` runs on the main thread, loads repositories, and builds an **immutable generation input snapshot**. `runGeneration` is a pure function of that snapshot (main thread in tests; worker in the app from Sprint 29). `applyProposal` re-reads live data, revalidates, then commits through `PlanService` in one Dexie transaction.
 
 Vitest stays node-only, no Dexie/DOM. Cover generation with domain tests and `GenerationService` tests against in-memory fakes. Worker wiring is a build/manual gate until Sprint 38.
 
@@ -170,6 +170,8 @@ If a sprint cannot finish both the algorithm and a visible Plan-screen control, 
 5. Plan UI: multi-select empty slots, progress/cancel, partial-proposal summary.
 
 **Split.** If the worker and multi-slot UI cannot ship together: 29a multi-slot generate on the main thread with preview/apply; 29b move search to the worker (user-visible: UI stays responsive). Do not start Sprint 30 until 29a exists.
+
+**Shipped.** Multi-slot request + independent picks + worker (`src/infrastructure/planning/generationWorker.ts`); atomic `addCookingEventComponents`; Plan **Generate meals** picker with progress/cancel and partial preview.
 
 ---
 

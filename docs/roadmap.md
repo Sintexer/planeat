@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped through **Sprint 28**. Next sequenced work is **Sprint 29** (fill selected empty slots for a week). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
+Shipped through **Sprint 29**. Next sequenced work is **Sprint 30** (hard generation restrictions). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
 
 ## Done — project initialization
 
@@ -125,7 +125,12 @@ Shipped through **Sprint 28**. Next sequenced work is **Sprint 29** (fill select
 - Generate on an empty, non-excluded Plan day slot; preview a scaled `complete` recipe for that occasion; Apply uses existing cook-new writes; Cancel persists nothing.
 - Session-only proposals with an input fingerprint. Grocery lists do not update as a side effect.
 
-## Next — Phase 7 automatic meal planning (Sprints 29–38)
+## Done — Sprint 29 (week generate)
+
+- Select empty meals for the open week; search runs in a Web Worker; preview can be partial; Apply writes filled slots in one transaction.
+- Existing meals and exclusions stay put. Grocery lists still do not update as a side effect.
+
+## Next — Phase 7 automatic meal planning (Sprints 30–38)
 
 Local, explainable generation. Proposals only; apply through existing cooking events; grocery lists stay manual. No backend or LLM.
 

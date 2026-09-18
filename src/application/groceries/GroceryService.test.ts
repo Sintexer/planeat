@@ -161,6 +161,9 @@ class FakePlanRepository implements PlanRepository {
   addCookingEventComponent: PlanRepository['addCookingEventComponent'] = () => {
     throw new Error('not implemented')
   }
+  addCookingEventComponents: PlanRepository['addCookingEventComponents'] = () => {
+    throw new Error('not implemented')
+  }
   linkCookingEventComponent: PlanRepository['linkCookingEventComponent'] = () => {
     throw new Error('not implemented')
   }

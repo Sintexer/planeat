@@ -5,6 +5,7 @@ import { PairingService } from '../application/pairings/PairingService'
 import { IngredientService } from '../application/ingredients/IngredientService'
 import { LibraryViewService } from '../application/libraryViews/LibraryViewService'
 import { GenerationService } from '../application/plans/GenerationService'
+import { createWorkerGenerationRunner } from '../application/plans/generationRunner'
 import { PlanService } from '../application/plans/PlanService'
 import { QuantityService } from '../application/quantities/QuantityService'
 import { RecipeImportService } from '../application/recipes/RecipeImportService'
@@ -83,6 +84,11 @@ export function bootstrap(): AppServices {
       recipeRepository,
       quantityService,
       planService,
+      createWorkerGenerationRunner(
+        new Worker(new URL('../infrastructure/planning/generationWorker.ts', import.meta.url), {
+          type: 'module',
+        }),
+      ),
     ),
     groceryService: new GroceryService(
       groceryRepository,

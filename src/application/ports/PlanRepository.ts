@@ -53,6 +53,10 @@ export interface PlanRepository {
     planId: PlanId,
     input: AddCookingEventComponentInput,
   ): Promise<MealComponent>
+  addCookingEventComponents(
+    planId: PlanId,
+    inputs: AddCookingEventComponentInput[],
+  ): Promise<MealComponent[]>
   linkCookingEventComponent(
     planId: PlanId,
     input: LinkCookingEventComponentInput,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Recipe } from '../../recipes/Recipe'
 import type { MealSlot } from '../MealSlot'
-import { fingerprintFromInput, type GenerationInput, type MealGenerationProposal } from './proposal'
+import { fingerprintFromInput, type GenerationInput, type WeekGenerationProposal } from './proposal'
 import { validateProposalAgainstLive, validateSlotForGeneration } from './proposalValidation'
 
 function recipe(overrides: Partial<Recipe> = {}): Recipe {
@@ -40,29 +40,37 @@ function live(overrides: Partial<GenerationInput> = {}): GenerationInput {
     planId: 'plan-1',
     planRevision: 1,
     peopleCount: 2,
-    slot: slot(),
-    slotComponentCount: 0,
     recipes: [recipe()],
+    requestedSlots: [{ slot: slot(), componentCount: 0 }],
+    seed: 'seed-1',
     ...overrides,
   }
 }
 
 function proposal(
-  input: GenerationInput,
-  overrides: Partial<MealGenerationProposal> = {},
-): MealGenerationProposal {
-  const selected = input.recipes[0]
+  snapshot: GenerationInput,
+  overrides: Partial<WeekGenerationProposal> = {},
+): WeekGenerationProposal {
+  const selected = snapshot.recipes[0]
+  const target = snapshot.requestedSlots[0]
   return {
     requestId: 'req-1',
-    algorithmVersion: '28',
-    policyVersion: '28-empty',
-    fingerprint: fingerprintFromInput(input),
-    slotId: input.slot.id,
-    recipeId: selected.id,
-    recipeName: selected.name,
-    mealType: input.slot.mealType,
-    outputQuantity: { value: 2, unit: 'serving' },
-    allocatedQuantity: { value: 2, unit: 'serving' },
+    algorithmVersion: '29',
+    policyVersion: '29-empty',
+    seed: snapshot.seed,
+    fingerprint: fingerprintFromInput(snapshot),
+    planId: snapshot.planId,
+    assignments: [
+      {
+        slotId: target.slot.id,
+        recipeId: selected.id,
+        recipeName: selected.name,
+        mealType: target.slot.mealType,
+        outputQuantity: { value: 2, unit: 'serving' },
+        allocatedQuantity: { value: 2, unit: 'serving' },
+      },
+    ],
+    unfilled: [],
     ...overrides,
   }
 }
@@ -77,8 +85,8 @@ describe('validateSlotForGeneration', () => {
 
 describe('validateProposalAgainstLive', () => {
   it('accepts a matching empty-slot proposal', () => {
-    const input = live()
-    expect(validateProposalAgainstLive(proposal(input), input)).toBeUndefined()
+    const snapshot = live()
+    expect(validateProposalAgainstLive(proposal(snapshot), snapshot)).toBeUndefined()
   })
 
   it('rejects a stale fingerprint after household size changes', () => {
@@ -91,5 +99,20 @@ describe('validateProposalAgainstLive', () => {
     const original = live()
     const next = live({ recipes: [recipe({ roles: ['main'] })] })
     expect(validateProposalAgainstLive(proposal(original), next)).toBe('stale-proposal')
+  })
+
+  it('does not require unfilled requested slots to stay empty', () => {
+    const lunch = slot({ id: 'slot-lunch', mealType: 'lunch' })
+    const snapshot = live({
+      requestedSlots: [
+        { slot: slot(), componentCount: 0 },
+        { slot: lunch, componentCount: 1 },
+      ],
+    })
+    const generated = proposal(live(), {
+      fingerprint: fingerprintFromInput(snapshot),
+      unfilled: [{ slotId: 'slot-lunch', reason: 'no-eligible-candidates', mealType: 'lunch' }],
+    })
+    expect(validateProposalAgainstLive(generated, snapshot)).toBeUndefined()
   })
 })

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { GenerationService } from './GenerationService'
+import { createSyncGenerationRunner, type GenerationSearchRunner } from './generationRunner'
 import { PlanService } from './PlanService'
 import { QuantityService } from '../quantities/QuantityService'
 import type { AddCookingEventComponentInput, PlanRepository } from '../ports/PlanRepository'
@@ -14,6 +15,7 @@ import type { Plan, PlanId } from '../../domain/plans/Plan'
 import type { PlanGraph } from '../../domain/plans/PlanGraph'
 import type { Recipe } from '../../domain/recipes/Recipe'
 import type { Tag } from '../../domain/tags/Tag'
+import type { WeekGenerationProposal } from '../../domain/plans/generation/proposal'
 
 function baseRecipe(overrides: Partial<Recipe> = {}): Recipe {
   return {
@@ -63,6 +65,7 @@ function emptyPlan(overrides: Partial<Plan> = {}): Plan {
 class FakePlanRepository implements PlanRepository {
   graph: PlanGraph
   addCalls: AddCookingEventComponentInput[] = []
+  batchCalls: AddCookingEventComponentInput[][] = []
 
   constructor(graph: PlanGraph) {
     this.graph = graph
@@ -85,30 +88,43 @@ class FakePlanRepository implements PlanRepository {
   }
 
   async addCookingEventComponent(planId: PlanId, input: AddCookingEventComponentInput) {
-    this.addCalls.push(input)
-    const event: CookingEvent = {
-      id: `event-${this.addCalls.length}`,
-      planId,
-      sessionId: 'session-1',
-      recipeId: input.recipeId,
-      recipeSnapshot: input.recipeSnapshot,
-      outputQuantity: input.outputQuantity,
-      scheduledDate: input.scheduledDate,
-    }
-    const component: MealComponent = {
-      id: `component-${this.addCalls.length}`,
-      slotId: input.slotId,
-      source: { type: 'cooking-event', cookingEventId: event.id },
-      allocatedQuantity: input.allocatedQuantity,
-      role: input.role,
+    const [component] = await this.addCookingEventComponents(planId, [input])
+    return component
+  }
+
+  async addCookingEventComponents(planId: PlanId, inputs: AddCookingEventComponentInput[]) {
+    this.batchCalls.push(inputs)
+    const components: MealComponent[] = []
+    for (const input of inputs) {
+      this.addCalls.push(input)
+      const event: CookingEvent = {
+        id: `event-${this.addCalls.length}`,
+        planId,
+        sessionId: 'session-1',
+        recipeId: input.recipeId,
+        recipeSnapshot: input.recipeSnapshot,
+        outputQuantity: input.outputQuantity,
+        scheduledDate: input.scheduledDate,
+      }
+      const component: MealComponent = {
+        id: `component-${this.addCalls.length}`,
+        slotId: input.slotId,
+        source: { type: 'cooking-event', cookingEventId: event.id },
+        allocatedQuantity: input.allocatedQuantity,
+        role: input.role,
+      }
+      this.graph = {
+        ...this.graph,
+        cookingEvents: [...this.graph.cookingEvents, event],
+        components: [...this.graph.components, component],
+      }
+      components.push(component)
     }
     this.graph = {
       ...this.graph,
       plan: { ...this.graph.plan, revision: this.graph.plan.revision + 1 },
-      cookingEvents: [...this.graph.cookingEvents, event],
-      components: [...this.graph.components, component],
     }
-    return component
+    return components
   }
 
   getByStartDate: PlanRepository['getByStartDate'] = () => {
@@ -254,20 +270,20 @@ function unusedSettings(): SettingsRepository {
 }
 
 function makeGraph(
-  overrides: { slot?: MealSlot; plan?: Plan; components?: MealComponent[] } = {},
+  overrides: { slots?: MealSlot[]; plan?: Plan; components?: MealComponent[] } = {},
 ): PlanGraph {
   const plan = overrides.plan ?? emptyPlan()
-  const mealSlot = overrides.slot ?? emptySlot({ planId: plan.id })
+  const slots = overrides.slots ?? [emptySlot({ planId: plan.id })]
   return {
     plan,
-    slots: [mealSlot],
+    slots,
     components: overrides.components ?? [],
     cookingEvents: [],
     prepSessions: [],
   }
 }
 
-function makeServices(graph: PlanGraph, recipes: Recipe[]) {
+function makeServices(graph: PlanGraph, recipes: Recipe[], runner?: GenerationSearchRunner) {
   const plans = new FakePlanRepository(graph)
   const recipeRepo = new FakeRecipeRepository(recipes)
   const quantities = new QuantityService()
@@ -279,7 +295,13 @@ function makeServices(graph: PlanGraph, recipes: Recipe[]) {
     quantities,
     new FakeTagRepository(),
   )
-  const generation = new GenerationService(plans, recipeRepo, quantities, planService)
+  const generation = new GenerationService(
+    plans,
+    recipeRepo,
+    quantities,
+    planService,
+    runner ?? createSyncGenerationRunner(quantities),
+  )
   return { plans, recipeRepo, generation, quantities }
 }
 
@@ -287,43 +309,134 @@ describe('GenerationService', () => {
   it('scales the first eligible complete recipe like cook-new', async () => {
     const soup = baseRecipe()
     const { generation, quantities } = makeServices(makeGraph(), [soup])
-    const prepared = await generation.prepareGeneration('slot-dinner')
+    const prepared = await generation.prepareGeneration(['slot-dinner'], { seed: 'seed-1' })
     expect(prepared.ok).toBe(true)
     if (!prepared.ok) return
     const ran = generation.runGeneration(prepared.value, 'req-1')
     expect(ran.ok).toBe(true)
     if (!ran.ok) return
-    expect(ran.value.recipeId).toBe('recipe-soup')
-    expect(ran.value.outputQuantity).toEqual(quantities.scale(soup.defaultPortionPerPerson, 3))
-    expect(ran.value.allocatedQuantity).toEqual(ran.value.outputQuantity)
+    expect(ran.value.assignments[0].recipeId).toBe('recipe-soup')
+    expect(ran.value.assignments[0].outputQuantity).toEqual(
+      quantities.scale(soup.defaultPortionPerPerson, 3),
+    )
   })
 
-  it('apply writes a cooking event with frozen tag labels', async () => {
-    const { generation, plans } = makeServices(makeGraph(), [baseRecipe()])
-    const prepared = await generation.prepareGeneration('slot-dinner')
-    if (!prepared.ok) throw new Error(prepared.error)
-    const ran = generation.runGeneration(prepared.value)
-    if (!ran.ok) throw new Error(ran.error)
-    const applied = await generation.applyProposal(ran.value)
+  it('apply writes assigned slots in one batch and freezes tag labels', async () => {
+    const lunch = emptySlot({ id: 'slot-lunch', mealType: 'lunch', date: '2026-01-05' })
+    const dinner = emptySlot()
+    const { generation, plans } = makeServices(makeGraph({ slots: [lunch, dinner] }), [
+      baseRecipe(),
+      baseRecipe({ id: 'oats', name: 'Oats', mealTypes: ['lunch'] }),
+    ])
+    const started = await generation.startGeneration(['slot-lunch', 'slot-dinner'], {
+      seed: 'seed-1',
+    })
+    if (!started.ok) throw new Error(started.error)
+    const existing = plans.graph.components.length
+    const applied = await generation.applyProposal(started.value)
     expect(applied.ok).toBe(true)
-    expect(plans.addCalls).toHaveLength(1)
+    expect(plans.batchCalls).toHaveLength(1)
+    expect(plans.batchCalls[0]).toHaveLength(2)
     expect(plans.addCalls[0].recipeSnapshot.tags).toEqual(['Comfort'])
     expect('tagIds' in plans.addCalls[0].recipeSnapshot).toBe(false)
-    expect(plans.graph.components).toHaveLength(1)
+    expect(plans.graph.components.length).toBe(existing + 2)
+    expect(plans.graph.plan.revision).toBe(2)
   })
 
-  it('cancel and preview do not write', async () => {
-    const { generation, plans } = makeServices(makeGraph(), [baseRecipe()])
-    const prepared = await generation.prepareGeneration('slot-dinner')
+  it('apply does not touch unfilled or already planned slots', async () => {
+    const planned = emptySlot({ id: 'slot-planned', date: '2026-01-05' })
+    const lunch = emptySlot({ id: 'slot-lunch', mealType: 'lunch' })
+    const dinner = emptySlot()
+    const plannedComponent: MealComponent = {
+      id: 'c-planned',
+      slotId: 'slot-planned',
+      source: { type: 'cooking-event', cookingEventId: 'e-planned' },
+      allocatedQuantity: { value: 1, unit: 'serving' },
+    }
+    const { generation, plans } = makeServices(
+      makeGraph({ slots: [planned, lunch, dinner], components: [plannedComponent] }),
+      [baseRecipe()],
+    )
+    const started = await generation.startGeneration(['slot-lunch', 'slot-dinner'], {
+      seed: 'seed-1',
+    })
+    if (!started.ok) throw new Error(started.error)
+    expect(started.value.unfilled).toEqual([
+      { slotId: 'slot-lunch', reason: 'no-eligible-candidates', mealType: 'lunch' },
+    ])
+    const applied = await generation.applyProposal(started.value)
+    expect(applied.ok).toBe(true)
+    expect(plans.batchCalls[0].map((row) => row.slotId)).toEqual(['slot-dinner'])
+    expect(plans.graph.components.some((row) => row.id === 'c-planned')).toBe(true)
+  })
+
+  it('cancel before a late runner result writes nothing', async () => {
+    let finish: ((proposal: WeekGenerationProposal) => void) | undefined
+    let entered: (() => void) | undefined
+    const delayed: GenerationSearchRunner = {
+      run: () => {
+        entered?.()
+        return new Promise((resolve) => {
+          finish = (proposal) => resolve({ ok: true, value: proposal })
+        })
+      },
+    }
+    const { generation, plans } = makeServices(makeGraph(), [baseRecipe()], delayed)
+    const prepared = await generation.prepareGeneration(['slot-dinner'], { seed: 'seed-1' })
     if (!prepared.ok) throw new Error(prepared.error)
-    const ran = generation.runGeneration(prepared.value)
-    if (!ran.ok) throw new Error(ran.error)
-    generation.cancel(ran.value)
-    expect(plans.addCalls).toHaveLength(0)
-    expect(plans.graph.components).toHaveLength(0)
+    const sync = generation.runGeneration(prepared.value, 'req-1')
+    if (!sync.ok) throw new Error(sync.error)
+    const enteredRun = new Promise<void>((resolve) => {
+      entered = resolve
+    })
+    const pending = generation.startGeneration(['slot-dinner'], { seed: 'seed-1' })
+    await enteredRun
+    generation.cancel()
+    finish?.(sync.value)
+    expect(await pending).toEqual({ ok: false, error: 'cancelled' })
+    expect(plans.batchCalls).toHaveLength(0)
   })
 
-  it('rejects filled and excluded slots', async () => {
+  it('ignores a superseded request id', async () => {
+    const resolvers: Array<(proposal: WeekGenerationProposal) => void> = []
+    let enteredCount = 0
+    let notifyEntered: (() => void) | undefined
+    const delayed: GenerationSearchRunner = {
+      run: () => {
+        enteredCount += 1
+        notifyEntered?.()
+        return new Promise((resolve) => {
+          resolvers.push((proposal) => resolve({ ok: true, value: proposal }))
+        })
+      },
+    }
+    const { generation, plans } = makeServices(makeGraph(), [baseRecipe()], delayed)
+    const prepared = await generation.prepareGeneration(['slot-dinner'], { seed: 'seed-1' })
+    if (!prepared.ok) throw new Error(prepared.error)
+    const sync = generation.runGeneration(prepared.value, 'req-1')
+    if (!sync.ok) throw new Error(sync.error)
+    const firstEntered = new Promise<void>((resolve) => {
+      notifyEntered = resolve
+    })
+    const first = generation.startGeneration(['slot-dinner'], { seed: 'seed-1' })
+    await firstEntered
+    const secondEntered = new Promise<void>((resolve) => {
+      notifyEntered = resolve
+    })
+    const second = generation.startGeneration(['slot-dinner'], { seed: 'seed-1' })
+    await secondEntered
+    resolvers[0]?.(sync.value)
+    resolvers[1]?.(sync.value)
+    expect(await first).toEqual({ ok: false, error: 'cancelled' })
+    const later = await second
+    expect(later.ok).toBe(true)
+    if (!later.ok) return
+    await generation.applyProposal(later.value)
+    expect(plans.batchCalls).toHaveLength(1)
+    expect(enteredCount).toBe(2)
+  })
+
+  it('rejects filled and excluded slots on prepare', async () => {
     const filled = makeServices(
       makeGraph({
         components: [
@@ -337,38 +450,38 @@ describe('GenerationService', () => {
       }),
       [baseRecipe()],
     )
-    const filledResult = await filled.generation.prepareGeneration('slot-dinner')
-    expect(filledResult).toEqual({ ok: false, error: 'slot-not-empty' })
+    expect(await filled.generation.prepareGeneration(['slot-dinner'])).toEqual({
+      ok: false,
+      error: 'slot-not-empty',
+    })
 
-    const excluded = makeServices(makeGraph({ slot: emptySlot({ excluded: true }) }), [
+    const excluded = makeServices(makeGraph({ slots: [emptySlot({ excluded: true })] }), [
       baseRecipe(),
     ])
-    const excludedResult = await excluded.generation.prepareGeneration('slot-dinner')
-    expect(excludedResult).toEqual({ ok: false, error: 'slot-excluded' })
+    expect(await excluded.generation.prepareGeneration(['slot-dinner'])).toEqual({
+      ok: false,
+      error: 'slot-excluded',
+    })
   })
 
-  it('returns no-eligible-candidates when nothing matches the occasion', async () => {
+  it('returns no-eligible-candidates when nothing matches', async () => {
     const { generation } = makeServices(makeGraph(), [
       baseRecipe({ roles: ['main'] }),
       baseRecipe({ id: 'lunch-only', mealTypes: ['lunch'] }),
     ])
-    const prepared = await generation.prepareGeneration('slot-dinner')
-    if (!prepared.ok) throw new Error(prepared.error)
-    const ran = generation.runGeneration(prepared.value)
-    expect(ran).toEqual({ ok: false, error: 'no-eligible-candidates' })
+    const started = await generation.startGeneration(['slot-dinner'], { seed: 'seed-1' })
+    expect(started).toEqual({ ok: false, error: 'no-eligible-candidates' })
   })
 
   it('rejects a stale fingerprint and leaves the plan unchanged', async () => {
     const soup = baseRecipe()
     const { generation, plans, recipeRepo } = makeServices(makeGraph(), [soup])
-    const prepared = await generation.prepareGeneration('slot-dinner')
-    if (!prepared.ok) throw new Error(prepared.error)
-    const ran = generation.runGeneration(prepared.value)
-    if (!ran.ok) throw new Error(ran.error)
+    const started = await generation.startGeneration(['slot-dinner'], { seed: 'seed-1' })
+    if (!started.ok) throw new Error(started.error)
     recipeRepo.setRows([{ ...soup, name: 'Renamed soup', updatedAt: 99 }])
-    const applied = await generation.applyProposal(ran.value)
+    const applied = await generation.applyProposal(started.value)
     expect(applied).toEqual({ ok: false, error: 'stale-proposal' })
-    expect(plans.addCalls).toHaveLength(0)
+    expect(plans.batchCalls).toHaveLength(0)
     expect(plans.graph.plan.revision).toBe(1)
   })
 

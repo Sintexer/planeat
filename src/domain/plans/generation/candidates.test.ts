@@ -40,9 +40,9 @@ function input(overrides: Partial<GenerationInput> = {}): GenerationInput {
     planId: 'plan-1',
     planRevision: 1,
     peopleCount: 2,
-    slot: slot(),
-    slotComponentCount: 0,
     recipes: [],
+    requestedSlots: [{ slot: slot(), componentCount: 0 }],
+    seed: 'seed-1',
     ...overrides,
   }
 }

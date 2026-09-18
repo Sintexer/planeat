@@ -5,23 +5,25 @@ import type { MealSlot, MealSlotId } from '../MealSlot'
 import type { PlanId } from '../Plan'
 import { eligibleStandaloneRecipes } from './candidates'
 
-export const GENERATION_ALGORITHM_VERSION = '28'
-export const GENERATION_POLICY_VERSION = '28-empty'
+export const GENERATION_ALGORITHM_VERSION = '29'
+export const GENERATION_POLICY_VERSION = '29-empty'
+
+export type RequestedGenerationSlot = {
+  slot: MealSlot
+  componentCount: number
+}
 
 export type GenerationInput = {
   planId: PlanId
   planRevision: number
   peopleCount: number
-  slot: MealSlot
-  slotComponentCount: number
   recipes: readonly Recipe[]
+  requestedSlots: readonly RequestedGenerationSlot[]
+  quantityOverrides?: Readonly<Record<string, Quantity>>
+  seed: string
 }
 
-export type MealGenerationProposal = {
-  requestId: string
-  algorithmVersion: string
-  policyVersion: string
-  fingerprint: string
+export type SlotAssignment = {
   slotId: MealSlotId
   recipeId: RecipeId
   recipeName: string
@@ -30,43 +32,87 @@ export type MealGenerationProposal = {
   allocatedQuantity: Quantity
 }
 
+export type UnfilledSlot = {
+  slotId: MealSlotId
+  mealType: MealType
+  reason: 'no-eligible-candidates'
+}
+
+export type WeekGenerationProposal = {
+  requestId: string
+  algorithmVersion: string
+  policyVersion: string
+  seed: string
+  fingerprint: string
+  planId: PlanId
+  quantityOverrides?: Readonly<Record<string, Quantity>>
+  assignments: SlotAssignment[]
+  unfilled: UnfilledSlot[]
+}
+
+/** Sprint 28 name: a week proposal, often with a single assignment. */
+export type MealGenerationProposal = WeekGenerationProposal
+
 export type GenerationFingerprintParts = {
   algorithmVersion: string
   policyVersion: string
   planId: string
   planRevision: number
   peopleCount: number
-  slotId: string
-  mealType: string
+  seed: string
+  requested: readonly { slotId: string; mealType: string }[]
   eligible: readonly { id: string; updatedAt: number }[]
+  overrides: readonly { slotId: string; value: number; unit: string }[]
 }
 
 export function generationInputFingerprint(parts: GenerationFingerprintParts): string {
   const eligible = [...parts.eligible]
     .map((row) => ({ id: row.id, updatedAt: row.updatedAt }))
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+  const requested = [...parts.requested].sort((a, b) =>
+    a.slotId < b.slotId ? -1 : a.slotId > b.slotId ? 1 : 0,
+  )
+  const overrides = [...parts.overrides].sort((a, b) =>
+    a.slotId < b.slotId ? -1 : a.slotId > b.slotId ? 1 : 0,
+  )
   return JSON.stringify({
     algorithmVersion: parts.algorithmVersion,
     policyVersion: parts.policyVersion,
     planId: parts.planId,
     planRevision: parts.planRevision,
     peopleCount: parts.peopleCount,
-    slotId: parts.slotId,
-    mealType: parts.mealType,
+    seed: parts.seed,
+    requested,
     eligible,
+    overrides,
   })
 }
 
 export function fingerprintFromInput(input: GenerationInput): string {
-  const eligible = eligibleStandaloneRecipes(input.recipes, input.slot.mealType)
+  const mealTypes = [...new Set(input.requestedSlots.map((row) => row.slot.mealType))]
+  const eligibleIds = new Map<string, number>()
+  for (const mealType of mealTypes) {
+    for (const recipe of eligibleStandaloneRecipes(input.recipes, mealType)) {
+      eligibleIds.set(recipe.id, recipe.updatedAt)
+    }
+  }
+  const overrides = Object.entries(input.quantityOverrides ?? {}).map(([slotId, quantity]) => ({
+    slotId,
+    value: quantity.value,
+    unit: quantity.unit,
+  }))
   return generationInputFingerprint({
     algorithmVersion: GENERATION_ALGORITHM_VERSION,
     policyVersion: GENERATION_POLICY_VERSION,
     planId: input.planId,
     planRevision: input.planRevision,
     peopleCount: input.peopleCount,
-    slotId: input.slot.id,
-    mealType: input.slot.mealType,
-    eligible: eligible.map((recipe) => ({ id: recipe.id, updatedAt: recipe.updatedAt })),
+    seed: input.seed,
+    requested: input.requestedSlots.map((row) => ({
+      slotId: row.slot.id,
+      mealType: row.slot.mealType,
+    })),
+    eligible: [...eligibleIds.entries()].map(([id, updatedAt]) => ({ id, updatedAt })),
+    overrides,
   })
 }

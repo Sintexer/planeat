@@ -77,6 +77,15 @@ export class DexiePlanRepository implements PlanRepository {
     planId: PlanId,
     input: AddCookingEventComponentInput,
   ): Promise<MealComponent> {
+    const [component] = await this.addCookingEventComponents(planId, [input])
+    return component
+  }
+
+  async addCookingEventComponents(
+    planId: PlanId,
+    inputs: AddCookingEventComponentInput[],
+  ): Promise<MealComponent[]> {
+    if (inputs.length === 0) return []
     return this.db.transaction(
       'rw',
       this.db.plans,
@@ -85,30 +94,34 @@ export class DexiePlanRepository implements PlanRepository {
       this.db.cookingEvents,
       this.db.prepSessions,
       async () => {
-        await this.db.mealSlots.update(input.slotId, { excluded: false })
+        const components: MealComponent[] = []
+        for (const input of inputs) {
+          await this.db.mealSlots.update(input.slotId, { excluded: false })
 
-        const sessionId = await this.ensureSessionInTx(planId, input.scheduledDate)
-        const cookingEvent: CookingEvent = {
-          id: crypto.randomUUID(),
-          planId,
-          sessionId,
-          recipeId: input.recipeId,
-          recipeSnapshot: structuredClone(input.recipeSnapshot),
-          outputQuantity: input.outputQuantity,
-          scheduledDate: input.scheduledDate,
-        }
-        await this.db.cookingEvents.add(cookingEvent)
+          const sessionId = await this.ensureSessionInTx(planId, input.scheduledDate)
+          const cookingEvent: CookingEvent = {
+            id: crypto.randomUUID(),
+            planId,
+            sessionId,
+            recipeId: input.recipeId,
+            recipeSnapshot: structuredClone(input.recipeSnapshot),
+            outputQuantity: input.outputQuantity,
+            scheduledDate: input.scheduledDate,
+          }
+          await this.db.cookingEvents.add(cookingEvent)
 
-        const component: MealComponent = {
-          id: crypto.randomUUID(),
-          slotId: input.slotId,
-          source: { type: 'cooking-event', cookingEventId: cookingEvent.id },
-          allocatedQuantity: input.allocatedQuantity,
-          role: input.role,
+          const component: MealComponent = {
+            id: crypto.randomUUID(),
+            slotId: input.slotId,
+            source: { type: 'cooking-event', cookingEventId: cookingEvent.id },
+            allocatedQuantity: input.allocatedQuantity,
+            role: input.role,
+          }
+          await this.db.mealComponents.add(component)
+          components.push(component)
         }
-        await this.db.mealComponents.add(component)
         await this.bumpRevisionInTx(planId)
-        return component
+        return components
       },
     )
   }
