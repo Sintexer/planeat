@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped through **Sprint 27C**. Next sequenced work is **Phase 7** (automatic meal planning, Sprint 28). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
+Shipped through **Sprint 28**. Next sequenced work is **Sprint 29** (fill selected empty slots for a week). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
 
 ## Done — project initialization
 
@@ -120,7 +120,12 @@ Shipped through **Sprint 27C**. Next sequenced work is **Phase 7** (automatic me
 - Message catalog, interpolation, plurals, and locale-aware dates/week labels.
 - Russian UI language with an explicit Settings control. Household-authored content is not auto-translated.
 
-## Next — Phase 7 automatic meal planning (Sprints 28–38)
+## Done — Sprint 28 (generate one empty meal)
+
+- Generate on an empty, non-excluded Plan day slot; preview a scaled `complete` recipe for that occasion; Apply uses existing cook-new writes; Cancel persists nothing.
+- Session-only proposals with an input fingerprint. Grocery lists do not update as a side effect.
+
+## Next — Phase 7 automatic meal planning (Sprints 29–38)
 
 Local, explainable generation. Proposals only; apply through existing cooking events; grocery lists stay manual. No backend or LLM.
 

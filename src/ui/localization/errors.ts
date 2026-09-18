@@ -11,8 +11,21 @@ const PLAN_ERRORS: Record<string, MessageId> = {
   'favorite-missing-ref': 'error.favoriteMissing',
 }
 
+const GENERATION_ERRORS: Record<string, MessageId> = {
+  'no-eligible-candidates': 'generation.noEligible',
+  'slot-not-empty': 'generation.slotNotEmpty',
+  'slot-excluded': 'generation.slotExcluded',
+  'stale-proposal': 'generation.stale',
+}
+
 export function planErrorMessage(t: Translate, error: string): string {
   const id = PLAN_ERRORS[error]
+  if (id) return t(id)
+  return t('error.planGeneric', { error })
+}
+
+export function generationErrorMessage(t: Translate, error: string): string {
+  const id = GENERATION_ERRORS[error] ?? PLAN_ERRORS[error]
   if (id) return t(id)
   return t('error.planGeneric', { error })
 }

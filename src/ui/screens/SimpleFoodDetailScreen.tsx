@@ -110,6 +110,7 @@ function SimpleFoodEditableFields({
 
       <MultiSelect
         label={t('editor.roles')}
+        description={t('editor.rolesHelp')}
         data={roleOptions(t)}
         value={food.roles}
         onChange={(value) =>

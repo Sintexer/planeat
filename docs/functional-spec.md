@@ -1,12 +1,12 @@
 # Functional spec
 
-Present-tense product behavior as of Sprint 27C. Remaining sequenced work is Phase 7 (automatic meal planning) in [`docs/sprints/generation.md`](sprints/generation.md); Status in [`docs/sprints/plan.md`](sprints/plan.md).
+Present-tense product behavior as of Sprint 28. Remaining sequenced work is Phase 7 (automatic meal planning) in [`docs/sprints/generation.md`](sprints/generation.md); Status in [`docs/sprints/plan.md`](sprints/plan.md).
 
 ## Plan
 
 Default home. Seven-day plan for the week containing today (or a specific `planId`), with day selection, week navigation, and a month calendar picker. Week start day comes from settings. `/today` and `/week` redirect here.
 
-Slots can be empty, filled with one or more components, or excluded (eating out). Empty and excluded must look different. Tap a slot to open the meal editor. Generate groceries from this screen; if an open list is already linked, inspect the update preview (or create a new list) before any overwrite.
+Slots can be empty, filled with one or more components, or excluded (eating out). Empty and excluded must look different. Tap a slot to open the meal editor. An empty, non-excluded day slot can **Generate** a single newly cooked complete recipe for that occasion: preview scaled portions, then Apply (same cook-new write as the meal editor) or Cancel (nothing persisted). Filled and excluded slots cannot be overwritten. Generate groceries from this screen; if an open list is already linked, inspect the update preview (or create a new list) before any overwrite. Plan changes never update grocery lists automatically.
 
 Prep sessions and effort units, meal favorites, recipe pairings, fuzzy Suggested picker, and soft planning prompts are part of this flow.
 

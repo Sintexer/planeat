@@ -121,7 +121,7 @@ If a sprint cannot finish both the algorithm and a visible Plan-screen control, 
 
 6. **Demo script.** Plan with an empty dinner. Mark one soup as Complete + Dinner. Generate → preview scaled portions → Cancel (still empty) → Generate → Apply. Open the meal: snapshot and cooking event match a manual add. Exclude Friday dinner and confirm Generate is unavailable/rejected. Edit the soup name, return, Apply on the old proposal → stale. Confirm the grocery list (if any) is untouched.
 
-**Current code to change (orientation):** `PlanScreen` / meal editor; `PlanService.addNewCookingEventComponent`; `Recipe.roles`; no `src/domain/plans/generation/` yet.
+**Shipped.** Domain generation under `src/domain/plans/generation/`; `GenerationService` apply via `PlanService.addNewCookingEventComponent`; Plan day-slot Generate + preview.
 
 **Work chunks**
 

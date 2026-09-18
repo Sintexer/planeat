@@ -2,7 +2,7 @@
 
 No dates. Keep the app releasable after every sprint. Each sprint delivers **one visible improvement**, including its UI, domain changes, persistence, backup support, and tests.
 
-**Current position:** Sprints 1–27A, 26C–27C, and checkpoints A/B/C/D are shipped. Lane A and Lane C are complete. Lane B remains optional. Next sequenced work is Phase 7 (automatic meal planning), starting at Sprint 28 — cards in [`generation.md`](generation.md).
+**Current position:** Sprints 1–28, 26C–27C, and checkpoints A/B/C/D are shipped. Lane A and Lane C are complete. Lane B remains optional. Next sequenced work is Sprint 29 — cards in [`generation.md`](generation.md).
 
 Sprints 1–6 had no automated test runner. Vitest arrived in Sprint 8 (tags/backup). Measurement/grocery scenario tests landed in Sprint 13. Localization settings (`uiLocale`, `measurementPreference`) shipped before Phase 1; Sprint 14 applied them consistently to displayed quantities.
 
@@ -699,7 +699,7 @@ Test one question early, though: is “family” a household using one shared de
 
 # Phase 7 — Automatic meal planning
 
-Offline generator on the existing cooking-event model. **Next: Sprint 28.**
+Offline generator on the existing cooking-event model. **Next: Sprint 29.**
 
 Generation always produces a proposal. Apply goes through existing `PlanService` writes. Grocery lists never update as a side effect. Full implementation cards, module boundaries, acceptance tests, and demo scripts: [`generation.md`](generation.md).
 
@@ -807,4 +807,6 @@ Sprint 26C is done: remaining chrome messages go through a hand-rolled `t()` / `
 
 Sprint 27C is done: Russian (`ru`) is a second supported UI language. Settings exposes English / Русский once catalogs are complete. User-authored recipe, tag, grocery, and snapshot strings stay as stored. Backup `uiLocale` accepts `en` | `ru`. PWA manifest name stays English. Tests: `t.test.ts`.
 
-**Next:** Sprint 28 — generate one empty meal (preview + explicit apply). Phase 7 cards: [`generation.md`](generation.md). Lane B (shopping-section order) remains optional and is not a prerequisite.
+Sprint 28 is done: generate one empty non-excluded slot with a newly cooked `complete` recipe for that occasion; session-only preview; Apply uses `PlanService.addNewCookingEventComponent`; Cancel writes nothing; filled/excluded/stale/`no-eligible-candidates` are structured errors; grocery lists are untouched. No Dexie or backup-format bump.
+
+**Next:** Sprint 29 — fill selected empty slots for a week (partial proposals, atomic apply, Web Worker). Phase 7 cards: [`generation.md`](generation.md). Lane B remains optional.

@@ -4,6 +4,7 @@ import { GroceryService } from '../application/groceries/GroceryService'
 import { PairingService } from '../application/pairings/PairingService'
 import { IngredientService } from '../application/ingredients/IngredientService'
 import { LibraryViewService } from '../application/libraryViews/LibraryViewService'
+import { GenerationService } from '../application/plans/GenerationService'
 import { PlanService } from '../application/plans/PlanService'
 import { QuantityService } from '../application/quantities/QuantityService'
 import { RecipeImportService } from '../application/recipes/RecipeImportService'
@@ -32,6 +33,7 @@ export interface AppServices {
   simpleFoodService: SimpleFoodService
   tagService: TagService
   planService: PlanService
+  generationService: GenerationService
   groceryService: GroceryService
   quantityService: QuantityService
   mealFavoriteService: MealFavoriteService
@@ -61,18 +63,26 @@ export function bootstrap(): AppServices {
   // First launch (empty recipe library) gets a small editable starter set.
   void seedStarterLibraryIfEmpty(db)
 
+  const planService = new PlanService(
+    planRepository,
+    recipeRepository,
+    simpleFoodRepository,
+    settingsRepository,
+    quantityService,
+    tagRepository,
+  )
+
   return {
     recipeService: new RecipeService(recipeRepository),
     ingredientService: new IngredientService(ingredientRepository),
     simpleFoodService: new SimpleFoodService(simpleFoodRepository),
     tagService: new TagService(tagRepository),
-    planService: new PlanService(
+    planService,
+    generationService: new GenerationService(
       planRepository,
       recipeRepository,
-      simpleFoodRepository,
-      settingsRepository,
       quantityService,
-      tagRepository,
+      planService,
     ),
     groceryService: new GroceryService(
       groceryRepository,

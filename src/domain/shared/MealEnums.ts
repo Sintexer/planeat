@@ -44,7 +44,7 @@ export const MEAL_TYPE_LABELS: Record<MealType, string> = {
 }
 
 export const RECIPE_ROLE_LABELS: Record<RecipeRole, string> = {
-  complete: 'Complete dish',
+  complete: 'Complete dish (may be chosen alone)',
   main: 'Main',
   side: 'Side',
   vegetable: 'Vegetable accompaniment',

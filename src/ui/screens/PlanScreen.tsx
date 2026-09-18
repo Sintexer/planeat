@@ -56,6 +56,7 @@ import { useRecipes } from '../hooks/useRecipes'
 import { useSettings } from '../hooks/useSettings'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
 import { confirmClearSlot, confirmExcludeSlot } from '../plans/slotConfirmations'
+import { openGenerateMealPreview } from '../plans/openGenerateMeal'
 import { PlanWeekGrid } from '../plans/PlanWeekGrid'
 import { buildSlotDisplays, groupDisplaysByDate, type SlotDisplay } from '../plans/slotDisplay'
 import type { Quantity } from '../../domain/shared/Quantity'
@@ -86,7 +87,7 @@ export function PlanScreen() {
   const [searchParams] = useSearchParams()
   const dateQuery = searchParams.get('date')
   const settings = useSettings()
-  const { planService, groceryService } = useServices()
+  const { planService, groceryService, generationService } = useServices()
   const simpleFoods = useSimpleFoods()
   const recipes = useRecipes()
   const formatQty = useFormatQuantity()
@@ -604,6 +605,17 @@ export function PlanScreen() {
                     onClear={() => void confirmClearSlot(planService, display.slot.id, t)}
                     onExclude={() => void confirmExcludeSlot(planService, display.slot.id, t)}
                     onUnexclude={() => void handleUnexclude(display.slot.id)}
+                    onGenerate={
+                      display.components.length === 0 && !display.slot.excluded
+                        ? () =>
+                            void openGenerateMealPreview({
+                              slotId: display.slot.id,
+                              generationService,
+                              t,
+                              formatQty,
+                            })
+                        : undefined
+                    }
                   />
                 ))
               })}

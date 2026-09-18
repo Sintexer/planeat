@@ -316,6 +316,7 @@ export function RecipeEditor({ mode, recipe }: RecipeEditorProps) {
           <Title order={4}>{t('editor.organization')}</Title>
           <MultiSelect
             label={t('editor.roles')}
+            description={t('editor.rolesHelp')}
             data={roleOptions(t)}
             {...form.getInputProps('roles')}
           />

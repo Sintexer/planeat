@@ -16,6 +16,7 @@ import {
   Calendar,
   DotsThreeVertical,
   ForkKnife,
+  MagicWand,
   PencilSimple,
   Plus,
   Star,
@@ -41,6 +42,7 @@ import { useFormatQuantity } from '../localization/useFormatQuantity'
 import { useLocalization } from '../localization/LocalizationContext'
 import { mealTypeLabel } from '../localization/labels'
 import { planErrorMessage } from '../localization/errors'
+import { openGenerateMealPreview } from '../plans/openGenerateMeal'
 import type { Translate } from '../localization/t'
 
 interface MealEditorProps {
@@ -107,7 +109,7 @@ function openOverAllocationChoices(args: {
 }
 
 export function MealEditor({ opened, onClose, slot, graph, components }: MealEditorProps) {
-  const { planService, mealFavoriteService } = useServices()
+  const { planService, mealFavoriteService, generationService } = useServices()
   const favorites = useMealFavorites()
   const formatQty = useFormatQuantity()
   const { t } = useLocalization()
@@ -697,6 +699,22 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
           <Button leftSection={<Plus size={16} />} onClick={() => setAddOpen(true)}>
             {t('meal.addComponent')}
           </Button>
+          {components.length === 0 && !slot.excluded && (
+            <Button
+              variant="light"
+              leftSection={<MagicWand size={16} />}
+              onClick={() =>
+                void openGenerateMealPreview({
+                  slotId: slot.id,
+                  generationService,
+                  t,
+                  formatQty,
+                })
+              }
+            >
+              {t('generation.generate')}
+            </Button>
+          )}
           <Group gap="xs" wrap="nowrap">
             <Menu shadow="md" width={220} position="top-start">
               <Menu.Target>

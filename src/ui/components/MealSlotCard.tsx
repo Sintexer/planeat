@@ -1,5 +1,5 @@
 import { ActionIcon, Badge, Group, Paper, Stack, Text, Menu, UnstyledButton } from '@mantine/core'
-import { DotsThree, Plus, Warning, X } from '@phosphor-icons/react'
+import { DotsThree, MagicWand, Plus, Warning, X } from '@phosphor-icons/react'
 import { mealTypeLabel } from '../localization/labels'
 import { RecipePhotoThumb } from './RecipePhotoThumb'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
@@ -15,6 +15,7 @@ interface MealSlotCardProps {
   onClear: () => void
   onExclude: () => void
   onUnexclude: () => void
+  onGenerate?: () => void
 }
 
 function DishRow({
@@ -145,6 +146,7 @@ export function MealSlotCard({
   onClear,
   onExclude,
   onUnexclude,
+  onGenerate,
 }: MealSlotCardProps) {
   const { slot, components } = display
   const hasComponents = components.length > 0
@@ -208,6 +210,25 @@ export function MealSlotCard({
               </Text>
             )}
             <AddDishButton onOpen={onOpen} label={t('slot.addDish')} />
+            {!hasComponents && onGenerate && (
+              <UnstyledButton onClick={onGenerate} w="100%" style={{ textAlign: 'center' }}>
+                <Paper
+                  p={10}
+                  radius="md"
+                  style={{
+                    border: '1.5px dashed var(--mantine-color-default-border)',
+                    background: 'transparent',
+                  }}
+                >
+                  <Group gap={6} justify="center">
+                    <MagicWand size={16} />
+                    <Text size="sm" fw={500}>
+                      {t('generation.generate')}
+                    </Text>
+                  </Group>
+                </Paper>
+              </UnstyledButton>
+            )}
           </>
         )}
       </Stack>
