@@ -538,7 +538,7 @@ Built-in set: **Balanced**, **Less cooking**, **More variety**, **Batch cooking*
    - Expansion budget exhaustion is `search-incomplete`, not `no-eligible-candidates`.
    - Apply still uses `PlanService.addGeneratedMealComponents`; grocery lists are untouched.
 
-**Shipped.** `algorithmVersion` `'40'`. Hierarchical planner plus ranking so leftover/batch reuse beats recooking a quick dish every day, per-occasion recency rotates mains, starter cutlet pairings seed when the pairing table is empty, and breakfast blocks use food names. Generate workspace at `/plan/:planId/generate`. No Dexie or backup-format bump.
+**Shipped.** `algorithmVersion` `'41'`. Hierarchical planner plus ranking so leftover/batch reuse beats recooking a quick dish every day. Batch-friendly cooks use recipe yield as a floor (cutlets 12 piece / 2 meals) and scale above yield for extra leftover meals within the cap (18 for 3 meals). Generate workspace defaults to Balanced extra-2. No Dexie or backup-format bump.
 
 ---
 

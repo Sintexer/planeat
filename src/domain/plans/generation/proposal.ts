@@ -24,7 +24,7 @@ import {
   type ScoreReason,
 } from './scoring'
 
-export const GENERATION_ALGORITHM_VERSION = '40'
+export const GENERATION_ALGORITHM_VERSION = '41'
 export const GENERATION_POLICY_VERSION = '31'
 
 export const GENERATION_MODES = ['fill-empty', 'replace'] as const

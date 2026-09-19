@@ -204,8 +204,13 @@ describe('GenerationConfig', () => {
   })
 
   it('Batch cooking produces fewer cooking events than cooking each dinner separately', () => {
+    const oneMeal = recipe({ yield: { value: 2, unit: 'serving' } })
+    const withRecipe = (config: ReturnType<typeof mergeGenerationConfig>): GenerationInput => ({
+      ...inputFromConfig(config),
+      recipes: [oneMeal],
+    })
     const noBatch = runGenerationSearch(
-      inputFromConfig(
+      withRecipe(
         mergeGenerationConfig({
           ...builtinGenerationPresetById('preset:balanced')!.config,
           generationBatchPolicy: { maxExtraPlannedUses: 0, unallocatedProduction: 'disallow' },
@@ -215,7 +220,7 @@ describe('GenerationConfig', () => {
       scaleQuantity,
     )
     const batch = runGenerationSearch(
-      inputFromConfig(builtinGenerationPresetById('preset:batch-cooking')!.config),
+      withRecipe(builtinGenerationPresetById('preset:batch-cooking')!.config),
       'req-1',
       scaleQuantity,
     )

@@ -67,10 +67,84 @@ function cookCount(proposal: ReturnType<typeof runGenerationSearch>): number {
   ).length
 }
 
+function starterCutletsInput(
+  slotCount: 2 | 3,
+  batchPolicy?: GenerationInput['batchPolicy'],
+): GenerationInput {
+  const cutlets = recipe({
+    id: 'cutlets',
+    name: 'Chicken cutlets',
+    yield: { value: 12, unit: 'piece' },
+    defaultPortionPerPerson: { value: 3, unit: 'piece' },
+    roles: ['main'],
+    mealTypes: ['lunch', 'dinner'],
+  })
+  const rice = recipe({
+    id: 'rice',
+    name: 'Rice',
+    roles: ['side'],
+    effort: 'quick',
+    reusePolicy: 'same-day',
+    mealTypes: ['lunch', 'dinner'],
+  })
+  const buckwheat = recipe({
+    id: 'buckwheat',
+    name: 'Buckwheat',
+    roles: ['side'],
+    effort: 'quick',
+    reusePolicy: 'same-day',
+    mealTypes: ['lunch', 'dinner'],
+  })
+  const potatoes = recipe({
+    id: 'potatoes',
+    name: 'Potatoes',
+    roles: ['side', 'vegetable'],
+    effort: 'quick',
+    reusePolicy: 'same-day',
+    mealTypes: ['lunch', 'dinner'],
+  })
+  const requestedSlots = [
+    { slot: slot({ id: 'slot-mon', date: '2026-01-05', mealType: 'lunch' }), componentCount: 0 },
+    { slot: slot({ id: 'slot-tue', date: '2026-01-05', mealType: 'dinner' }), componentCount: 0 },
+    { slot: slot({ id: 'slot-wed', date: '2026-01-06', mealType: 'lunch' }), componentCount: 0 },
+  ].slice(0, slotCount)
+  return input({
+    recipes: [cutlets, rice, buckwheat, potatoes],
+    catalogs: {
+      recipeIds: ['cutlets', 'rice', 'buckwheat', 'potatoes'],
+      tagIds: [],
+      ingredientIds: [],
+    },
+    requestedSlots,
+    pairings: [
+      {
+        id: 'pair-rice',
+        recipeId: 'cutlets',
+        target: { type: 'recipe', id: 'rice' },
+        relationship: 'pairs-with',
+      },
+      {
+        id: 'pair-buckwheat',
+        recipeId: 'cutlets',
+        target: { type: 'recipe', id: 'buckwheat' },
+        relationship: 'pairs-with',
+      },
+      {
+        id: 'pair-potatoes',
+        recipeId: 'cutlets',
+        target: { type: 'recipe', id: 'potatoes' },
+        relationship: 'pairs-with',
+      },
+    ],
+    batchPolicy: batchPolicy ?? { maxExtraPlannedUses: 2, unallocatedProduction: 'disallow' },
+    searchBudget: { beamWidth: 8, perSlotCandidateLimit: 16, expansionBudget: 800 },
+  })
+}
+
 describe('planned batch generation', () => {
   it('cooks once for Monday and Tuesday dinners', () => {
     const proposal = runGenerationSearch(input(), 'req-1', scaleQuantity)
-    expect(proposal.algorithmVersion).toBe('40')
+    expect(proposal.algorithmVersion).toBe('41')
     expect(proposal.assignments).toHaveLength(2)
     expect(proposal.unfilled).toHaveLength(0)
     expect(cookCount(proposal)).toBe(1)
@@ -117,6 +191,7 @@ describe('planned batch generation', () => {
   it('does not over-allocate proposed remaining across later slots', () => {
     const proposal = runGenerationSearch(
       input({
+        recipes: [recipe({ yield: { value: 2, unit: 'serving' } })],
         requestedSlots: [
           { slot: slot(), componentCount: 0 },
           { slot: slot({ id: 'slot-tue', date: '2026-01-06' }), componentCount: 0 },
@@ -138,9 +213,12 @@ describe('planned batch generation', () => {
     expect(cookCount(proposal)).toBe(2)
   })
 
-  it('keeps this-meal-only behavior when extra uses are zero', () => {
+  it('keeps this-meal-only behavior when extra uses are zero and yield is one meal', () => {
     const proposal = runGenerationSearch(
-      input({ batchPolicy: { maxExtraPlannedUses: 0, unallocatedProduction: 'disallow' } }),
+      input({
+        recipes: [recipe({ yield: { value: 2, unit: 'serving' } })],
+        batchPolicy: { maxExtraPlannedUses: 0, unallocatedProduction: 'disallow' },
+      }),
       'req-1',
       scaleQuantity,
     )
@@ -285,6 +363,61 @@ describe('planned batch generation', () => {
       return side && 'recipeId' in side ? side.recipeId : undefined
     })
     expect(new Set(sideIds).size).toBe(3)
+  })
+
+  it('cooks starter cutlets once at 18 piece for three meals', () => {
+    const proposal = runGenerationSearch(starterCutletsInput(3), 'req-1', scaleQuantity)
+    expect(proposal.assignments).toHaveLength(3)
+    expect(proposal.unfilled).toHaveLength(0)
+    const cutletCooks = proposal.assignments.flatMap((row) =>
+      row.components.filter(
+        (component) => component.type === 'recipe' && component.recipeId === 'cutlets',
+      ),
+    )
+    expect(cutletCooks).toHaveLength(1)
+    expect(cutletCooks[0]).toMatchObject({
+      outputQuantity: { value: 18, unit: 'piece' },
+      allocatedQuantity: { value: 6, unit: 'piece' },
+    })
+    const leftoverCutlets = proposal.assignments.filter((row) =>
+      row.components.some(
+        (component) => component.type === 'leftover' && component.recipeId === 'cutlets',
+      ),
+    )
+    expect(leftoverCutlets).toHaveLength(2)
+  })
+
+  it('cooks starter cutlets once at yield 12 piece for two meals', () => {
+    const proposal = runGenerationSearch(starterCutletsInput(2), 'req-1', scaleQuantity)
+    const cutletCooks = proposal.assignments.flatMap((row) =>
+      row.components.filter(
+        (component) => component.type === 'recipe' && component.recipeId === 'cutlets',
+      ),
+    )
+    expect(proposal.assignments).toHaveLength(2)
+    expect(cutletCooks).toHaveLength(1)
+    expect(cutletCooks[0]).toMatchObject({
+      outputQuantity: { value: 12, unit: 'piece' },
+      allocatedQuantity: { value: 6, unit: 'piece' },
+    })
+  })
+
+  it('fills cutlet yield when extra uses are zero and a later leftover slot exists', () => {
+    const proposal = runGenerationSearch(
+      starterCutletsInput(2, { maxExtraPlannedUses: 0, unallocatedProduction: 'disallow' }),
+      'req-1',
+      scaleQuantity,
+    )
+    const cutletCooks = proposal.assignments.flatMap((row) =>
+      row.components.filter(
+        (component) => component.type === 'recipe' && component.recipeId === 'cutlets',
+      ),
+    )
+    expect(cutletCooks).toHaveLength(1)
+    expect(cutletCooks[0]).toMatchObject({
+      outputQuantity: { value: 12, unit: 'piece' },
+      allocatedQuantity: { value: 6, unit: 'piece' },
+    })
   })
 
   it('batches soup across meals instead of recooking carbonara each day', () => {

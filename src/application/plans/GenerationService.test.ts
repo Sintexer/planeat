@@ -1465,7 +1465,7 @@ describe('GenerationService', () => {
     if (!overlayRun.ok || !settingsRun.ok) return
     expect(overlayRun.value.fingerprint).not.toBe(settingsRun.value.fingerprint)
     expect(overlayRun.value.presetId).toBe('preset:batch-cooking')
-    expect(overlayRun.value.algorithmVersion).toBe('40')
+    expect(overlayRun.value.algorithmVersion).toBe('41')
     expect(overlayRun.value.generationConfig?.generationBatchPolicy.maxExtraPlannedUses).toBe(2)
   })
 

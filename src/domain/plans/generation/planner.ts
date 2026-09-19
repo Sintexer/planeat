@@ -497,6 +497,25 @@ function batchableRecipe(candidate: CompositionCandidate) {
   return first?.type === 'recipe' ? first.recipe : undefined
 }
 
+/** Extra leftover meals needed to cook one recipe yield when yield is a multiple of this meal. */
+function yieldFillExtraMeals(recipe: { yield: Quantity }, mealPortion: Quantity): number {
+  if (recipe.yield.unit !== mealPortion.unit || mealPortion.value <= 0) return 0
+  const meals = recipe.yield.value / mealPortion.value
+  if (!Number.isInteger(meals) || meals < 2) return 0
+  return meals - 1
+}
+
+function extraQuantityForUses(
+  later: readonly Quantity[],
+  n: number,
+  unit: string,
+): Quantity | undefined {
+  if (n <= 0) return undefined
+  const extraValue = later.slice(0, n).reduce((sum, quantity) => sum + quantity.value, 0)
+  if (extraValue <= 0) return undefined
+  return { value: extraValue, unit }
+}
+
 function expandBatchVariants(
   enumerated: readonly CompositionCandidate[],
   input: GenerationInput,
@@ -505,7 +524,6 @@ function expandBatchVariants(
   scale: ScaleQuantity,
 ): CompositionCandidate[] {
   const policy = mergeGenerationBatchPolicy(input.batchPolicy)
-  if (policy.maxExtraPlannedUses <= 0) return [...enumerated]
   const out: CompositionCandidate[] = []
   for (const candidate of enumerated) {
     out.push(candidate)
@@ -523,15 +541,17 @@ function expandBatchVariants(
       scale,
       thisQuantity.unit,
     )
-    const maxN = Math.min(policy.maxExtraPlannedUses, later.length)
+    if (later.length === 0) continue
+    const yieldExtra = yieldFillExtraMeals(recipe, thisQuantity)
+    const maxN = Math.min(later.length, Math.max(policy.maxExtraPlannedUses, yieldExtra))
     for (let n = 1; n <= maxN; n++) {
-      const extraValue = later.slice(0, n).reduce((sum, quantity) => sum + quantity.value, 0)
-      if (extraValue <= 0) continue
+      const extraQuantity = extraQuantityForUses(later, n, thisQuantity.unit)
+      if (!extraQuantity) continue
       out.push({
         ...candidate,
         id: `${candidate.id}:extra:${n}`,
         extraUses: n,
-        extraQuantity: { value: extraValue, unit: thisQuantity.unit },
+        extraQuantity,
         extraRecipeId: recipe.id,
         proposedEventId: `${row.slot.id}:${recipe.id}`,
       })
@@ -792,7 +812,7 @@ function applyCandidateChain(
         ],
       }
       leftoverCandidate = completeCandidate(leftoverCandidate, input, laterRow, next, usedSides)
-      const laterAssignment = assignmentFromCandidate(
+      let laterAssignment = assignmentFromCandidate(
         leftoverCandidate,
         laterRow.slot.id,
         laterRow.slot.mealType,
@@ -801,6 +821,32 @@ function applyCandidateChain(
         input.quantityOverrides?.[laterRow.slot.id],
         next.remainingByEventId,
       )
+      if (!laterAssignment || !assignmentValid(laterAssignment)) {
+        leftoverCandidate = {
+          id: `leftover:${eventId}`,
+          source: { type: 'leftover', cookingEventId: eventId },
+          parts: [
+            {
+              type: 'leftover',
+              eventId,
+              recipe,
+              recipeName: recipe.name,
+              scheduledDate: producer.slot.date,
+              desiredQuantity: laterDesired,
+              proposed: true,
+            },
+          ],
+        }
+        laterAssignment = assignmentFromCandidate(
+          leftoverCandidate,
+          laterRow.slot.id,
+          laterRow.slot.mealType,
+          input.peopleCount,
+          scale,
+          input.quantityOverrides?.[laterRow.slot.id],
+          next.remainingByEventId,
+        )
+      }
       if (!laterAssignment || !assignmentValid(laterAssignment)) continue
       const laterCtx = scoringContext(input, laterRow, next)
       next = withAssignment(
@@ -881,12 +927,23 @@ function tryRepair(
   failed: CompositionCandidate,
 ): CompositionCandidate | undefined {
   if (failed.extraUses && failed.extraUses > 0) {
+    const nextN = failed.extraUses - 1
+    if (nextN <= 0 || !failed.extraQuantity) {
+      return {
+        ...failed,
+        extraUses: undefined,
+        extraQuantity: undefined,
+        extraRecipeId: undefined,
+        proposedEventId: undefined,
+        id: failed.id.replace(/:extra:\d+$/, ''),
+      }
+    }
+    const perUse = failed.extraQuantity.value / failed.extraUses
     return {
       ...failed,
-      extraUses: failed.extraUses - 1,
-      extraQuantity: undefined,
-      proposedEventId: undefined,
-      id: failed.id.replace(/:extra:\d+$/, ''),
+      extraUses: nextN,
+      extraQuantity: { value: perUse * nextN, unit: failed.extraQuantity.unit },
+      id: failed.id.replace(/:extra:\d+$/, `:extra:${nextN}`),
     }
   }
   const companions = knownCompanions(

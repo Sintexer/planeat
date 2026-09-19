@@ -90,7 +90,7 @@ export function GenerateWorkspaceScreen() {
 
   const [step, setStep] = useState(0)
   const [mode, setMode] = useState<GenerationMode>('fill-empty')
-  const [loadedPresetId, setLoadedPresetId] = useState<string | null>(null)
+  const [loadedPresetId, setLoadedPresetId] = useState<string | null>('preset:balanced')
   const [draft, setDraft] = useState<GenerationConfig | null>(null)
   const [selected, setSelected] = useState<string[] | null>(null)
   const [custom, setCustom] = useState<Record<string, boolean>>({})
@@ -455,7 +455,7 @@ export function GenerateWorkspaceScreen() {
                 })
                 return
               }
-              setLoadedPresetId(null)
+              setLoadedPresetId('preset:balanced')
               setDraft(null)
               notifications.show({ message: t('generation.presetDeleted'), color: 'success' })
             }}
@@ -503,6 +503,29 @@ export function GenerateWorkspaceScreen() {
                   generationHardPolicy: {
                     ...effective.generationHardPolicy,
                     maxTotalTimeMinutes: minutes,
+                  },
+                }),
+              )
+            }}
+          />
+          <Text size="sm" c="dimmed">
+            {t('settings.batchPolicyHelp')}
+          </Text>
+          <NumberInput
+            label={t('settings.maxExtraPlannedUses')}
+            min={0}
+            max={3}
+            disabled={!effective}
+            value={effective?.generationBatchPolicy.maxExtraPlannedUses ?? 2}
+            onChange={(value) => {
+              if (!effective) return
+              const extra = typeof value === 'number' ? value : 0
+              setDraft(
+                mergeGenerationConfig({
+                  ...effective,
+                  generationBatchPolicy: {
+                    ...effective.generationBatchPolicy,
+                    maxExtraPlannedUses: extra,
                   },
                 }),
               )

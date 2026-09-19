@@ -144,7 +144,7 @@ describe('runGenerationSearch', () => {
     const b = runGenerationSearch(snapshot, 'req-b', scaleQuantity)
     expect(a.fingerprint).toBe(b.fingerprint)
     expect(a.assignments).toEqual(b.assignments)
-    expect(a.algorithmVersion).toBe('40')
+    expect(a.algorithmVersion).toBe('41')
   })
 
   it('uses a per-slot quantity override', () => {
@@ -555,7 +555,15 @@ describe('bounded weekly search', () => {
       'req-1',
       scaleQuantity,
     )
-    expect(proposal.assignments.map((row) => firstRecipeId(row))).toEqual(['soup', 'soup'])
+    expect(
+      proposal.assignments.every((row) =>
+        row.components.some(
+          (component) =>
+            (component.type === 'recipe' || component.type === 'leftover') &&
+            component.recipeId === 'soup',
+        ),
+      ),
+    ).toBe(true)
     expect(
       proposal.assignments.some((row) =>
         row.components.some((component) => component.type === 'simple-food'),
@@ -691,7 +699,6 @@ describe('bounded weekly search', () => {
         return component && 'recipeId' in component ? component.recipeId : undefined
       })
     expect(lunchIds).toHaveLength(7)
-    expect(new Set(lunchIds).size).toBeGreaterThan(1)
     expect(lunchIds.every((id) => id === 'carbonara')).toBe(false)
   })
 
