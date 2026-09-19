@@ -211,6 +211,47 @@ describe('enumerateCompositionCandidates', () => {
     ).toBe(false)
   })
 
+  it('plates a leftover main with a different side', () => {
+    const cutlets = recipe()
+    const rice = recipe({ id: 'rice', name: 'Rice', roles: ['side'] })
+    const buckwheat = recipe({ id: 'buckwheat', name: 'Buckwheat', roles: ['side'] })
+    const candidates = enumerateCompositionCandidates(
+      input({
+        recipes: [cutlets, rice, buckwheat],
+        pairings: [pairing()],
+        cookingEvents: [
+          {
+            id: 'event-cutlets',
+            recipeId: 'cutlets',
+            recipeName: 'Cutlets',
+            scheduledDate: '2026-01-05',
+            outputQuantity: { value: 6, unit: 'serving' },
+            remaining: { value: 4, unit: 'serving' },
+            desiredQuantity: { value: 2, unit: 'serving' },
+            reusePolicy: 'batch-friendly',
+            mealTypes: ['dinner'],
+            recipe: cutlets,
+          },
+        ],
+      }),
+      'dinner',
+      '2026-01-06',
+    )
+    const leftoverPlates = candidates.filter(
+      (row) => row.source.type === 'leftover' && row.parts.length === 2,
+    )
+    expect(leftoverPlates.map((row) => row.id).sort()).toEqual([
+      'leftover:event-cutlets+combo:buckwheat',
+    ])
+  })
+
+  it('does not invent a main-and-side plate when none is stored', () => {
+    const cutlets = recipe()
+    const rice = recipe({ id: 'rice', name: 'Rice', roles: ['side'] })
+    const candidates = enumerateCompositionCandidates(input({ recipes: [cutlets, rice] }), 'dinner')
+    expect(candidates.some((row) => row.id === 'combo:cutlets:rice')).toBe(false)
+  })
+
   it('caps pairings per recipe', () => {
     const cutlets = recipe({ roles: ['complete'] })
     const sides = ['buckwheat', 'potatoes', 'salad'].map((id) =>

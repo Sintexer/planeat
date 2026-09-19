@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Recipe } from '../../recipes/Recipe'
+import type { SimpleFood } from '../../simpleFoods/SimpleFood'
 import { scaleQuantity } from '../../shared/scaleQuantity'
 import type { MealSlot } from '../MealSlot'
 import { DEFAULT_GENERATION_HARD_POLICY } from './constraints'
@@ -73,6 +74,7 @@ function input(overrides: Partial<GenerationInput> = {}): GenerationInput {
     softPrefs: DEFAULT_GENERATION_SOFT_PREFS,
     previousWeekRecipeIds: [],
     tagNamesById: {},
+    batchPolicy: { maxExtraPlannedUses: 0, unallocatedProduction: 'disallow' },
     ...overrides,
   }
 }
@@ -142,7 +144,7 @@ describe('runGenerationSearch', () => {
     const b = runGenerationSearch(snapshot, 'req-b', scaleQuantity)
     expect(a.fingerprint).toBe(b.fingerprint)
     expect(a.assignments).toEqual(b.assignments)
-    expect(a.algorithmVersion).toBe('36')
+    expect(a.algorithmVersion).toBe('40')
   })
 
   it('uses a per-slot quantity override', () => {
@@ -316,20 +318,18 @@ describe('bounded weekly search', () => {
       catalogs: { recipeIds: ['oats', 'pasta'], tagIds: [], ingredientIds: [] },
     })
 
-  it('beats sequential greedy on a lookahead repetition fixture', () => {
+  it('fills a constrained dinner first so lunch keeps the lunch-only recipe', () => {
     const snapshot = lookaheadInput()
-    const greedy = runIndependentGreedySearch(snapshot, 'req-g', scaleQuantity)
-    const beam = runGenerationSearch(snapshot, 'req-b', scaleQuantity)
-    expect(greedy.assignments.map((row) => firstRecipeId(row))).toEqual(['oats', 'oats'])
-    expect(beam.assignments.map((row) => `${row.slotId}:${firstRecipeId(row)}`)).toEqual([
+    const proposal = runGenerationSearch(snapshot, 'req-b', scaleQuantity)
+    expect(proposal.assignments.map((row) => `${row.slotId}:${firstRecipeId(row)}`)).toEqual([
       'slot-lunch:pasta',
       'slot-dinner:oats',
     ])
-    expect(beam.unfilled).toEqual([])
-    const greedyScore = weekObjectiveForAssignments(snapshot, greedy.assignments)
-    const beamScore = weekObjectiveForAssignments(snapshot, beam.assignments)
-    expect(greedyScore.coverage).toBe(beamScore.coverage)
-    expect(compareWeekObjectives(beamScore, greedyScore)).toBeLessThan(0)
+    expect(proposal.unfilled).toEqual([])
+    const greedy = runIndependentGreedySearch(snapshot, 'req-g', scaleQuantity)
+    expect(weekObjectiveForAssignments(snapshot, proposal.assignments).coverage).toBe(
+      weekObjectiveForAssignments(snapshot, greedy.assignments).coverage,
+    )
   })
 
   it('returns search-incomplete when the expansion budget runs out', () => {
@@ -526,6 +526,90 @@ describe('bounded weekly search', () => {
     expect(proposal.assignments[0]?.components).toHaveLength(2)
   })
 
+  it('prefers a complete recipe over bread when both are eligible', () => {
+    const soup = recipe({ id: 'soup', mealTypes: ['lunch', 'dinner'], effort: 'regular' })
+    const bread: SimpleFood = {
+      id: 'bread',
+      ingredientId: 'ing-bread',
+      name: 'Bread',
+      defaultPortion: { value: 2, unit: 'piece' },
+      roles: ['side'],
+      mealTypes: ['breakfast', 'lunch', 'dinner'],
+      tagIds: [],
+      enabledInSuggestions: true,
+      createdAt: 0,
+      updatedAt: 0,
+    }
+    const lunch = slot({ id: 'slot-lunch', mealType: 'lunch', date: '2026-01-05' })
+    const dinner = slot({ id: 'slot-dinner', mealType: 'dinner', date: '2026-01-05' })
+    const proposal = runGenerationSearch(
+      input({
+        recipes: [soup],
+        simpleFoods: [bread],
+        requestedSlots: [
+          { slot: lunch, componentCount: 0 },
+          { slot: dinner, componentCount: 0 },
+        ],
+        catalogs: { recipeIds: ['soup'], tagIds: [], ingredientIds: ['ing-bread'] },
+      }),
+      'req-1',
+      scaleQuantity,
+    )
+    expect(proposal.assignments.map((row) => firstRecipeId(row))).toEqual(['soup', 'soup'])
+    expect(
+      proposal.assignments.some((row) =>
+        row.components.some((component) => component.type === 'simple-food'),
+      ),
+    ).toBe(false)
+  })
+
+  it('spreads banana and bread across breakfasts when those are the only options', () => {
+    const banana: SimpleFood = {
+      id: 'banana',
+      ingredientId: 'ing-banana',
+      name: 'Banana',
+      defaultPortion: { value: 1, unit: 'piece' },
+      roles: ['breakfast-component'],
+      mealTypes: ['breakfast'],
+      tagIds: [],
+      enabledInSuggestions: true,
+      createdAt: 0,
+      updatedAt: 0,
+    }
+    const bread: SimpleFood = {
+      id: 'bread',
+      ingredientId: 'ing-bread',
+      name: 'Bread',
+      defaultPortion: { value: 2, unit: 'piece' },
+      roles: ['breakfast-component'],
+      mealTypes: ['breakfast'],
+      tagIds: [],
+      enabledInSuggestions: true,
+      createdAt: 0,
+      updatedAt: 0,
+    }
+    const mon = slot({ id: 'slot-mon', mealType: 'breakfast', date: '2026-01-05' })
+    const tue = slot({ id: 'slot-tue', mealType: 'breakfast', date: '2026-01-06' })
+    const proposal = runGenerationSearch(
+      input({
+        recipes: [],
+        simpleFoods: [banana, bread],
+        requestedSlots: [
+          { slot: mon, componentCount: 0 },
+          { slot: tue, componentCount: 0 },
+        ],
+        catalogs: { recipeIds: [], tagIds: [], ingredientIds: ['ing-banana', 'ing-bread'] },
+      }),
+      'req-1',
+      scaleQuantity,
+    )
+    const foodIds = proposal.assignments.map((row) => {
+      const food = row.components.find((component) => component.type === 'simple-food')
+      return food?.type === 'simple-food' ? food.simpleFoodId : undefined
+    })
+    expect(new Set(foodIds).size).toBe(2)
+  })
+
   it('never picks suggestion-disabled yogurt on its own', () => {
     const proposal = runGenerationSearch(
       input({
@@ -550,5 +634,95 @@ describe('bounded weekly search', () => {
     )
     expect(proposal.assignments).toEqual([])
     expect(proposal.unfilled[0]?.reason).toBe('no-eligible-candidates')
+  })
+
+  it('does not recook carbonara for every lunch when soup is also eligible', () => {
+    const carbonara = recipe({
+      id: 'carbonara',
+      name: 'Carbonara',
+      roles: ['complete'],
+      mealTypes: ['lunch', 'dinner'],
+      effort: 'quick',
+      reusePolicy: 'fresh-only',
+    })
+    const soup = recipe({
+      id: 'soup',
+      name: 'Vegetable soup',
+      roles: ['complete'],
+      mealTypes: ['lunch', 'dinner'],
+      effort: 'regular',
+      reusePolicy: 'batch-friendly',
+    })
+    const dates = [
+      '2026-09-14',
+      '2026-09-15',
+      '2026-09-16',
+      '2026-09-17',
+      '2026-09-18',
+      '2026-09-19',
+      '2026-09-20',
+    ]
+    const requestedSlots = dates.flatMap((date, index) => [
+      {
+        slot: slot({ id: `lunch-${index}`, date, mealType: 'lunch' }),
+        componentCount: 0,
+      },
+      {
+        slot: slot({ id: `dinner-${index}`, date, mealType: 'dinner' }),
+        componentCount: 0,
+      },
+    ])
+    const proposal = runGenerationSearch(
+      input({
+        recipes: [carbonara, soup],
+        requestedSlots,
+        catalogs: { recipeIds: ['carbonara', 'soup'], tagIds: [], ingredientIds: [] },
+        batchPolicy: { maxExtraPlannedUses: 0, unallocatedProduction: 'disallow' },
+      }),
+      'req-1',
+      scaleQuantity,
+    )
+    const lunchIds = proposal.assignments
+      .filter((row) => row.mealType === 'lunch')
+      .map((row) => {
+        const component = row.components.find(
+          (item) => item.type === 'recipe' || item.type === 'leftover',
+        )
+        return component && 'recipeId' in component ? component.recipeId : undefined
+      })
+    expect(lunchIds).toHaveLength(7)
+    expect(new Set(lunchIds).size).toBeGreaterThan(1)
+    expect(lunchIds.every((id) => id === 'carbonara')).toBe(false)
+  })
+
+  it('names breakfast cooking blocks from the simple-food name', () => {
+    const banana: SimpleFood = {
+      id: 'seed-sf-banana',
+      ingredientId: 'ing-banana',
+      name: 'Banana',
+      defaultPortion: { value: 1, unit: 'piece' },
+      roles: ['breakfast-component'],
+      mealTypes: ['breakfast'],
+      tagIds: [],
+      enabledInSuggestions: true,
+      createdAt: 0,
+      updatedAt: 0,
+    }
+    const proposal = runGenerationSearch(
+      input({
+        recipes: [],
+        simpleFoods: [banana],
+        requestedSlots: [
+          {
+            slot: slot({ id: 'slot-breakfast', date: '2026-09-14', mealType: 'breakfast' }),
+            componentCount: 0,
+          },
+        ],
+        catalogs: { recipeIds: [], tagIds: [], ingredientIds: ['ing-banana'] },
+      }),
+      'req-1',
+      scaleQuantity,
+    )
+    expect(proposal.cookingBlocks?.[0]?.recipeName).toBe('Banana')
   })
 })

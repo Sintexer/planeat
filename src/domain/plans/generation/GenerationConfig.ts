@@ -208,7 +208,7 @@ export const BUILTIN_GENERATION_PRESETS: readonly BuiltinGenerationPreset[] = [
   {
     id: 'preset:balanced',
     config: fromDefaultSettings({
-      generationBatchPolicy: { maxExtraPlannedUses: 0, unallocatedProduction: 'disallow' },
+      generationBatchPolicy: { maxExtraPlannedUses: 2, unallocatedProduction: 'disallow' },
     }),
   },
   {
@@ -216,7 +216,7 @@ export const BUILTIN_GENERATION_PRESETS: readonly BuiltinGenerationPreset[] = [
     config: fromDefaultSettings({
       avoidMultipleDemandingPreps: true,
       generationBatchPolicy: {
-        maxExtraPlannedUses: 1,
+        maxExtraPlannedUses: 2,
         unallocatedProduction: 'allow-with-warning',
       },
     }),
@@ -225,13 +225,13 @@ export const BUILTIN_GENERATION_PRESETS: readonly BuiltinGenerationPreset[] = [
     id: 'preset:more-variety',
     config: fromDefaultSettings({
       generationPreferredTagIds: [],
-      generationBatchPolicy: { maxExtraPlannedUses: 0, unallocatedProduction: 'disallow' },
+      generationBatchPolicy: { maxExtraPlannedUses: 2, unallocatedProduction: 'disallow' },
     }),
   },
   {
     id: 'preset:batch-cooking',
     config: fromDefaultSettings({
-      generationBatchPolicy: { maxExtraPlannedUses: 1, unallocatedProduction: 'disallow' },
+      generationBatchPolicy: { maxExtraPlannedUses: 2, unallocatedProduction: 'disallow' },
     }),
   },
 ]

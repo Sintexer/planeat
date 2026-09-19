@@ -1457,7 +1457,7 @@ describe('GenerationService', () => {
     })
     expect(withOverlay.ok && fromSettings.ok).toBe(true)
     if (!withOverlay.ok || !fromSettings.ok) return
-    expect(withOverlay.value.batchPolicy?.maxExtraPlannedUses).toBe(1)
+    expect(withOverlay.value.batchPolicy?.maxExtraPlannedUses).toBe(2)
     expect(fromSettings.value.batchPolicy?.maxExtraPlannedUses).toBe(0)
     const overlayRun = generation.runGeneration(withOverlay.value, 'req-overlay')
     const settingsRun = generation.runGeneration(fromSettings.value, 'req-settings')
@@ -1465,8 +1465,8 @@ describe('GenerationService', () => {
     if (!overlayRun.ok || !settingsRun.ok) return
     expect(overlayRun.value.fingerprint).not.toBe(settingsRun.value.fingerprint)
     expect(overlayRun.value.presetId).toBe('preset:batch-cooking')
-    expect(overlayRun.value.algorithmVersion).toBe('36')
-    expect(overlayRun.value.generationConfig?.generationBatchPolicy.maxExtraPlannedUses).toBe(1)
+    expect(overlayRun.value.algorithmVersion).toBe('40')
+    expect(overlayRun.value.generationConfig?.generationBatchPolicy.maxExtraPlannedUses).toBe(2)
   })
 
   it('uses a dirty built-in draft for search, not the code snapshot', async () => {

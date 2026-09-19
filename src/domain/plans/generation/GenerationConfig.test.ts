@@ -147,13 +147,13 @@ describe('GenerationConfig', () => {
       expect(merged.avoidMultipleDemandingPreps).toBe(true)
     }
     expect(builtinGenerationPresetById('preset:balanced')?.config.generationBatchPolicy).toEqual({
-      maxExtraPlannedUses: 0,
+      maxExtraPlannedUses: 2,
       unallocatedProduction: 'disallow',
     })
     expect(
       builtinGenerationPresetById('preset:less-cooking')?.config.generationBatchPolicy,
     ).toEqual({
-      maxExtraPlannedUses: 1,
+      maxExtraPlannedUses: 2,
       unallocatedProduction: 'allow-with-warning',
     })
     expect(
@@ -162,7 +162,7 @@ describe('GenerationConfig', () => {
     expect(
       builtinGenerationPresetById('preset:batch-cooking')?.config.generationBatchPolicy,
     ).toEqual({
-      maxExtraPlannedUses: 1,
+      maxExtraPlannedUses: 2,
       unallocatedProduction: 'disallow',
     })
   })
@@ -203,9 +203,14 @@ describe('GenerationConfig', () => {
     expect(config.generationPreferredTagIds).toContain('gone-tag')
   })
 
-  it('Batch cooking produces fewer cooking events than Balanced on a two-dinner fixture', () => {
-    const balanced = runGenerationSearch(
-      inputFromConfig(builtinGenerationPresetById('preset:balanced')!.config),
+  it('Batch cooking produces fewer cooking events than cooking each dinner separately', () => {
+    const noBatch = runGenerationSearch(
+      inputFromConfig(
+        mergeGenerationConfig({
+          ...builtinGenerationPresetById('preset:balanced')!.config,
+          generationBatchPolicy: { maxExtraPlannedUses: 0, unallocatedProduction: 'disallow' },
+        }),
+      ),
       'req-1',
       scaleQuantity,
     )
@@ -214,8 +219,8 @@ describe('GenerationConfig', () => {
       'req-1',
       scaleQuantity,
     )
-    expect(cookCount(batch)).toBeLessThan(cookCount(balanced))
-    expect(cookCount(balanced)).toBe(2)
+    expect(cookCount(batch)).toBeLessThan(cookCount(noBatch))
+    expect(cookCount(noBatch)).toBe(2)
     expect(cookCount(batch)).toBe(1)
   })
 })

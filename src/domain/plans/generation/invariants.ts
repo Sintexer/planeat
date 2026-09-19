@@ -9,7 +9,11 @@ import { validateProposalAgainstLive } from './proposalValidation'
 import { emptyWeekObjective } from './scoring'
 import { weekObjectiveForAssignments } from './search'
 
-const ALLOWED_UNFILLED = new Set(['no-eligible-candidates', 'search-incomplete'])
+const ALLOWED_UNFILLED = new Set([
+  'no-eligible-candidates',
+  'search-incomplete',
+  'capacity-exhausted',
+])
 
 export function proposalIdentity(proposal: WeekGenerationProposal): string {
   return JSON.stringify({

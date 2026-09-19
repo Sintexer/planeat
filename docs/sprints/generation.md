@@ -14,11 +14,11 @@ Do not delay household trials until Sprint 38. Use generated proposals from Spri
 
 ## Release gates
 
-| Gate                         | Sprints | Capability                                                                 |
-| ---------------------------- | ------- | -------------------------------------------------------------------------- |
-| **Initial generator**        | 28–29   | Safely fill empty meals with preview and explicit apply.                   |
-| **Preference-aware planner** | 30–32   | Respect restrictions and optimize across the week.                         |
-| **Household meal planner**   | 33–35   | Generate compositions, allocate leftovers, and schedule batches.           |
+| Gate                         | Sprints | Capability                                                                                                  |
+| ---------------------------- | ------- | ----------------------------------------------------------------------------------------------------------- |
+| **Initial generator**        | 28–29   | Safely fill empty meals with preview and explicit apply.                                                    |
+| **Preference-aware planner** | 30–32   | Respect restrictions and optimize across the week.                                                          |
+| **Household meal planner**   | 33–35   | Generate compositions, allocate leftovers, and schedule batches.                                            |
 | **Core-feature release**     | 36–38   | Selective regeneration, reusable configuration, and reliability. Device-validated performance is postponed. |
 
 ## Shared implementation requirements
@@ -511,6 +511,34 @@ Built-in set: **Balanced**, **Less cooking**, **More variety**, **Batch cooking*
 **Shipped — 38b.** Named generation fixtures and handwritten seed/invariant tests (`generationQuality.test.ts`). Correctness only — not a wall-clock or memory gate.
 
 **Postponed:** named-device runtime/memory, cancel-latency target, pruning/eligibility caches/beam/budget/worker-memory tuning, optional local-improvement pass. Do not treat invented numbers as a gate. Household trials can continue on shipped generation; they are not a sequenced sprint.
+
+---
+
+## Sprint 39 — Hierarchical cooking-block planner
+
+**User outcome:** “Generate plans cooking sessions first (a main prepared once and eaten across meals), then completes each plate, from a dedicated generate workspace.”
+
+### Implementation card
+
+1. **User story.** As a household cook, I set meals, busy/free days, and planning style, then review a proposal that shows preparation structure (cook once, reheat, add a side) before applying.
+
+2. **Journeys**
+   - A batch-friendly Monday main covers Tuesday and Wednesday within reuse rules; sides vary only when stored pairings or favorites exist.
+   - Busy days prefer leftovers or simpler plates; free days take preparation under `maxBatchPrepUnits`.
+   - Insufficient catalog data or tight limits yield a partial proposal with an explicit unfilled reason.
+
+3. **Non-goals.** Prep-only cooking events; inferred pairings from titles; new Dexie fields; automatic groceries; user-editable score weights.
+
+4. **Data and backup impact.** None. Cooking blocks are in-memory and compile to existing cooking events, leftover links, and meal components. Busy/free is a request overlay (`dayLoad`); saving defaults writes existing weekday Settings arrays.
+
+5. **Acceptance tests**
+   - Reusable Monday main can cover later eligible meals inside reuse policy.
+   - Accompaniments vary only with known partners; unpaired mains are not invented as combos.
+   - Reusing a batch is distinct from cooking the same recipe again.
+   - Expansion budget exhaustion is `search-incomplete`, not `no-eligible-candidates`.
+   - Apply still uses `PlanService.addGeneratedMealComponents`; grocery lists are untouched.
+
+**Shipped.** `algorithmVersion` `'40'`. Hierarchical planner plus ranking so leftover/batch reuse beats recooking a quick dish every day, per-occasion recency rotates mains, starter cutlet pairings seed when the pairing table is empty, and breakfast blocks use food names. Generate workspace at `/plan/:planId/generate`. No Dexie or backup-format bump.
 
 ---
 

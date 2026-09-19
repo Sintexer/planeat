@@ -15,6 +15,7 @@ import type { IngredientRepository } from '../ports/IngredientRepository'
 import type { MealFavoriteRepository } from '../ports/MealFavoriteRepository'
 import type { PairingRepository } from '../ports/PairingRepository'
 import {
+  type DayLoad,
   type GenerationInput,
   type GenerationLeftoverEvent,
   type GenerationMode,
@@ -71,6 +72,7 @@ export type PrepareGenerationOptions = {
   mode?: GenerationMode
   config?: GenerationConfig
   presetId?: string
+  dayLoad?: Readonly<Record<string, DayLoad>>
 }
 
 export class GenerationService {
@@ -179,6 +181,7 @@ export class GenerationService {
       mode,
       options.config,
       options.presetId,
+      options.dayLoad,
     )
   }
 
@@ -225,6 +228,7 @@ export class GenerationService {
       mergeGenerationMode(proposal.generationMode),
       proposal.generationConfig,
       proposal.presetId,
+      proposal.dayLoad,
     )
     if (!live.ok) return live
     const issue = validateProposalAgainstLive(proposal, live.value)
@@ -251,6 +255,7 @@ export class GenerationService {
     mode: GenerationMode = 'fill-empty',
     requestConfig?: GenerationConfig,
     presetId?: string,
+    dayLoad?: Readonly<Record<string, DayLoad>>,
   ): Promise<GenerationResult<GenerationInput>> {
     if (slotIds.length === 0) return { ok: false, error: 'slot-not-found' }
     const requestedSlots = []
@@ -272,6 +277,7 @@ export class GenerationService {
       mode,
       requestConfig,
       presetId,
+      dayLoad,
     )
   }
 
@@ -283,6 +289,7 @@ export class GenerationService {
     mode: GenerationMode = 'fill-empty',
     requestConfig?: GenerationConfig,
     presetId?: string,
+    dayLoad?: Readonly<Record<string, DayLoad>>,
   ): Promise<GenerationResult<GenerationInput>> {
     const plan = await this.plans.getById(planId)
     if (!plan) return { ok: false, error: 'not-found' }
@@ -366,6 +373,7 @@ export class GenerationService {
           requestedIds,
           mode,
         ),
+        dayLoad,
       },
     }
   }

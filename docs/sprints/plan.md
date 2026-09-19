@@ -699,23 +699,24 @@ Test one question early, though: is “family” a household using one shared de
 
 # Phase 7 — Automatic meal planning
 
-Offline generator on the existing cooking-event model. **Phase 7 sequenced sprints 28–38 are shipped** (performance measurement and search tuning postponed).
+Offline generator on the existing cooking-event model. **Phase 7 sequenced sprints 28–39 are shipped** (performance measurement and search tuning postponed).
 
 Generation always produces a proposal. Apply goes through existing `PlanService` writes. Grocery lists never update as a side effect. Full implementation cards, module boundaries, acceptance tests, and demo scripts: [`generation.md`](generation.md).
 
-| Sprint | User-visible outcome                                                                   |
-| ------ | -------------------------------------------------------------------------------------- |
-| **28** | Fill one empty slot with one newly cooked eligible recipe; preview, apply, or cancel.  |
-| **29** | Fill selected empty slots for a week on a Web Worker; partial proposals; atomic apply. |
-| **30** | Configurable hard restrictions and unknown-data policies, with diagnostics.            |
-| **31** | Soft household preferences and explainable scores (lexicographic; weights internal).   |
-| **32** | Bounded chronological beam search with deterministic budgets.                          |
-| **33** | Known favorites, pairings, and eligible simple foods in those compositions.            |
-| **34** | Allocate existing leftovers without exceeding reserved remaining portions.             |
-| **35** | Bounded new batches and planned reuse inside the same week.                            |
-| **36** | Slot locks and explicit replacement of selected meals, with dependency confirmation.   |
-| **37** | Named generation presets (built-in + custom) layered on the same policy model.         |
-| **38** | Worker reliability, session-stale apply, named fixtures, and handwritten invariants.   |
+| Sprint | User-visible outcome                                                                        |
+| ------ | ------------------------------------------------------------------------------------------- |
+| **28** | Fill one empty slot with one newly cooked eligible recipe; preview, apply, or cancel.       |
+| **29** | Fill selected empty slots for a week on a Web Worker; partial proposals; atomic apply.      |
+| **30** | Configurable hard restrictions and unknown-data policies, with diagnostics.                 |
+| **31** | Soft household preferences and explainable scores (lexicographic; weights internal).        |
+| **32** | Bounded chronological beam search with deterministic budgets.                               |
+| **33** | Known favorites, pairings, and eligible simple foods in those compositions.                 |
+| **34** | Allocate existing leftovers without exceeding reserved remaining portions.                  |
+| **35** | Bounded new batches and planned reuse inside the same week.                                 |
+| **36** | Slot locks and explicit replacement of selected meals, with dependency confirmation.        |
+| **37** | Named generation presets (built-in + custom) layered on the same policy model.              |
+| **38** | Worker reliability, session-stale apply, named fixtures, and handwritten invariants.        |
+| **39** | Cooking-block planner (prepare then complete meals) and `/plan/:planId/generate` workspace. |
 
 **Gates:** 28–29 initial generator · 30–32 preference-aware planner · 33–35 household meal planner · 36–38 core-feature release.
 
@@ -829,4 +830,6 @@ Sprint 37 is done: named generation presets on the same Sprint 30–35 policy mo
 
 Sprint 38 is done: worker throw/terminate is `worker-failed` and writes nothing; Cancel terminates and recreates the worker; `generationSessionId` in the fingerprint rejects a previous page session (`stale-proposal`). Named generation fixtures and handwritten seed/invariant tests (`generationQuality.test.ts`) cover partition, hard constraints, leftover accounting, fingerprint stale, budget, and reproducibility. `algorithmVersion` stays `'36'`. No Dexie or backup-format bump. Tests: `generationRunner.test.ts`, `generationQuality.test.ts`, `GenerationService.test.ts`.
 
-**Postponed (not next):** device runtime/memory budgets, cancel-latency targets, pruning/beam/worker-memory tuning, optional local-improvement pass. Do not raise search budget or add caches without a named-device measurement later. Optional Lane B remains. Phase 7 cards: [`generation.md`](generation.md).
+Sprint 39 is done: hierarchical cooking-block planner (`algorithmVersion` `'40'`) analyzes catalog capabilities, places prepare-and-consume blocks, completes sides from stored pairings/favorites, rotates breakfast separately, and tracks capacity/recency with bounded repair. Ranking prefers leftover/batch reuse over recooking a quick dish every day. Generate meals is a `/plan/:planId/generate` workspace (meals, busy/free overlay, style, proposal with prep structure). Apply, validation, worker, and grocery non-mutation are unchanged. No Dexie or backup-format bump.
+
+**Postponed (not next):** device runtime/memory budgets, cancel-latency targets, pruning/beam/worker-memory tuning. Do not raise search budget or add caches without a named-device measurement later. Optional Lane B remains. Phase 7 cards: [`generation.md`](generation.md).

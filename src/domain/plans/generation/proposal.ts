@@ -24,7 +24,7 @@ import {
   type ScoreReason,
 } from './scoring'
 
-export const GENERATION_ALGORITHM_VERSION = '36'
+export const GENERATION_ALGORITHM_VERSION = '40'
 export const GENERATION_POLICY_VERSION = '31'
 
 export const GENERATION_MODES = ['fill-empty', 'replace'] as const
@@ -93,7 +93,7 @@ export type GenerationCompositionBounds = {
 }
 
 export const DEFAULT_GENERATION_COMPOSITION_BOUNDS: GenerationCompositionBounds = {
-  maxPairingsPerRecipe: 2,
+  maxPairingsPerRecipe: 6,
   maxComponentsPerCandidate: 4,
 }
 
@@ -131,7 +131,7 @@ export type GenerationBatchPolicy = {
 }
 
 export const DEFAULT_GENERATION_BATCH_POLICY: GenerationBatchPolicy = {
-  maxExtraPlannedUses: 0,
+  maxExtraPlannedUses: 2,
   unallocatedProduction: 'disallow',
 }
 
@@ -189,6 +189,8 @@ export type GenerationLeftoverEvent = {
   producerSlotId?: MealSlotId
 }
 
+export type DayLoad = 'busy' | 'free'
+
 export type GenerationInput = {
   planId: PlanId
   planRevision: number
@@ -214,6 +216,8 @@ export type GenerationInput = {
   presetId?: string
   generationConfig?: GenerationConfig
   generationSessionId?: string
+  /** Per-date busy/free overlay for this request. Missing dates use household weekday prefs. */
+  dayLoad?: Readonly<Record<string, DayLoad>>
 }
 
 export type SlotAssignmentSource =
@@ -267,7 +271,23 @@ export type SlotAssignment = {
   scoreReasons: ScoreReason[]
 }
 
-export type UnfilledReason = 'no-eligible-candidates' | 'search-incomplete'
+export type UnfilledReason = 'no-eligible-candidates' | 'search-incomplete' | 'capacity-exhausted'
+
+export type CookingBlockPreview = {
+  id: string
+  kind: 'main' | 'side' | 'breakfast' | 'leftover'
+  recipeName: string
+  prepareDate: LocalDate
+  prepareSlotId: MealSlotId
+  mealCount: number
+  consumerSlotIds: readonly MealSlotId[]
+}
+
+export type CapacityNote = {
+  date: LocalDate
+  cookCount: number
+  effortUnits: number
+}
 
 export type UnfilledSlot = {
   slotId: MealSlotId
@@ -296,11 +316,14 @@ export type WeekGenerationProposal = {
   budgetUsed: GenerationSearchBudget
   expansionsUsed: number
   proposedCookingEvents?: ProposedCookingEvent[]
+  cookingBlocks?: readonly CookingBlockPreview[]
+  capacityNotes?: readonly CapacityNote[]
   generationMode?: GenerationMode
   replacementPreview?: readonly ReplacementPreviewSlot[]
   presetId?: string
   generationConfig?: GenerationConfig
   generationSessionId?: string
+  dayLoad?: Readonly<Record<string, DayLoad>>
 }
 
 /** Sprint 28 name: a week proposal, often with a single assignment. */
@@ -335,6 +358,7 @@ export type GenerationFingerprintParts = {
     remainingValue: number
     remainingUnit: string
   }[]
+  dayLoad: readonly { date: string; load: DayLoad }[]
 }
 
 export function generationInputFingerprint(parts: GenerationFingerprintParts): string {
@@ -373,6 +397,7 @@ export function generationInputFingerprint(parts: GenerationFingerprintParts): s
     cookingEvents: [...parts.cookingEvents].sort((a, b) =>
       a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
     ),
+    dayLoad: [...parts.dayLoad].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)),
   })
 }
 
@@ -433,5 +458,6 @@ export function fingerprintFromInput(input: GenerationInput): string {
       remainingValue: event.remaining.value,
       remainingUnit: event.remaining.unit,
     })),
+    dayLoad: Object.entries(input.dayLoad ?? {}).map(([date, load]) => ({ date, load })),
   })
 }

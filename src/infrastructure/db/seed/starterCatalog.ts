@@ -1,4 +1,5 @@
 import type { Ingredient } from '../../../domain/ingredients/Ingredient'
+import type { RecipePairing } from '../../../domain/pairings/RecipePairing'
 import type { Recipe } from '../../../domain/recipes/Recipe'
 import type { SimpleFood } from '../../../domain/simpleFoods/SimpleFood'
 import type { Tag } from '../../../domain/tags/Tag'
@@ -49,6 +50,12 @@ export const SEED_TAG_IDS = {
   side: 'seed-tag-side',
 } as const
 
+export const SEED_PAIRING_IDS = {
+  cutletsRice: 'seed-pairing-cutlets-rice',
+  cutletsBuckwheat: 'seed-pairing-cutlets-buckwheat',
+  cutletsPotatoes: 'seed-pairing-cutlets-potatoes',
+} as const
+
 function line(
   ingredientId: string,
   name: string,
@@ -73,6 +80,7 @@ export function buildStarterCatalog(now: number): {
   recipes: Recipe[]
   simpleFoods: SimpleFood[]
   tags: Tag[]
+  pairings: RecipePairing[]
 } {
   const ids = SEED_INGREDIENT_IDS
   const tagIds = SEED_TAG_IDS
@@ -437,5 +445,26 @@ export function buildStarterCatalog(now: number): {
     },
   ]
 
-  return { ingredients, recipes, simpleFoods, tags }
+  const pairings: RecipePairing[] = [
+    {
+      id: SEED_PAIRING_IDS.cutletsRice,
+      recipeId: SEED_RECIPE_IDS.cutlets,
+      target: { type: 'recipe', id: SEED_RECIPE_IDS.rice },
+      relationship: 'pairs-with',
+    },
+    {
+      id: SEED_PAIRING_IDS.cutletsBuckwheat,
+      recipeId: SEED_RECIPE_IDS.cutlets,
+      target: { type: 'recipe', id: SEED_RECIPE_IDS.buckwheat },
+      relationship: 'pairs-with',
+    },
+    {
+      id: SEED_PAIRING_IDS.cutletsPotatoes,
+      recipeId: SEED_RECIPE_IDS.cutlets,
+      target: { type: 'recipe', id: SEED_RECIPE_IDS.potatoes },
+      relationship: 'pairs-with',
+    },
+  ]
+
+  return { ingredients, recipes, simpleFoods, tags, pairings }
 }

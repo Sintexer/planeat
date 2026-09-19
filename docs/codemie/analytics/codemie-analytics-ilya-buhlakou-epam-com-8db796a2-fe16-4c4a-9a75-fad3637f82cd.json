@@ -1,0 +1,119 @@
+{
+  "meta": {
+    "generatedAt": "2026-09-19T09:50:50.288Z",
+    "rangeLabel": "all",
+    "agents": ["claude"],
+    "projectFilter": "all",
+    "totals": {
+      "sessions": 1,
+      "durationMs": 41260,
+      "turns": 4,
+      "files": 2,
+      "netLines": 0,
+      "toolCallsTotal": 5,
+      "toolSuccessRate": 80,
+      "totalCostUSD": 0.9157581,
+      "cacheReadCostUSD": 0.0404901,
+      "pricedSessions": 1
+    },
+    "unpricedModels": [],
+    "coverage": [
+      {
+        "agentName": "claude",
+        "total": 1,
+        "priced": 1,
+        "withLog": 1
+      }
+    ],
+    "userEmail": "ilya_buhlakou@epam.com",
+    "periodStart": "2026-09-19T09:50:05.858Z",
+    "periodEnd": "2026-09-19T09:50:47.118Z"
+  },
+  "sessions": [
+    {
+      "sessionId": "8db796a2-fe16-4c4a-9a75-fad3637f82cd",
+      "agentName": "claude",
+      "provider": "ai-run-sso",
+      "title": "`/context",
+      "project": "/Users/Ilya_Buhlakou/Documents/repositories/learning/planeat",
+      "branch": "main",
+      "startTime": 1789811405858,
+      "durationMs": 41260,
+      "turns": 4,
+      "fileOps": 2,
+      "linesAdded": 0,
+      "linesRemoved": 0,
+      "linesModified": 0,
+      "netLines": 0,
+      "filesChanged": 0,
+      "filesWritten": 0,
+      "filesEdited": 0,
+      "toolCallsTotal": 5,
+      "toolCallsSuccess": 4,
+      "toolCallsFailure": 1,
+      "models": ["claude-sonnet-4-6"],
+      "languages": ["markdown"],
+      "tools": [
+        {
+          "toolName": "Read",
+          "totalCalls": 5,
+          "successCount": 4,
+          "failureCount": 1,
+          "successRate": 80
+        }
+      ],
+      "tokens": {
+        "input": 6,
+        "output": 610,
+        "cacheRead": 134967,
+        "cacheCreation": 144350,
+        "cacheCreation1h": 144350,
+        "total": 279933
+      },
+      "costUSD": 0.9157581,
+      "cacheReadCostUSD": 0.0404901,
+      "perModelCost": [
+        {
+          "model": "claude-sonnet-4-6",
+          "tokens": {
+            "input": 6,
+            "output": 610,
+            "cacheRead": 134967,
+            "cacheCreation": 144350,
+            "cacheCreation1h": 144350,
+            "total": 279933
+          },
+          "costUSD": 0.9157581,
+          "unpriced": false
+        }
+      ],
+      "hadLog": true,
+      "costSeries": [
+        {
+          "t": 1789811420521,
+          "cost": 0.404262,
+          "tokens": 66960
+        },
+        {
+          "t": 1789811422654,
+          "cost": 0.4354194,
+          "tokens": 135349
+        },
+        {
+          "t": 1789811426008,
+          "cost": 0.8600244,
+          "tokens": 205943
+        },
+        {
+          "t": 1789811428700,
+          "cost": 0.9157581,
+          "tokens": 279933
+        }
+      ],
+      "skillInvocations": [],
+      "agentInvocations": [],
+      "commandInvocations": [],
+      "sessionSource": "Pure chat"
+    }
+  ]
+}

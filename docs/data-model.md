@@ -112,4 +112,4 @@ See [`docs/sprints/plan.md`](sprints/plan.md). Core sprints through 27C are ship
 
 ## Starter library
 
-When `recipes` is empty at app bootstrap, `seedStarterLibraryIfEmpty` inserts a fixed catalog of ingredients, recipes, and simple foods (`src/infrastructure/db/seed/`). Rows use stable `seed-*` ids and are ordinary editable library data. If any recipe already exists, seeding is skipped.
+When `recipes` is empty at app bootstrap, `seedStarterLibraryIfEmpty` inserts a fixed catalog of ingredients, recipes, simple foods, and cutlet pairings (`src/infrastructure/db/seed/`). Rows use stable `seed-*` ids and are ordinary editable library data. If any recipe already exists, recipe seeding is skipped; empty pairing tables still receive starter cutlet pairings when those seed recipes are present.

@@ -192,6 +192,7 @@ describe('leftover generation search', () => {
         mealType: 'dinner',
         prefs: { ...DEFAULT_GENERATION_SOFT_PREFS, maxBatchPrepUnits: 1 },
         weekRecipeIds: [],
+        weekFoodIds: [],
         previousWeekRecipeIds: [],
         demandingCooksOnDate: 0,
         cookingEventCountOnDate: 1,
@@ -205,6 +206,7 @@ describe('leftover generation search', () => {
         mealType: 'dinner',
         prefs: { ...DEFAULT_GENERATION_SOFT_PREFS, maxBatchPrepUnits: 1 },
         weekRecipeIds: [],
+        weekFoodIds: [],
         previousWeekRecipeIds: [],
         demandingCooksOnDate: 0,
         cookingEventCountOnDate: 1,
@@ -213,7 +215,7 @@ describe('leftover generation search', () => {
     )
     expect(leftoverScore[2]).toBe(0)
     expect(cookScore[2]).toBe(1)
-    expect(leftoverScore[5]).toBe(0)
+    expect(leftoverScore[11]).toBe(0)
   })
 
   it('changes fingerprint when leftover remaining changes', () => {

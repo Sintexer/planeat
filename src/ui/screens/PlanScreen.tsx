@@ -8,7 +8,6 @@ import {
   Tooltip,
   UnstyledButton,
   Loader,
-  Modal,
   Paper,
 } from '@mantine/core'
 import {
@@ -58,9 +57,8 @@ import { usePlanByStartDate } from '../hooks/usePlanByStartDate'
 import { useRecipes } from '../hooks/useRecipes'
 import { useSettings } from '../hooks/useSettings'
 import { useSimpleFoods } from '../hooks/useSimpleFoods'
-import { confirmClearSlot, confirmExcludeSlot } from '../plans/slotConfirmations'
+import { confirmClearSlot, confirmClearSlots, confirmExcludeSlot } from '../plans/slotConfirmations'
 import { openGenerateMealPreview } from '../plans/openGenerateMeal'
-import { GenerateMealsModal } from '../plans/GenerateMealsModal'
 import { PlanWeekGrid } from '../plans/PlanWeekGrid'
 import { buildSlotDisplays, groupDisplaysByDate, type SlotDisplay } from '../plans/slotDisplay'
 import type { Quantity } from '../../domain/shared/Quantity'
@@ -120,7 +118,6 @@ export function PlanScreen() {
   const [viewMode, setViewMode] = useState<'week' | 'day'>(() => (dateQuery ? 'day' : 'week'))
   const [dayOverride, setDayOverride] = useState<LocalDate | undefined>(undefined)
   const [calendarOpen, setCalendarOpen] = useState(false)
-  const [generateMealsOpen, setGenerateMealsOpen] = useState(false)
   const [calendarMonth, setCalendarMonth] = useState<{ year: number; month: number }>(() =>
     monthFromDate(today),
   )
@@ -378,9 +375,28 @@ export function PlanScreen() {
       radius="xl"
       size="compact-sm"
       leftSection={<MagicWand size={15} />}
-      onClick={() => setGenerateMealsOpen(true)}
+      onClick={() => navigate(`/plan/${graph.plan.id}/generate`)}
     >
       {t('generation.weekGenerate')}
+    </Button>
+  )
+
+  const filledSlotIds = graph.slots
+    .filter(
+      (slot) =>
+        !slot.excluded && graph.components.some((component) => component.slotId === slot.id),
+    )
+    .map((slot) => slot.id)
+
+  const clearWeekAction = (
+    <Button
+      variant="default"
+      radius="xl"
+      size="compact-sm"
+      disabled={filledSlotIds.length === 0}
+      onClick={() => void confirmClearSlots(planService, filledSlotIds, t)}
+    >
+      {t('plan.clearWeek')}
     </Button>
   )
 
@@ -397,6 +413,7 @@ export function PlanScreen() {
               ) : null}
               {groceryAction}
               {generateMealsAction}
+              {clearWeekAction}
             </Group>
           }
         >
@@ -421,6 +438,7 @@ export function PlanScreen() {
             ) : null}
             {groceryAction}
             {generateMealsAction}
+            {clearWeekAction}
           </Group>
         </Group>
       )}
@@ -677,19 +695,6 @@ export function PlanScreen() {
           components={editorDisplay?.components ?? []}
         />
       )}
-      <Modal
-        opened={generateMealsOpen}
-        onClose={() => setGenerateMealsOpen(false)}
-        title={t('generation.weekTitle')}
-        centered
-      >
-        <GenerateMealsModal
-          key={`${graph.plan.id}-${graph.plan.revision}-${generateMealsOpen}`}
-          graph={graph}
-          formatQty={formatQty}
-          onClose={() => setGenerateMealsOpen(false)}
-        />
-      </Modal>
     </Stack>
   )
 }

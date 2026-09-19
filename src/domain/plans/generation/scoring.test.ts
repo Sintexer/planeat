@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { Recipe } from '../../recipes/Recipe'
+import type { SimpleFood } from '../../simpleFoods/SimpleFood'
+import { emptyRecency, rememberUse } from './recency'
 import {
+  compareScoreTuples,
   compareScoredCandidates,
   compareWeekObjectives,
   compositionScoreTuple,
@@ -37,6 +40,7 @@ function context(overrides: Partial<ScoringContext> = {}): ScoringContext {
     mealType: 'dinner',
     prefs: DEFAULT_GENERATION_SOFT_PREFS,
     weekRecipeIds: [],
+    weekFoodIds: [],
     previousWeekRecipeIds: [],
     demandingCooksOnDate: 0,
     cookingEventCountOnDate: 0,
@@ -102,6 +106,57 @@ describe('compareScoredCandidates', () => {
 })
 
 describe('compositionScoreTuple', () => {
+  it('ranks a cooked recipe above a standalone simple food', () => {
+    const soup = recipe({ id: 'soup', effort: 'regular' })
+    const bread: SimpleFood = {
+      id: 'bread',
+      ingredientId: 'ing-bread',
+      name: 'Bread',
+      defaultPortion: { value: 2, unit: 'piece' },
+      roles: ['side'],
+      mealTypes: ['dinner'],
+      tagIds: [],
+      enabledInSuggestions: true,
+      createdAt: 0,
+      updatedAt: 0,
+    }
+    const ctx = context()
+    const cooked = compositionScoreTuple({ id: 'recipe', recipes: [soup], foods: [] }, ctx)
+    const foodOnly = compositionScoreTuple({ id: 'food', recipes: [], foods: [bread] }, ctx)
+    expect(compareScoreTuples(cooked, foodOnly)).toBeLessThan(0)
+  })
+
+  it('penalizes repeating a simple food when an alternative exists', () => {
+    const banana: SimpleFood = {
+      id: 'banana',
+      ingredientId: 'ing-banana',
+      name: 'Banana',
+      defaultPortion: { value: 1, unit: 'piece' },
+      roles: ['breakfast-component'],
+      mealTypes: ['breakfast'],
+      tagIds: [],
+      enabledInSuggestions: true,
+      createdAt: 0,
+      updatedAt: 0,
+    }
+    const bread: SimpleFood = {
+      id: 'bread',
+      ingredientId: 'ing-bread',
+      name: 'Bread',
+      defaultPortion: { value: 2, unit: 'piece' },
+      roles: ['breakfast-component'],
+      mealTypes: ['breakfast'],
+      tagIds: [],
+      enabledInSuggestions: true,
+      createdAt: 0,
+      updatedAt: 0,
+    }
+    const ctx = context({ weekFoodIds: ['banana'] })
+    const again = compositionScoreTuple({ id: 'banana', recipes: [], foods: [banana] }, ctx)
+    const other = compositionScoreTuple({ id: 'bread', recipes: [], foods: [bread] }, ctx)
+    expect(compareScoreTuples(other, again)).toBeLessThan(0)
+  })
+
   it('counts two new cooks in one slot against the workload cap', () => {
     const first = recipe({ id: 'cutlets', effort: 'regular' })
     const second = recipe({ id: 'buckwheat', effort: 'regular' })
@@ -112,6 +167,80 @@ describe('compositionScoreTuple', () => {
     const twoCooks = compositionScoreTuple({ id: 'two', recipes: [first, second], foods: [] }, ctx)
     expect(oneCook[2]).toBe(0)
     expect(twoCooks[2]).toBe(1)
+  })
+
+  it('does not treat leftover cutlets with a new side as a repeated dish', () => {
+    const cutlets = recipe({ id: 'cutlets', roles: ['main'] })
+    const rice = recipe({ id: 'rice', roles: ['side'], effort: 'quick' })
+    const buckwheat = recipe({ id: 'buckwheat', roles: ['side'], effort: 'quick' })
+    const ctx = context({ weekRecipeIds: ['cutlets', 'rice'] })
+    const leftoverPlate = compositionScoreTuple(
+      { id: 'leftover-side', recipes: [buckwheat], foods: [], leftoverRecipes: [cutlets] },
+      ctx,
+    )
+    const recook = compositionScoreTuple({ id: 'recook', recipes: [cutlets, rice], foods: [] }, ctx)
+    expect(leftoverPlate[9]).toBe(0)
+    expect(recook[9]).toBeGreaterThan(0)
+    expect(compareScoreTuples(leftoverPlate, recook)).toBeLessThan(0)
+  })
+
+  it('does not treat leftover-only soup as a recook of soup', () => {
+    const soup = recipe({ id: 'soup', name: 'Soup', roles: ['complete'] })
+    const carbonara = recipe({
+      id: 'carbonara',
+      name: 'Carbonara',
+      roles: ['complete'],
+      effort: 'quick',
+      reusePolicy: 'fresh-only',
+    })
+    const ctx = context({ weekRecipeIds: ['soup', 'carbonara'] })
+    const leftover = compositionScoreTuple(
+      { id: 'leftover-soup', recipes: [], foods: [], leftoverRecipes: [soup] },
+      ctx,
+    )
+    const recook = compositionScoreTuple({ id: 'recook', recipes: [carbonara], foods: [] }, ctx)
+    expect(leftover[9]).toBe(0)
+    expect(recook[9]).toBeGreaterThan(0)
+    expect(compareScoreTuples(leftover, recook)).toBeLessThan(0)
+  })
+
+  it('ranks a planned extra-use batch above a one-meal recook', () => {
+    const soup = recipe({ id: 'soup', name: 'Soup', effort: 'regular' })
+    const carbonara = recipe({
+      id: 'carbonara',
+      name: 'Carbonara',
+      effort: 'quick',
+      reusePolicy: 'fresh-only',
+    })
+    const ctx = context()
+    const batched = compositionScoreTuple(
+      { id: 'soup:extra:2', recipes: [soup], foods: [], extraUses: 2 },
+      ctx,
+    )
+    const oneMeal = compositionScoreTuple({ id: 'carbonara', recipes: [carbonara], foods: [] }, ctx)
+    expect(batched[8]).toBe(0)
+    expect(oneMeal[8]).toBe(1)
+    expect(compareScoreTuples(batched, oneMeal)).toBeLessThan(0)
+  })
+
+  it('prefers a recipe unused for this meal type after equal week uses', () => {
+    const soup = recipe({ id: 'soup', name: 'Soup', effort: 'regular' })
+    const carbonara = recipe({
+      id: 'carbonara',
+      name: 'Carbonara',
+      effort: 'quick',
+      reusePolicy: 'fresh-only',
+    })
+    const recency = emptyRecency()
+    rememberUse(recency, 'recook', 'carbonara:lunch', '2026-01-06')
+    rememberUse(recency, 'recook', 'soup:dinner', '2026-01-06')
+    const ctx = context({
+      date: '2026-01-07',
+      mealType: 'lunch',
+      weekRecipeIds: ['carbonara', 'soup'],
+      recency,
+    })
+    expect(selectBestCandidate([carbonara, soup], ctx)?.recipe.id).toBe('soup')
   })
 })
 

@@ -616,6 +616,25 @@ export class PlanService {
     return { ok: true }
   }
 
+  async clearSlots(
+    slotIds: readonly MealSlotId[],
+  ): Promise<{ ok: true } | { ok: false; error: PlanError }> {
+    if (slotIds.length === 0) return { ok: true }
+    const unique = [...new Set(slotIds)]
+    let planId: PlanId | undefined
+    const toClear: MealSlotId[] = []
+    for (const slotId of unique) {
+      const slot = await this.plans.getSlot(slotId)
+      if (!slot) return { ok: false, error: 'slot-not-found' }
+      if (planId !== undefined && slot.planId !== planId) return { ok: false, error: 'not-found' }
+      planId = slot.planId
+      if (!slot.excluded) toClear.push(slotId)
+    }
+    if (!planId || toClear.length === 0) return { ok: true }
+    await this.plans.replaceGeneratedComponents(planId, toClear, [])
+    return { ok: true }
+  }
+
   /** Shared cooking events referenced by this slot that also feed other slots. */
   async listSharedDependentsForSlot(slotId: MealSlotId): Promise<
     | {

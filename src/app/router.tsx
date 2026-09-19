@@ -4,6 +4,7 @@ import { GroceryListDetailScreen } from '../ui/screens/GroceryListDetailScreen'
 import { IngredientsScreen } from '../ui/screens/IngredientsScreen'
 import { ListsScreen } from '../ui/screens/ListsScreen'
 import { PlanScreen } from '../ui/screens/PlanScreen'
+import { GenerateWorkspaceScreen } from '../ui/screens/GenerateWorkspaceScreen'
 import { RecipeCreateScreen } from '../ui/screens/RecipeCreateScreen'
 import { RecipeDetailScreen } from '../ui/screens/RecipeDetailScreen'
 import { RecipeEditScreen } from '../ui/screens/RecipeEditScreen'
@@ -27,6 +28,7 @@ export function AppRouter() {
           <Route index element={<Navigate to="/plan" replace />} />
           <Route path="plan" element={<PlanScreen />} />
           <Route path="plan/:planId" element={<PlanScreen />} />
+          <Route path="plan/:planId/generate" element={<GenerateWorkspaceScreen />} />
           <Route path="today" element={<Navigate to="/plan" replace />} />
           <Route path="week" element={<Navigate to="/plan" replace />} />
           <Route path="week/:planId" element={<RedirectWeekPlanToPlan />} />

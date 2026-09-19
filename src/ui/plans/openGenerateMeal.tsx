@@ -1,6 +1,7 @@
 import { Button, Group, Stack, Text } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
+import type { ReactElement } from 'react'
 import type { GenerationService } from '../../application/plans/GenerationService'
 import type { ConstraintReason } from '../../domain/plans/generation/constraints'
 import type { GenerationMode } from '../../domain/plans/generation/proposal'
@@ -62,13 +63,15 @@ export function confirmReplaceDependents(
   })
 }
 
-export function openProposalPreview(args: {
+export function GenerationProposalView({
+  proposal,
+  t,
+  formatQty,
+}: {
   proposal: WeekGenerationProposal
-  generationService: GenerationService
   t: Translate
   formatQty: (quantity: Quantity) => string
-}): void {
-  const { proposal, generationService, t, formatQty } = args
+}): ReactElement {
   const unfilledMealTypes = new Set(proposal.unfilled.map((row) => row.mealType))
   const dropCounts = proposal.diagnostics.dropCounts.filter((row) =>
     unfilledMealTypes.has(row.mealType),
@@ -79,124 +82,169 @@ export function openProposalPreview(args: {
     proposal.diagnostics.fixedConflicts.length > 0 ||
     remainders.length > 0
 
+  return (
+    <Stack gap="sm">
+      {(proposal.cookingBlocks ?? []).length > 0 && (
+        <Stack gap={4}>
+          <Text size="sm" fw={600}>
+            {t('generation.prepStructure')}
+          </Text>
+          {proposal.cookingBlocks?.map((block) => (
+            <Text size="sm" key={block.id}>
+              {t('generation.prepBlock', {
+                date: block.prepareDate,
+                name: block.recipeName,
+                count: block.mealCount,
+              })}
+            </Text>
+          ))}
+        </Stack>
+      )}
+      {(proposal.capacityNotes ?? []).length > 0 && (
+        <Stack gap={2}>
+          {proposal.capacityNotes?.map((note) => (
+            <Text size="xs" c="dimmed" key={note.date}>
+              {t('generation.capacityNote', {
+                date: note.date,
+                cooks: note.cookCount,
+                units: String(note.effortUnits),
+              })}
+            </Text>
+          ))}
+        </Stack>
+      )}
+      {(proposal.replacementPreview ?? []).map((row) => (
+        <Text size="sm" key={`remove-${row.slotId}`}>
+          {t('generation.previewRemove', {
+            meal: `${row.date} ${mealTypeLabel(t, row.mealType)}`,
+            names: row.removedNames.join(', '),
+          })}
+        </Text>
+      ))}
+      {proposal.assignments.map((row) => (
+        <Stack gap={2} key={row.slotId}>
+          {row.source.type === 'favorite' && (
+            <Text size="xs" c="dimmed">
+              {t('generation.previewSourceFavorite', { name: row.source.favoriteName })}
+            </Text>
+          )}
+          {row.source.type === 'pairing' && (
+            <Text size="xs" c="dimmed">
+              {t('generation.previewSourcePairing')}
+            </Text>
+          )}
+          {row.source.type === 'leftover' && (
+            <Text size="xs" c="dimmed">
+              {t('generation.previewSourceLeftover', {
+                date: leftoverDate(row.components),
+              })}
+            </Text>
+          )}
+          {row.components.map((component) => (
+            <Text size="sm" key={componentKey(component)}>
+              {component.type === 'recipe' &&
+              component.outputQuantity.value !== component.allocatedQuantity.value
+                ? t('generation.previewCookedBatch', {
+                    name: componentDisplayName(component),
+                    meal: mealTypeLabel(t, row.mealType),
+                    cooked: formatQty(component.outputQuantity),
+                    eaten: formatQty(component.allocatedQuantity),
+                  })
+                : t('generation.previewBody', {
+                    name: componentDisplayName(component),
+                    meal: mealTypeLabel(t, row.mealType),
+                    quantity: formatQty(component.allocatedQuantity),
+                  })}
+            </Text>
+          ))}
+          {row.scoreReasons.map((reason, index) => (
+            <Text size="xs" c="dimmed" key={`${row.slotId}-${reason.code}-${index}`}>
+              {scoreReasonLine(t, reason)}
+            </Text>
+          ))}
+        </Stack>
+      ))}
+      {proposal.unfilled.map((row) => (
+        <Text size="sm" c="dimmed" key={row.slotId}>
+          {row.reason === 'search-incomplete'
+            ? t('generation.searchIncompleteRow', { meal: mealTypeLabel(t, row.mealType) })
+            : row.reason === 'capacity-exhausted'
+              ? t('generation.capacityExhaustedRow', { meal: mealTypeLabel(t, row.mealType) })
+              : t('generation.unfilledRow', { meal: mealTypeLabel(t, row.mealType) })}
+        </Text>
+      ))}
+      {proposal.unfilled.some((row) => row.reason === 'search-incomplete') && (
+        <Text size="sm" c="dimmed">
+          {t('generation.searchBudgetExhausted', {
+            used: proposal.expansionsUsed,
+            budget: proposal.budgetUsed.expansionBudget,
+          })}
+        </Text>
+      )}
+      {showDiagnostics && (
+        <Stack gap={4}>
+          {dropCounts.length > 0 && (
+            <Text size="sm" fw={600}>
+              {t('generation.diagnosticsTitle')}
+            </Text>
+          )}
+          {dropCounts.map((row) => (
+            <Text size="sm" c="dimmed" key={`${row.mealType}-${row.reason}`}>
+              {t('generation.dropCount', {
+                count: row.count,
+                meal: mealTypeLabel(t, row.mealType),
+                reason: constraintReasonLabel(t, row.reason),
+              })}
+            </Text>
+          ))}
+          {proposal.diagnostics.fixedConflicts.length > 0 && (
+            <>
+              <Text size="sm" fw={600}>
+                {t('generation.fixedConflictHelp')}
+              </Text>
+              {proposal.diagnostics.fixedConflicts.map((row) => (
+                <Text size="sm" c="dimmed" key={row.slotId}>
+                  {t('generation.fixedConflict', {
+                    date: row.date,
+                    meal: mealTypeLabel(t, row.mealType),
+                    reasons: formatReasons(t, row.reasons),
+                  })}
+                </Text>
+              ))}
+            </>
+          )}
+          {remainders.map((row) => (
+            <Text size="sm" c="dimmed" key={row.proposedEventId}>
+              {t('meal.unallocatedLine', {
+                name: row.recipeName,
+                quantity: formatQty(row.remaining),
+              })}
+            </Text>
+          ))}
+        </Stack>
+      )}
+    </Stack>
+  )
+}
+
+export function openProposalPreview(args: {
+  proposal: WeekGenerationProposal
+  generationService: GenerationService
+  t: Translate
+  formatQty: (quantity: Quantity) => string
+}): void {
+  const { proposal, generationService, t, formatQty } = args
   modals.open({
     title: t('generation.previewTitle'),
     children: (
       <Stack gap="sm">
-        {(proposal.replacementPreview ?? []).map((row) => (
-          <Text size="sm" key={`remove-${row.slotId}`}>
-            {t('generation.previewRemove', {
-              meal: `${row.date} ${mealTypeLabel(t, row.mealType)}`,
-              names: row.removedNames.join(', '),
-            })}
-          </Text>
-        ))}
-        {proposal.assignments.map((row) => (
-          <Stack gap={2} key={row.slotId}>
-            {row.source.type === 'favorite' && (
-              <Text size="xs" c="dimmed">
-                {t('generation.previewSourceFavorite', { name: row.source.favoriteName })}
-              </Text>
-            )}
-            {row.source.type === 'pairing' && (
-              <Text size="xs" c="dimmed">
-                {t('generation.previewSourcePairing')}
-              </Text>
-            )}
-            {row.source.type === 'leftover' && (
-              <Text size="xs" c="dimmed">
-                {t('generation.previewSourceLeftover', {
-                  date: leftoverDate(row.components),
-                })}
-              </Text>
-            )}
-            {row.components.map((component) => (
-              <Text size="sm" key={componentKey(component)}>
-                {component.type === 'recipe' &&
-                component.outputQuantity.value !== component.allocatedQuantity.value
-                  ? t('generation.previewCookedBatch', {
-                      name: componentDisplayName(component),
-                      meal: mealTypeLabel(t, row.mealType),
-                      cooked: formatQty(component.outputQuantity),
-                      eaten: formatQty(component.allocatedQuantity),
-                    })
-                  : t('generation.previewBody', {
-                      name: componentDisplayName(component),
-                      meal: mealTypeLabel(t, row.mealType),
-                      quantity: formatQty(component.allocatedQuantity),
-                    })}
-              </Text>
-            ))}
-            {row.scoreReasons.map((reason, index) => (
-              <Text size="xs" c="dimmed" key={`${row.slotId}-${reason.code}-${index}`}>
-                {scoreReasonLine(t, reason)}
-              </Text>
-            ))}
-          </Stack>
-        ))}
-        {proposal.unfilled.map((row) => (
-          <Text size="sm" c="dimmed" key={row.slotId}>
-            {row.reason === 'search-incomplete'
-              ? t('generation.searchIncompleteRow', { meal: mealTypeLabel(t, row.mealType) })
-              : t('generation.unfilledRow', { meal: mealTypeLabel(t, row.mealType) })}
-          </Text>
-        ))}
-        {proposal.unfilled.some((row) => row.reason === 'search-incomplete') && (
-          <Text size="sm" c="dimmed">
-            {t('generation.searchBudgetExhausted', {
-              used: proposal.expansionsUsed,
-              budget: proposal.budgetUsed.expansionBudget,
-            })}
-          </Text>
-        )}
-        {showDiagnostics && (
-          <Stack gap={4}>
-            {dropCounts.length > 0 && (
-              <Text size="sm" fw={600}>
-                {t('generation.diagnosticsTitle')}
-              </Text>
-            )}
-            {dropCounts.map((row) => (
-              <Text size="sm" c="dimmed" key={`${row.mealType}-${row.reason}`}>
-                {t('generation.dropCount', {
-                  count: row.count,
-                  meal: mealTypeLabel(t, row.mealType),
-                  reason: constraintReasonLabel(t, row.reason),
-                })}
-              </Text>
-            ))}
-            {proposal.diagnostics.fixedConflicts.length > 0 && (
-              <>
-                <Text size="sm" fw={600}>
-                  {t('generation.fixedConflictHelp')}
-                </Text>
-                {proposal.diagnostics.fixedConflicts.map((row) => (
-                  <Text size="sm" c="dimmed" key={row.slotId}>
-                    {t('generation.fixedConflict', {
-                      date: row.date,
-                      meal: mealTypeLabel(t, row.mealType),
-                      reasons: formatReasons(t, row.reasons),
-                    })}
-                  </Text>
-                ))}
-              </>
-            )}
-            {remainders.map((row) => (
-              <Text size="sm" c="dimmed" key={row.proposedEventId}>
-                {t('meal.unallocatedLine', {
-                  name: row.recipeName,
-                  quantity: formatQty(row.remaining),
-                })}
-              </Text>
-            ))}
-          </Stack>
-        )}
+        <GenerationProposalView proposal={proposal} t={t} formatQty={formatQty} />
         <Group>
           {proposal.assignments.length > 0 && (
             <Button
               onClick={() => {
                 modals.closeAll()
-                void applyProposal(generationService, proposal, t)
+                void applyGeneratedProposal(generationService, proposal, t)
               }}
             >
               {t('action.apply')}
@@ -244,19 +292,20 @@ function formatReasons(t: Translate, reasons: readonly ConstraintReason[]): stri
   return reasons.map((reason) => constraintReasonLabel(t, reason)).join(', ')
 }
 
-async function applyProposal(
+export async function applyGeneratedProposal(
   generationService: GenerationService,
   proposal: WeekGenerationProposal,
   t: Translate,
-): Promise<void> {
+): Promise<boolean> {
   const result = await generationService.applyProposal(proposal)
   if (!result.ok) {
     notifications.show({ message: generationErrorMessage(t, result.error), color: 'error' })
-    return
+    return false
   }
   notifications.show({
     message:
       proposal.assignments.length > 1 ? t('generation.weekApplied') : t('generation.applied'),
     color: 'success',
   })
+  return true
 }

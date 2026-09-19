@@ -167,3 +167,32 @@ export async function confirmExcludeSlot(
     ),
   })
 }
+
+export function confirmClearSlots(
+  planService: PlanService,
+  slotIds: readonly string[],
+  t: Translate,
+): Promise<boolean> {
+  if (slotIds.length === 0) return Promise.resolve(false)
+  return new Promise((resolve) => {
+    modals.openConfirmModal({
+      title: t('confirm.clearWeek'),
+      children: (
+        <Text size="sm">{t('confirm.clearWeekBody', { count: String(slotIds.length) })}</Text>
+      ),
+      labels: { confirm: t('action.clear'), cancel: t('action.cancel') },
+      confirmProps: { color: 'error' },
+      onCancel: () => resolve(false),
+      onConfirm: () => {
+        void planService.clearSlots(slotIds).then((result) => {
+          if (!result.ok) {
+            notifications.show({ message: t('error.clearWeek'), color: 'error' })
+            resolve(false)
+            return
+          }
+          resolve(true)
+        })
+      },
+    })
+  })
+}
