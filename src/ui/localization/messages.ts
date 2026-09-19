@@ -301,6 +301,7 @@ export const enMessages = {
   'plan.gridMeals': 'Meals',
   'plan.leftover': 'Leftover',
   'plan.wontCarryOver': "Won't carry over",
+  'plan.gridScrollLabel': 'Week grid, scroll to see more days',
   'mealType.breakfast': 'Breakfast',
   'mealType.lunch': 'Lunch',
   'mealType.dinner': 'Dinner',

@@ -280,4 +280,12 @@ body {
   .step-transition {
     animation: none;
   }
+
+  .plan-grid-scroll-fade {
+    transition: none;
+  }
+}
+
+.plan-grid-scroll-fade {
+  transition: opacity 150ms ease;
 }

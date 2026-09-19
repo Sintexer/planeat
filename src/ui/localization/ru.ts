@@ -305,6 +305,7 @@ export const ruMessages = {
   'plan.gridMeals': 'Приёмы',
   'plan.leftover': 'Остаток',
   'plan.wontCarryOver': 'Не переносится',
+  'plan.gridScrollLabel': 'Сетка недели, прокрутите, чтобы увидеть остальные дни',
   'mealType.breakfast': 'Завтрак',
   'mealType.lunch': 'Обед',
   'mealType.dinner': 'Ужин',

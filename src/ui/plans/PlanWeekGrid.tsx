@@ -1,6 +1,6 @@
 import { Box, Paper, Text, UnstyledButton } from '@mantine/core'
 import { Note, Plus, Warning } from '@phosphor-icons/react'
-import type { CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import { hasUnallocatedRemainder, isCarryoverRisk } from '../../domain/plans/CookingEventAllocation'
 import type { MealSlot } from '../../domain/plans/MealSlot'
 import type { LocalDate } from '../../domain/shared/LocalDate'
@@ -66,6 +66,55 @@ const cellBorder: CSSProperties = {
   boxSizing: 'border-box',
 }
 
+const MEALS_COLUMN_WIDTH = 92
+const SCROLL_EDGE_EPSILON = 2
+
+const scrollFadeBase: CSSProperties = {
+  position: 'absolute',
+  top: 0,
+  bottom: 0,
+  width: 28,
+  pointerEvents: 'none',
+  zIndex: 4,
+}
+
+/**
+ * Tracks whether the grid can still scroll left/right, so the edge-fade cues know when to show.
+ * Watches both the scroll container's own size and the (wider, non-shrinking) content's size,
+ * since the content's intrinsic width can change independently of the container's.
+ */
+function useHorizontalScrollShadow(
+  containerRef: RefObject<HTMLDivElement | null>,
+  contentRef: RefObject<HTMLDivElement | null>,
+) {
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+
+  useEffect(() => {
+    const el = containerRef.current
+    const content = contentRef.current
+    if (!el || !content) return
+
+    const update = () => {
+      setCanScrollLeft(el.scrollLeft > SCROLL_EDGE_EPSILON)
+      setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - SCROLL_EDGE_EPSILON)
+    }
+
+    update()
+    el.addEventListener('scroll', update, { passive: true })
+    const observer = new ResizeObserver(update)
+    observer.observe(el)
+    observer.observe(content)
+
+    return () => {
+      el.removeEventListener('scroll', update)
+      observer.disconnect()
+    }
+  }, [containerRef, contentRef])
+
+  return { canScrollLeft, canScrollRight }
+}
+
 export function PlanWeekGrid({
   weekDates,
   today,
@@ -75,260 +124,292 @@ export function PlanWeekGrid({
   onAddDish,
 }: PlanWeekGridProps) {
   const { t, bcp47 } = useLocalization()
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const { canScrollLeft, canScrollRight } = useHorizontalScrollShadow(scrollRef, contentRef)
 
   return (
-    <Box style={{ overflowX: 'auto', marginInline: -4 }}>
+    <Box style={{ position: 'relative' }}>
       <Box
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `92px repeat(${weekDates.length}, 128px)`,
-          width: 'max-content',
-          minWidth: '100%',
-        }}
+        ref={scrollRef}
+        role="group"
+        tabIndex={0}
+        aria-label={t('plan.gridScrollLabel')}
+        style={{ overflowX: 'auto', marginInline: -4 }}
       >
         <Box
+          ref={contentRef}
           style={{
-            ...stickyBg,
-            ...cellBorder,
-            position: 'sticky',
-            top: 0,
-            left: 0,
-            zIndex: 3,
-            height: 56,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            display: 'grid',
+            gridTemplateColumns: `${MEALS_COLUMN_WIDTH}px repeat(${weekDates.length}, 128px)`,
+            width: 'max-content',
+            minWidth: '100%',
           }}
         >
-          <Text size="xs" fw={600} c="dimmed" tt="uppercase" lts={0.6}>
-            {t('plan.gridMeals')}
-          </Text>
-        </Box>
+          <Box
+            style={{
+              ...stickyBg,
+              ...cellBorder,
+              position: 'sticky',
+              top: 0,
+              left: 0,
+              zIndex: 3,
+              height: 56,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text size="xs" fw={600} c="dimmed" tt="uppercase" lts={0.6}>
+              {t('plan.gridMeals')}
+            </Text>
+          </Box>
 
-        {weekDates.map((date) => {
-          const isToday = date === today
-          return (
-            <UnstyledButton
-              key={date}
-              onClick={() => onSelectDay(date)}
-              aria-label={`${shortWeekday(date, bcp47)} ${dayNumber(date)}`}
-              style={{
-                ...stickyBg,
-                ...cellBorder,
-                position: 'sticky',
-                top: 0,
-                zIndex: 2,
-                height: 56,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 4,
-                background: isToday
-                  ? 'color-mix(in srgb, var(--mantine-color-primary-6) 8%, var(--mantine-color-body))'
-                  : 'var(--mantine-color-body)',
-              }}
-            >
-              <Text size="xs" fw={600} c="dimmed" lts={0.4}>
-                {shortWeekday(date, bcp47)}
-              </Text>
-              {isToday ? (
-                <Box
-                  w={26}
-                  h={26}
-                  style={{
-                    borderRadius: '50%',
-                    background: 'var(--mantine-color-primary-filled)',
-                    color: 'var(--mantine-color-white)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontFamily: 'Sora, Inter, sans-serif',
-                    fontWeight: 700,
-                    fontSize: 14,
-                  }}
-                >
-                  {dayNumber(date)}
-                </Box>
-              ) : (
-                <Text fw={600} size="md" style={{ fontFamily: 'Sora, Inter, sans-serif' }}>
-                  {dayNumber(date)}
-                </Text>
-              )}
-            </UnstyledButton>
-          )
-        })}
-
-        {MEAL_TYPES.map((mealType) => {
-          const MealIcon = MEAL_TYPE_ICONS[mealType]
-          return (
-            <Box key={mealType} style={{ display: 'contents' }}>
-              <Box
+          {weekDates.map((date) => {
+            const isToday = date === today
+            return (
+              <UnstyledButton
+                key={date}
+                onClick={() => onSelectDay(date)}
+                aria-label={`${shortWeekday(date, bcp47)} ${dayNumber(date)}`}
                 style={{
                   ...stickyBg,
                   ...cellBorder,
                   position: 'sticky',
-                  left: 0,
-                  zIndex: 1,
+                  top: 0,
+                  zIndex: 2,
+                  height: 56,
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 6,
-                  padding: '12px 6px',
+                  gap: 4,
+                  background: isToday
+                    ? 'color-mix(in srgb, var(--mantine-color-primary-6) 8%, var(--mantine-color-body))'
+                    : 'var(--mantine-color-body)',
                 }}
               >
-                <Box
-                  w={28}
-                  h={28}
-                  style={{
-                    borderRadius: '50%',
-                    background:
-                      'color-mix(in srgb, var(--mantine-color-primary-6) 12%, transparent)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'var(--mantine-color-primary-filled)',
-                  }}
-                >
-                  <MealIcon size={14} />
-                </Box>
-                <Text size="xs" fw={600} c="dimmed" ta="center">
-                  {mealTypeLabel(t, mealType)}
+                <Text size="xs" fw={600} c="dimmed" lts={0.4}>
+                  {shortWeekday(date, bcp47)}
                 </Text>
-              </Box>
-
-              {weekDates.map((date) => {
-                const display = displayForMeal(displaysByDate.get(date), mealType)
-                const isToday = date === today
-                const { warning, note } = cellMarkers(display, remainingByEventId)
-                const components = display?.components ?? []
-                const empty = components.length === 0 && !display?.slot.excluded
-                return (
+                {isToday ? (
                   <Box
-                    key={`${date}-${mealType}`}
+                    w={26}
+                    h={26}
                     style={{
-                      ...cellBorder,
-                      position: 'relative',
+                      borderRadius: '50%',
+                      background: 'var(--mantine-color-primary-filled)',
+                      color: 'var(--mantine-color-white)',
                       display: 'flex',
-                      flexDirection: 'column',
-                      gap: 6,
-                      padding: 8,
-                      minHeight: 72,
-                      background: isToday
-                        ? 'color-mix(in srgb, var(--mantine-color-primary-6) 6%, var(--mantine-color-body))'
-                        : 'var(--mantine-color-body)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontFamily: 'Sora, Inter, sans-serif',
+                      fontWeight: 700,
+                      fontSize: 14,
                     }}
                   >
-                    {warning && (
-                      <Box
-                        style={{
-                          position: 'absolute',
-                          top: 4,
-                          right: 4,
-                          width: 16,
-                          height: 16,
-                          borderRadius: '50%',
-                          background: 'var(--mantine-color-warning-6)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          zIndex: 1,
-                        }}
-                        aria-label={t('plan.wontCarryOver')}
-                      >
-                        <Warning size={9} weight="fill" color="white" />
-                      </Box>
-                    )}
-                    {note && (
-                      <Box
-                        style={{
-                          position: 'absolute',
-                          top: 4,
-                          right: 4,
-                          width: 16,
-                          height: 16,
-                          borderRadius: '50%',
-                          background: 'var(--mantine-color-dimmed)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          zIndex: 1,
-                        }}
-                        aria-label={t('catalog.leftovers')}
-                      >
-                        <Note size={9} weight="fill" color="white" />
-                      </Box>
-                    )}
-
-                    {display?.slot.excluded && (
-                      <UnstyledButton
-                        onClick={() => onSelectDay(date)}
-                        style={{ textAlign: 'left' }}
-                      >
-                        <Text size="xs" c="dimmed" fs="italic">
-                          {t('slot.eatingOut')}
-                        </Text>
-                      </UnstyledButton>
-                    )}
-
-                    {components.map((item) => (
-                      <UnstyledButton
-                        key={item.component.id}
-                        onClick={() => onSelectDay(date)}
-                        style={{ textAlign: 'left' }}
-                      >
-                        <Paper withBorder p={6} radius="md">
-                          <Box style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <RecipePhotoThumb
-                              url={item.photoUrl}
-                              label={componentLabel(item)}
-                              size={32}
-                            />
-                            <Text size="sm" fw={500} lineClamp={2} style={{ flex: 1 }}>
-                              {componentLabel(item)}
-                            </Text>
-                          </Box>
-                        </Paper>
-                      </UnstyledButton>
-                    ))}
-
-                    {empty && display && (
-                      <UnstyledButton
-                        onClick={() => onAddDish(display.slot)}
-                        aria-label={t('slot.addDish')}
-                        style={{
-                          border: '1.5px dashed var(--mantine-color-default-border)',
-                          borderRadius: 8,
-                          minHeight: 40,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: 4,
-                          color: 'var(--mantine-color-dimmed)',
-                        }}
-                      >
-                        <Plus size={12} />
-                        <Text size="sm" fw={500}>
-                          {t('action.add')}
-                        </Text>
-                      </UnstyledButton>
-                    )}
-
-                    {empty && !display && (
-                      <UnstyledButton
-                        onClick={() => onSelectDay(date)}
-                        style={{ minHeight: 40 }}
-                        aria-label={t('slot.noSlot')}
-                      />
-                    )}
+                    {dayNumber(date)}
                   </Box>
-                )
-              })}
-            </Box>
-          )
-        })}
+                ) : (
+                  <Text fw={600} size="md" style={{ fontFamily: 'Sora, Inter, sans-serif' }}>
+                    {dayNumber(date)}
+                  </Text>
+                )}
+              </UnstyledButton>
+            )
+          })}
+
+          {MEAL_TYPES.map((mealType) => {
+            const MealIcon = MEAL_TYPE_ICONS[mealType]
+            return (
+              <Box key={mealType} style={{ display: 'contents' }}>
+                <Box
+                  style={{
+                    ...stickyBg,
+                    ...cellBorder,
+                    position: 'sticky',
+                    left: 0,
+                    zIndex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    padding: '12px 6px',
+                  }}
+                >
+                  <Box
+                    w={28}
+                    h={28}
+                    style={{
+                      borderRadius: '50%',
+                      background:
+                        'color-mix(in srgb, var(--mantine-color-primary-6) 12%, transparent)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--mantine-color-primary-filled)',
+                    }}
+                  >
+                    <MealIcon size={14} />
+                  </Box>
+                  <Text size="xs" fw={600} c="dimmed" ta="center">
+                    {mealTypeLabel(t, mealType)}
+                  </Text>
+                </Box>
+
+                {weekDates.map((date) => {
+                  const display = displayForMeal(displaysByDate.get(date), mealType)
+                  const isToday = date === today
+                  const { warning, note } = cellMarkers(display, remainingByEventId)
+                  const components = display?.components ?? []
+                  const empty = components.length === 0 && !display?.slot.excluded
+                  return (
+                    <Box
+                      key={`${date}-${mealType}`}
+                      style={{
+                        ...cellBorder,
+                        position: 'relative',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 6,
+                        padding: 8,
+                        minHeight: 72,
+                        background: isToday
+                          ? 'color-mix(in srgb, var(--mantine-color-primary-6) 6%, var(--mantine-color-body))'
+                          : 'var(--mantine-color-body)',
+                      }}
+                    >
+                      {warning && (
+                        <Box
+                          style={{
+                            position: 'absolute',
+                            top: 4,
+                            right: 4,
+                            width: 16,
+                            height: 16,
+                            borderRadius: '50%',
+                            background: 'var(--mantine-color-warning-6)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 1,
+                          }}
+                          aria-label={t('plan.wontCarryOver')}
+                        >
+                          <Warning size={9} weight="fill" color="white" />
+                        </Box>
+                      )}
+                      {note && (
+                        <Box
+                          style={{
+                            position: 'absolute',
+                            top: 4,
+                            right: 4,
+                            width: 16,
+                            height: 16,
+                            borderRadius: '50%',
+                            background: 'var(--mantine-color-dimmed)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 1,
+                          }}
+                          aria-label={t('catalog.leftovers')}
+                        >
+                          <Note size={9} weight="fill" color="white" />
+                        </Box>
+                      )}
+
+                      {display?.slot.excluded && (
+                        <UnstyledButton
+                          onClick={() => onSelectDay(date)}
+                          style={{ textAlign: 'left' }}
+                        >
+                          <Text size="xs" c="dimmed" fs="italic">
+                            {t('slot.eatingOut')}
+                          </Text>
+                        </UnstyledButton>
+                      )}
+
+                      {components.map((item) => (
+                        <UnstyledButton
+                          key={item.component.id}
+                          onClick={() => onSelectDay(date)}
+                          style={{ textAlign: 'left' }}
+                        >
+                          <Paper withBorder p={6} radius="md">
+                            <Box style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <RecipePhotoThumb
+                                url={item.photoUrl}
+                                label={componentLabel(item)}
+                                size={32}
+                              />
+                              <Text size="sm" fw={500} lineClamp={2} style={{ flex: 1 }}>
+                                {componentLabel(item)}
+                              </Text>
+                            </Box>
+                          </Paper>
+                        </UnstyledButton>
+                      ))}
+
+                      {empty && display && (
+                        <UnstyledButton
+                          onClick={() => onAddDish(display.slot)}
+                          aria-label={t('slot.addDish')}
+                          style={{
+                            border: '1.5px dashed var(--mantine-color-default-border)',
+                            borderRadius: 8,
+                            minHeight: 40,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 4,
+                            color: 'var(--mantine-color-dimmed)',
+                          }}
+                        >
+                          <Plus size={12} />
+                          <Text size="sm" fw={500}>
+                            {t('action.add')}
+                          </Text>
+                        </UnstyledButton>
+                      )}
+
+                      {empty && !display && (
+                        <UnstyledButton
+                          onClick={() => onSelectDay(date)}
+                          style={{ minHeight: 40 }}
+                          aria-label={t('slot.noSlot')}
+                        />
+                      )}
+                    </Box>
+                  )
+                })}
+              </Box>
+            )
+          })}
+        </Box>
       </Box>
+      <Box
+        aria-hidden
+        className="plan-grid-scroll-fade"
+        style={{
+          ...scrollFadeBase,
+          left: MEALS_COLUMN_WIDTH,
+          background: 'linear-gradient(to right, var(--mantine-color-body), transparent)',
+          opacity: canScrollLeft ? 1 : 0,
+        }}
+      />
+      <Box
+        aria-hidden
+        className="plan-grid-scroll-fade"
+        style={{
+          ...scrollFadeBase,
+          right: 0,
+          background: 'linear-gradient(to left, var(--mantine-color-body), transparent)',
+          opacity: canScrollRight ? 1 : 0,
+        }}
+      />
     </Box>
   )
 }
