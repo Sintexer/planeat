@@ -27,6 +27,10 @@ import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
 import type { MealFavorite } from '../../domain/favorites/MealFavorite'
 import type { RecipePairing } from '../../domain/pairings/RecipePairing'
 import type { WeekGenerationProposal } from '../../domain/plans/generation/proposal'
+import {
+  builtinGenerationPresetById,
+  mergeGenerationConfig,
+} from '../../domain/plans/generation/GenerationConfig'
 
 function baseRecipe(overrides: Partial<Recipe> = {}): Recipe {
   return {
@@ -373,10 +377,16 @@ function unusedSimpleFoods(rows: SimpleFood[] = []): SimpleFoodRepository {
   }
 }
 
-function unusedSettings(settings: Settings = DEFAULT_SETTINGS): SettingsRepository {
+function unusedSettings(settings: Settings = DEFAULT_SETTINGS): SettingsRepository & {
+  updateCalls: Partial<Omit<Settings, 'id'>>[]
+} {
+  const updateCalls: Partial<Omit<Settings, 'id'>>[] = []
   return {
+    updateCalls,
     get: async () => settings,
-    update: async () => undefined,
+    update: async (changes) => {
+      updateCalls.push(changes)
+    },
   }
 }
 
@@ -477,6 +487,7 @@ function makeServices(
   const simpleFoods = unusedSimpleFoods(extras.simpleFoods ?? [])
   const favorites = new FakeMealFavoriteRepository(extras.favorites ?? [])
   const pairings = unusedPairings(extras.pairings ?? [])
+  const settingsRepo = unusedSettings(settings)
   const planService = new PlanService(
     plans,
     recipeRepo,
@@ -491,14 +502,14 @@ function makeServices(
     quantities,
     planService,
     runner ?? createSyncGenerationRunner(quantities),
-    unusedSettings(settings),
+    settingsRepo,
     simpleFoods,
     tags,
     unusedIngredients(),
     favorites,
     pairings,
   )
-  return { plans, recipeRepo, generation, quantities, favorites }
+  return { plans, recipeRepo, generation, quantities, favorites, settingsRepo }
 }
 
 describe('GenerationService', () => {
@@ -1365,5 +1376,106 @@ describe('GenerationService', () => {
     expect(plans.graph.components.some((row) => row.id === 'c-mon')).toBe(false)
     expect(plans.graph.components.some((row) => row.id === 'c-tue')).toBe(false)
     expect(plans.graph.plan.revision).toBe(2)
+  })
+
+  it('does not write Settings when generating with a request overlay', async () => {
+    const household = {
+      ...DEFAULT_SETTINGS,
+      generationHardPolicy: {
+        ...DEFAULT_SETTINGS.generationHardPolicy,
+        excludedRecipeIds: ['never'],
+      },
+    }
+    const draft = mergeGenerationConfig({
+      ...builtinGenerationPresetById('preset:less-cooking')!.config,
+      generationHardPolicy: {
+        ...DEFAULT_SETTINGS.generationHardPolicy,
+        excludedRecipeIds: ['skip-this-week'],
+        maxTotalTimeMinutes: 40,
+      },
+    })
+    const { generation, settingsRepo } = makeServices(
+      makeGraph(),
+      [baseRecipe()],
+      undefined,
+      household,
+    )
+    const prepared = await generation.prepareGeneration(['slot-dinner'], {
+      seed: 'seed-1',
+      config: draft,
+      presetId: 'preset:less-cooking',
+    })
+    expect(prepared.ok).toBe(true)
+    if (!prepared.ok) return
+    expect(settingsRepo.updateCalls).toHaveLength(0)
+    expect(prepared.value.policy.excludedRecipeIds).toEqual(['skip-this-week'])
+    expect(prepared.value.policy.maxTotalTimeMinutes).toBe(40)
+    expect(prepared.value.presetId).toBe('preset:less-cooking')
+    expect(prepared.value.batchPolicy).toEqual(draft.generationBatchPolicy)
+    expect(household.generationHardPolicy.excludedRecipeIds).toEqual(['never'])
+  })
+
+  it('fingerprints the merged request policy rather than household Settings', async () => {
+    const household = {
+      ...DEFAULT_SETTINGS,
+      generationBatchPolicy: { maxExtraPlannedUses: 0, unallocatedProduction: 'disallow' as const },
+    }
+    const overlay = builtinGenerationPresetById('preset:batch-cooking')!.config
+    const { generation } = makeServices(
+      makeGraph({
+        slots: [
+          emptySlot({ id: 'slot-mon', date: '2026-01-05' }),
+          emptySlot({ id: 'slot-tue', date: '2026-01-06' }),
+        ],
+      }),
+      [baseRecipe({ reusePolicy: 'batch-friendly' })],
+      undefined,
+      household,
+    )
+    const withOverlay = await generation.prepareGeneration(['slot-mon', 'slot-tue'], {
+      seed: 'seed-1',
+      config: overlay,
+      presetId: 'preset:batch-cooking',
+    })
+    const fromSettings = await generation.prepareGeneration(['slot-mon', 'slot-tue'], {
+      seed: 'seed-1',
+    })
+    expect(withOverlay.ok && fromSettings.ok).toBe(true)
+    if (!withOverlay.ok || !fromSettings.ok) return
+    expect(withOverlay.value.batchPolicy?.maxExtraPlannedUses).toBe(1)
+    expect(fromSettings.value.batchPolicy?.maxExtraPlannedUses).toBe(0)
+    const overlayRun = generation.runGeneration(withOverlay.value, 'req-overlay')
+    const settingsRun = generation.runGeneration(fromSettings.value, 'req-settings')
+    expect(overlayRun.ok && settingsRun.ok).toBe(true)
+    if (!overlayRun.ok || !settingsRun.ok) return
+    expect(overlayRun.value.fingerprint).not.toBe(settingsRun.value.fingerprint)
+    expect(overlayRun.value.presetId).toBe('preset:batch-cooking')
+    expect(overlayRun.value.algorithmVersion).toBe('36')
+    expect(overlayRun.value.generationConfig?.generationBatchPolicy.maxExtraPlannedUses).toBe(1)
+  })
+
+  it('uses a dirty built-in draft for search, not the code snapshot', async () => {
+    const snapshot = builtinGenerationPresetById('preset:balanced')!.config
+    const dirty = mergeGenerationConfig({
+      ...snapshot,
+      generationHardPolicy: {
+        ...snapshot.generationHardPolicy,
+        excludedRecipeIds: ['recipe-soup'],
+      },
+    })
+    const { generation } = makeServices(makeGraph(), [baseRecipe()])
+    const prepared = await generation.prepareGeneration(['slot-dinner'], {
+      seed: 'seed-1',
+      config: dirty,
+      presetId: 'preset:balanced',
+    })
+    expect(prepared.ok).toBe(true)
+    if (!prepared.ok) return
+    expect(prepared.value.policy.excludedRecipeIds).toEqual(['recipe-soup'])
+    const started = generation.runGeneration(prepared.value, 'req-1')
+    expect(started.ok).toBe(true)
+    if (!started.ok) return
+    expect(started.value.assignments).toHaveLength(0)
+    expect(started.value.unfilled[0]?.reason).toBe('no-eligible-candidates')
   })
 })

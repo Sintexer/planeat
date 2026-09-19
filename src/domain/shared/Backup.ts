@@ -11,6 +11,7 @@ import type { Ingredient } from '../ingredients/Ingredient'
 import type { Recipe } from '../recipes/Recipe'
 import type { SimpleFood } from '../simpleFoods/SimpleFood'
 import type { LibraryView } from '../libraryViews/LibraryView'
+import type { GenerationPreset } from '../generationPresets/GenerationPreset'
 import type { Tag } from '../tags/Tag'
 import type { Settings } from './Settings'
 
@@ -34,5 +35,6 @@ export interface BackupFile {
     recipePairings: RecipePairing[]
     tags: Tag[]
     libraryViews: LibraryView[]
+    generationPresets: GenerationPreset[]
   }
 }

@@ -4,6 +4,7 @@ import { GroceryService } from '../application/groceries/GroceryService'
 import { PairingService } from '../application/pairings/PairingService'
 import { IngredientService } from '../application/ingredients/IngredientService'
 import { LibraryViewService } from '../application/libraryViews/LibraryViewService'
+import { GenerationPresetService } from '../application/generationPresets/GenerationPresetService'
 import { GenerationService } from '../application/plans/GenerationService'
 import { createWorkerGenerationRunner } from '../application/plans/generationRunner'
 import { PlanService } from '../application/plans/PlanService'
@@ -19,6 +20,7 @@ import { DexieBackupRepository } from '../infrastructure/db/repositories/DexieBa
 import { DexieGroceryRepository } from '../infrastructure/db/repositories/DexieGroceryRepository'
 import { DexieIngredientRepository } from '../infrastructure/db/repositories/DexieIngredientRepository'
 import { DexieLibraryViewRepository } from '../infrastructure/db/repositories/DexieLibraryViewRepository'
+import { DexieGenerationPresetRepository } from '../infrastructure/db/repositories/DexieGenerationPresetRepository'
 import { DexieMealFavoriteRepository } from '../infrastructure/db/repositories/DexieMealFavoriteRepository'
 import { DexiePairingRepository } from '../infrastructure/db/repositories/DexiePairingRepository'
 import { DexiePlanRepository } from '../infrastructure/db/repositories/DexiePlanRepository'
@@ -42,6 +44,7 @@ export interface AppServices {
   recipeImportService: RecipeImportService
   settingsRepository: SettingsRepository
   libraryViewService: LibraryViewService
+  generationPresetService: GenerationPresetService
   backupService: BackupService
 }
 
@@ -56,6 +59,7 @@ export function bootstrap(): AppServices {
   const pairingRepository = new DexiePairingRepository(db)
   const settingsRepository = new DexieSettingsRepository(db)
   const libraryViewRepository = new DexieLibraryViewRepository(db)
+  const generationPresetRepository = new DexieGenerationPresetRepository(db)
   const backupRepository = new DexieBackupRepository(db)
   const quantityService = new QuantityService()
 
@@ -110,6 +114,7 @@ export function bootstrap(): AppServices {
     recipeImportService: new RecipeImportService(new SchemaOrgRecipeExtractor()),
     settingsRepository,
     libraryViewService: new LibraryViewService(libraryViewRepository),
+    generationPresetService: new GenerationPresetService(generationPresetRepository),
     backupService: new BackupService(backupRepository),
   }
 }

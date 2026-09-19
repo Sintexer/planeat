@@ -45,6 +45,11 @@ import {
   mergeGenerationSoftPrefs,
   type GenerationSoftPrefs,
 } from '../../domain/plans/generation/scoring'
+import {
+  configFromSettings,
+  mergeGenerationConfig,
+  type GenerationConfig,
+} from '../../domain/plans/generation/GenerationConfig'
 
 export type GenerationError =
   | 'no-eligible-candidates'
@@ -63,6 +68,8 @@ export type PrepareGenerationOptions = {
   quantityOverrides?: Readonly<Record<string, Quantity>>
   seed?: string
   mode?: GenerationMode
+  config?: GenerationConfig
+  presetId?: string
 }
 
 export class GenerationService {
@@ -166,6 +173,8 @@ export class GenerationService {
       options.seed ?? crypto.randomUUID(),
       options.quantityOverrides,
       mode,
+      options.config,
+      options.presetId,
     )
   }
 
@@ -209,6 +218,8 @@ export class GenerationService {
       proposal.seed,
       proposal.quantityOverrides,
       mergeGenerationMode(proposal.generationMode),
+      proposal.generationConfig,
+      proposal.presetId,
     )
     if (!live.ok) return live
     const issue = validateProposalAgainstLive(proposal, live.value)
@@ -233,6 +244,8 @@ export class GenerationService {
     seed: string,
     quantityOverrides?: Readonly<Record<string, Quantity>>,
     mode: GenerationMode = 'fill-empty',
+    requestConfig?: GenerationConfig,
+    presetId?: string,
   ): Promise<GenerationResult<GenerationInput>> {
     if (slotIds.length === 0) return { ok: false, error: 'slot-not-found' }
     const requestedSlots = []
@@ -246,7 +259,15 @@ export class GenerationService {
       requestedSlots.push({ slot, componentCount: components.length })
     }
     if (!planId) return { ok: false, error: 'not-found' }
-    return this.loadSnapshot(planId, requestedSlots, seed, quantityOverrides, mode)
+    return this.loadSnapshot(
+      planId,
+      requestedSlots,
+      seed,
+      quantityOverrides,
+      mode,
+      requestConfig,
+      presetId,
+    )
   }
 
   private async loadSnapshot(
@@ -255,6 +276,8 @@ export class GenerationService {
     seed: string,
     quantityOverrides?: Readonly<Record<string, Quantity>>,
     mode: GenerationMode = 'fill-empty',
+    requestConfig?: GenerationConfig,
+    presetId?: string,
   ): Promise<GenerationResult<GenerationInput>> {
     const plan = await this.plans.getById(planId)
     if (!plan) return { ok: false, error: 'not-found' }
@@ -278,13 +301,14 @@ export class GenerationService {
     ]
     const tagNamesById: Record<string, string> = {}
     for (const tag of tags) tagNamesById[tag.id] = tag.name
+    const config = mergeGenerationConfig(requestConfig ?? configFromSettings(settings))
     const softPrefs: GenerationSoftPrefs = mergeGenerationSoftPrefs({
-      quickMealsOnlyDays: settings.quickMealsOnlyDays,
-      avoidMultipleDemandingPreps: settings.avoidMultipleDemandingPreps,
-      favorVegetablesDaily: settings.favorVegetablesDaily,
-      preferredBatchPrepDays: settings.preferredBatchPrepDays,
-      maxBatchPrepUnits: settings.maxBatchPrepUnits,
-      generationPreferredTagIds: settings.generationPreferredTagIds,
+      quickMealsOnlyDays: config.quickMealsOnlyDays,
+      avoidMultipleDemandingPreps: config.avoidMultipleDemandingPreps,
+      favorVegetablesDaily: config.favorVegetablesDaily,
+      preferredBatchPrepDays: config.preferredBatchPrepDays,
+      maxBatchPrepUnits: config.maxBatchPrepUnits,
+      generationPreferredTagIds: config.generationPreferredTagIds,
     })
     const requestedIds = new Set(requestedSlots.map((row) => row.slot.id))
     const labeledSlots = requestedSlots.map((row) => ({
@@ -304,7 +328,7 @@ export class GenerationService {
         requestedSlots: labeledSlots,
         quantityOverrides,
         seed,
-        policy: mergeGenerationHardPolicy(settings.generationHardPolicy),
+        policy: mergeGenerationHardPolicy(config.generationHardPolicy),
         fixedMeals: fixedMealsFromPlan({
           slots: graph.slots,
           components: graph.components,
@@ -321,10 +345,12 @@ export class GenerationService {
         softPrefs,
         previousWeekRecipeIds,
         tagNamesById,
-        searchBudget: mergeGenerationSearchBudget(settings.generationSearchBudget),
-        compositionBounds: mergeGenerationCompositionBounds(settings.generationCompositionBounds),
-        batchPolicy: mergeGenerationBatchPolicy(settings.generationBatchPolicy),
+        searchBudget: mergeGenerationSearchBudget(config.generationSearchBudget),
+        compositionBounds: mergeGenerationCompositionBounds(config.generationCompositionBounds),
+        batchPolicy: mergeGenerationBatchPolicy(config.generationBatchPolicy),
         generationMode: mode,
+        presetId,
+        generationConfig: requestConfig ? config : undefined,
         cookingEvents: leftoverEventsFromGraph(
           graph,
           recipes,

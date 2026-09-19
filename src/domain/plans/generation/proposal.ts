@@ -1,3 +1,4 @@
+import type { GenerationConfig } from './GenerationConfig'
 import type { Recipe } from '../../recipes/Recipe'
 import type { MealType, RecipeRole, ReusePolicy } from '../../shared/MealEnums'
 import type { Quantity } from '../../shared/Quantity'
@@ -210,6 +211,8 @@ export type GenerationInput = {
   compositionBounds?: GenerationCompositionBounds
   batchPolicy?: GenerationBatchPolicy
   generationMode?: GenerationMode
+  presetId?: string
+  generationConfig?: GenerationConfig
 }
 
 export type SlotAssignmentSource =
@@ -294,6 +297,8 @@ export type WeekGenerationProposal = {
   proposedCookingEvents?: ProposedCookingEvent[]
   generationMode?: GenerationMode
   replacementPreview?: readonly ReplacementPreviewSlot[]
+  presetId?: string
+  generationConfig?: GenerationConfig
 }
 
 /** Sprint 28 name: a week proposal, often with a single assignment. */

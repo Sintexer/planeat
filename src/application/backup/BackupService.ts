@@ -6,6 +6,7 @@ import {
   mergeGenerationHardPolicy,
   missingGenerationPolicyRefs,
 } from '../../domain/plans/generation/constraints'
+import { mergeGenerationConfig } from '../../domain/plans/generation/GenerationConfig'
 import type { BackupRepository } from '../ports/BackupRepository'
 import { backupFileSchema } from './backupSchema'
 
@@ -48,6 +49,7 @@ function reliableExportedAtDisplay(exportedAt: string, locale = 'en'): string | 
 
 function missingGenerationRefsFromBackup(data: {
   settings: { generationHardPolicy?: unknown; generationPreferredTagIds?: unknown }[]
+  generationPresets?: { config?: unknown }[]
   recipes: { id: string }[]
   tags: { id: string }[]
   ingredients: { id: string }[]
@@ -69,6 +71,19 @@ function missingGenerationRefsFromBackup(data: {
       policy,
       { recipeIds, tagIds, ingredientIds },
       preferred,
+    )
+    recipeCount += missing.recipeIds.length
+    tagCount += missing.tagIds.length
+    ingredientCount += missing.ingredientIds.length
+  }
+  for (const preset of data.generationPresets ?? []) {
+    const config = mergeGenerationConfig(
+      preset.config as Parameters<typeof mergeGenerationConfig>[0],
+    )
+    const missing = missingGenerationPolicyRefs(
+      config.generationHardPolicy,
+      { recipeIds, tagIds, ingredientIds },
+      config.generationPreferredTagIds,
     )
     recipeCount += missing.recipeIds.length
     tagCount += missing.tagIds.length
@@ -167,6 +182,10 @@ export class BackupService {
         ...parsed.data.data,
         settings: parsed.data.data.settings.map((row) => mergeSettingsDefaults(row)),
         ingredients: parsed.data.data.ingredients.map((row) => mergeIngredientDefaults(row)),
+        generationPresets: parsed.data.data.generationPresets.map((row) => ({
+          ...row,
+          config: mergeGenerationConfig(row.config),
+        })),
       })
     } catch {
       return { ok: false, error: 'write-failed' }

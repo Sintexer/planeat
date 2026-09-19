@@ -23,6 +23,7 @@ function emptyData(): BackupFile['data'] {
     recipePairings: [],
     tags: [],
     libraryViews: [],
+    generationPresets: [],
   }
 }
 
@@ -713,5 +714,97 @@ describe('backupFileSchema — saved library views (Sprint 22)', () => {
       maxExtraPlannedUses: 1,
       unallocatedProduction: 'allow-with-warning',
     })
+  })
+
+  it('parses format-7 shaped files with an empty generationPresets table', () => {
+    const { generationPresets: _omitted, ...rest } = emptyData()
+    void _omitted
+    const result = backupFileSchema.safeParse({
+      format: 'family-menu-planner',
+      schemaVersion: 7,
+      exportedAt: new Date().toISOString(),
+      data: rest,
+    })
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.data.data.generationPresets).toEqual([])
+  })
+
+  it('round-trips custom generation presets and keeps dangling catalog ids', () => {
+    const data = emptyData()
+    data.generationPresets = [
+      {
+        id: 'preset-1',
+        name: 'Weeknight',
+        policyVersion: '31',
+        config: {
+          generationHardPolicy: {
+            unknownTimePolicy: 'exclude',
+            unknownIngredientPolicy: 'exclude',
+            excludedRecipeIds: ['gone-recipe'],
+            requiredTagIds: [],
+            excludedTagIds: [],
+            includeIngredientIds: [],
+            excludeIngredientIds: [],
+          },
+          quickMealsOnlyDays: [],
+          avoidMultipleDemandingPreps: true,
+          favorVegetablesDaily: false,
+          preferredBatchPrepDays: [],
+          maxBatchPrepUnits: 2,
+          generationPreferredTagIds: ['gone-tag'],
+          generationSearchBudget: DEFAULT_SETTINGS.generationSearchBudget,
+          generationCompositionBounds: DEFAULT_SETTINGS.generationCompositionBounds,
+          generationBatchPolicy: DEFAULT_SETTINGS.generationBatchPolicy,
+        },
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ]
+    const result = backupFileSchema.safeParse({
+      format: 'family-menu-planner',
+      schemaVersion: CURRENT_BACKUP_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    })
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(
+      result.data.data.generationPresets[0]?.config.generationHardPolicy?.excludedRecipeIds,
+    ).toEqual(['gone-recipe'])
+    expect(result.data.data.generationPresets[0]?.config.generationPreferredTagIds).toEqual([
+      'gone-tag',
+    ])
+  })
+
+  it('rejects duplicate generation-preset ids', () => {
+    const data = emptyData()
+    const preset = {
+      id: 'preset-1',
+      name: 'A',
+      policyVersion: '31',
+      config: {
+        generationHardPolicy: DEFAULT_SETTINGS.generationHardPolicy,
+        quickMealsOnlyDays: [],
+        avoidMultipleDemandingPreps: true,
+        favorVegetablesDaily: false,
+        preferredBatchPrepDays: [],
+        maxBatchPrepUnits: 2,
+        generationPreferredTagIds: [],
+        generationSearchBudget: DEFAULT_SETTINGS.generationSearchBudget,
+        generationCompositionBounds: DEFAULT_SETTINGS.generationCompositionBounds,
+        generationBatchPolicy: DEFAULT_SETTINGS.generationBatchPolicy,
+      },
+      createdAt: 0,
+      updatedAt: 0,
+    }
+    data.generationPresets = [preset, { ...preset, name: 'B' }]
+    const result = backupFileSchema.safeParse({
+      format: 'family-menu-planner',
+      schemaVersion: CURRENT_BACKUP_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    })
+    expect(result.success).toBe(false)
   })
 })

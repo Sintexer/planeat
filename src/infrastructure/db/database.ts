@@ -12,6 +12,7 @@ import type { Recipe } from '../../domain/recipes/Recipe'
 import type { Settings } from '../../domain/shared/Settings'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
 import type { LibraryView } from '../../domain/libraryViews/LibraryView'
+import type { GenerationPreset } from '../../domain/generationPresets/GenerationPreset'
 import type { Tag } from '../../domain/tags/Tag'
 import { applyMigrations } from './migrations'
 import Dexie, { type EntityTable } from 'dexie'
@@ -32,6 +33,7 @@ export class AppDatabase extends Dexie {
   recipePairings!: EntityTable<RecipePairing, 'id'>
   tags!: EntityTable<Tag, 'id'>
   libraryViews!: EntityTable<LibraryView, 'id'>
+  generationPresets!: EntityTable<GenerationPreset, 'id'>
 
   constructor() {
     super('planeat')

@@ -699,7 +699,7 @@ Test one question early, though: is “family” a household using one shared de
 
 # Phase 7 — Automatic meal planning
 
-Offline generator on the existing cooking-event model. **Next: Sprint 37.**
+Offline generator on the existing cooking-event model. **Next: Sprint 38.**
 
 Generation always produces a proposal. Apply goes through existing `PlanService` writes. Grocery lists never update as a side effect. Full implementation cards, module boundaries, acceptance tests, and demo scripts: [`generation.md`](generation.md).
 
@@ -825,4 +825,6 @@ Sprint 35 is done: generate may cook extra portions on a new same-week cooking e
 
 Sprint 36 is done: slot-level `generationLocked` (additive backup); fill-empty remains default and skips locked slots; replace selected meals (week modal or regenerate) with leftover-dependent confirmation; locked dependents block destructive regeneration; preview lists removals; Apply clears then writes in one Dexie transaction; grocery lists stay untouched. `algorithmVersion` `36`. No Dexie or backup-format bump.
 
-**Next:** Sprint 37 — reusable generation presets. Phase 7 cards: [`generation.md`](generation.md). Lane B remains optional.
+Sprint 37 is done: named generation presets on the same Sprint 30–35 policy model. Built-ins Balanced / Less cooking / More variety / Batch cooking are code snapshots with stable ids; custom presets are Dexie `generationPresets` rows (`policyVersion` `'31'`). Generate meals can pick a preset, dirty-edit the request (extra excluded recipes and max recorded time), and Save as new / Update (custom only) without writing Settings. `prepareGeneration` uses a request `config` overlay; proposals store `presetId` and the captured config. Dexie schema v8 and backup format 8 (`generationPresets`, older files parse as `[]`). Tests: `GenerationConfig.test.ts`, `GenerationPresetService.test.ts`, `GenerationService.test.ts`, `backupSchema.test.ts`, `BackupService.test.ts`.
+
+**Next:** Sprint 38 — quality, performance, and release hardening. Phase 7 cards: [`generation.md`](generation.md). Lane B remains optional.

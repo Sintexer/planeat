@@ -27,6 +27,7 @@ export class DexieBackupRepository implements BackupRepository {
       recipePairings,
       tags,
       libraryViews,
+      generationPresets,
     ] = await Promise.all([
       this.db.recipes.toArray(),
       this.db.settings.toArray(),
@@ -43,6 +44,7 @@ export class DexieBackupRepository implements BackupRepository {
       this.db.recipePairings.toArray(),
       this.db.tags.toArray(),
       this.db.libraryViews.toArray(),
+      this.db.generationPresets.toArray(),
     ])
     return {
       recipes,
@@ -60,6 +62,7 @@ export class DexieBackupRepository implements BackupRepository {
       recipePairings,
       tags,
       libraryViews,
+      generationPresets,
     }
   }
 
@@ -82,6 +85,7 @@ export class DexieBackupRepository implements BackupRepository {
         this.db.recipePairings,
         this.db.tags,
         this.db.libraryViews,
+        this.db.generationPresets,
       ],
       async () => {
         await this.db.recipes.clear()
@@ -99,6 +103,7 @@ export class DexieBackupRepository implements BackupRepository {
         await this.db.recipePairings.clear()
         await this.db.tags.clear()
         await this.db.libraryViews.clear()
+        await this.db.generationPresets.clear()
 
         await this.db.recipes.bulkAdd(data.recipes)
         await this.db.settings.bulkAdd(
@@ -117,6 +122,7 @@ export class DexieBackupRepository implements BackupRepository {
         await this.db.recipePairings.bulkAdd(data.recipePairings)
         await this.db.tags.bulkAdd(data.tags)
         await this.db.libraryViews.bulkAdd(data.libraryViews)
+        await this.db.generationPresets.bulkAdd(data.generationPresets)
       },
     )
   }

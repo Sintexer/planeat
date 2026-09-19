@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped through **Sprint 36**. Next sequenced work is **Sprint 37** (named generation presets). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
+Shipped through **Sprint 37**. Next sequenced work is **Sprint 38** (quality, performance, and release hardening). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
 
 ## Done — project initialization
 
@@ -169,7 +169,13 @@ Shipped through **Sprint 36**. Next sequenced work is **Sprint 37** (named gener
 - Fill-empty stays the default. Replace selected (week modal or regenerate on a filled slot) requires confirming leftover dependents; a locked dependent blocks destructive regeneration.
 - Preview lists removals; Apply clears then writes in one transaction. Grocery lists stay untouched. Additive `generationLocked` on meal slots. No Dexie or backup-format bump.
 
-## Next — Phase 7 automatic meal planning (Sprints 37–38)
+## Done — Sprint 37 (reusable generation presets)
+
+- Built-in Balanced / Less cooking / More variety / Batch cooking snapshots plus custom named presets on the same generation policy fields as Settings.
+- Generate meals preset bar: request-only drafts, dirty indicator, Save as new, Update (custom only). Generate does not write Settings.
+- Dexie schema v8 (`generationPresets`), backup format 8. `algorithmVersion` stays `36`.
+
+## Next — Phase 7 automatic meal planning (Sprint 38)
 
 Local, explainable generation. Proposals only; apply through existing cooking events; grocery lists stay manual. No backend or LLM.
 

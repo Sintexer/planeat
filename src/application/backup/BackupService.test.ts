@@ -22,6 +22,7 @@ function emptyData(): BackupFile['data'] {
     recipePairings: [],
     tags: [],
     libraryViews: [],
+    generationPresets: [],
   }
 }
 
@@ -275,6 +276,53 @@ describe('BackupService.restoreBackup', () => {
         criteria: { ...data.libraryViews[0]!.criteria, cleanup: '' },
       },
     ])
+  })
+
+  it('restores generation presets and keeps dangling catalog ids', async () => {
+    const repo = new FakeBackupRepository()
+    const service = new BackupService(repo)
+    const data = emptyData()
+    data.generationPresets = [
+      {
+        id: 'preset-1',
+        name: 'Weeknight',
+        policyVersion: '31',
+        config: {
+          generationHardPolicy: {
+            unknownTimePolicy: 'exclude',
+            unknownIngredientPolicy: 'exclude',
+            excludedRecipeIds: ['gone-recipe'],
+            requiredTagIds: [],
+            excludedTagIds: [],
+            includeIngredientIds: [],
+            excludeIngredientIds: [],
+          },
+          quickMealsOnlyDays: [],
+          avoidMultipleDemandingPreps: true,
+          favorVegetablesDaily: false,
+          preferredBatchPrepDays: [],
+          maxBatchPrepUnits: 2,
+          generationPreferredTagIds: ['gone-tag'],
+          generationSearchBudget: DEFAULT_SETTINGS.generationSearchBudget,
+          generationCompositionBounds: DEFAULT_SETTINGS.generationCompositionBounds,
+          generationBatchPolicy: DEFAULT_SETTINGS.generationBatchPolicy,
+        },
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ]
+
+    const result = await service.restoreBackup(backupFile(data))
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.summary.missingGenerationRefs).toEqual({
+      recipeCount: 1,
+      tagCount: 1,
+      ingredientCount: 0,
+    })
+    expect(
+      repo.replaceAllCalls[0]?.generationPresets[0]?.config.generationHardPolicy.excludedRecipeIds,
+    ).toEqual(['gone-recipe'])
   })
 
   it('fills missing ingredient locale fields on restore', async () => {

@@ -561,6 +561,8 @@ function finishProposal(
     proposedCookingEvents: proposedEventsFromNode(node),
     generationMode: mergeGenerationMode(input.generationMode),
     replacementPreview: replacementPreviewFromInput(input),
+    presetId: input.presetId,
+    generationConfig: input.generationConfig,
   }
   const issue = validateProposalAgainstLive(proposal, input)
   if (issue) {

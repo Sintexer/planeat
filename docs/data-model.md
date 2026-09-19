@@ -24,18 +24,18 @@ Additive stores; existing recipe rows are upgraded in place (`servings` → `yie
 
 Adds weekly planning tables; settings rows gain `weekStartDay` (default Monday = `1`).
 
-| Table            | Primary key | Indexes                            | Notes                                                                         |
-| ---------------- | ----------- | ---------------------------------- | ----------------------------------------------------------------------------- |
-| `plans`          | `id`        | `startDate`                        | Seven-day plan; `peopleCount`, `revision`, empty `preferences`                |
+| Table            | Primary key | Indexes                            | Notes                                                                                                           |
+| ---------------- | ----------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `plans`          | `id`        | `startDate`                        | Seven-day plan; `peopleCount`, `revision`, empty `preferences`                                                  |
 | `mealSlots`      | `id`        | `planId`, `[planId+date+mealType]` | One row per day × breakfast/lunch/dinner; `excluded` flag; optional `generationLocked` (Sprint 36, not indexed) |
-| `mealComponents` | `id`        | `slotId`                           | Source is cooking-event or simple-food; allocated quantity; multiple per slot |
-| `cookingEvents`  | `id`        | `planId`                           | Recipe snapshot + output quantity; `sessionId` filled in v5 migration         |
+| `mealComponents` | `id`        | `slotId`                           | Source is cooking-event or simple-food; allocated quantity; multiple per slot                                   |
+| `cookingEvents`  | `id`        | `planId`                           | Recipe snapshot + output quantity; `sessionId` filled in v5 migration                                           |
 
 Schema changes must be added as new `.version(n)` blocks in `src/infrastructure/db/migrations/index.ts` — never edit a shipped version, so existing local data survives upgrades.
 
 **Dexie schema version and backup format version are separate contracts.** A model change needs a Dexie bump only when indexes, tables, or stored-row transforms require it. Backup format versions are bumped when the export/restore payload shape changes. Use the same upgrade logic for legacy backup restores where practical; validate the full upgraded backup before replacing local data.
 
-Backup file format is independent: `CURRENT_BACKUP_FORMAT_VERSION` is **7**. Historical notes: version **3** first included plans/slots/components/cooking events; version **4** added grocery tables; version **5** added prep sessions, favorites, and pairings; version **6** added tags.
+Backup file format is independent: `CURRENT_BACKUP_FORMAT_VERSION` is **8**. Historical notes: version **3** first included plans/slots/components/cooking events; version **4** added grocery tables; version **5** added prep sessions, favorites, and pairings; version **6** added tags; version **7** added library views.
 
 ## Version 4
 
@@ -88,6 +88,16 @@ Saved library views (Sprint 22). Each row is a named snapshot of Recipes browse 
 
 Backup format version **7** adds `libraryViews`.
 
+## Version 8
+
+Named generation presets (Sprint 37). Built-in Balanced / Less cooking / More variety / Batch cooking live in code with stable ids (`preset:balanced`, …) and are not Dexie rows. Custom presets are named snapshots of the same generation policy fields as Settings.
+
+| Table               | Primary key | Indexes | Notes                                                                   |
+| ------------------- | ----------- | ------- | ----------------------------------------------------------------------- |
+| `generationPresets` | `id`        | `name`  | Custom presets; `policyVersion` plus a full `GenerationConfig` snapshot |
+
+Backup format version **8** adds `generationPresets` (missing table on older files parses as `[]`). Restore keeps dangling recipe/tag/ingredient ids on presets and reports them.
+
 ## Shipped model rules (keep)
 
 - Ingredient identity is the ID. Do not invent a locale on existing `aliases`.
@@ -98,7 +108,7 @@ Backup format version **7** adds `libraryViews`.
 
 ## Still planned (not shipped)
 
-See [`docs/sprints/plan.md`](sprints/plan.md). Core sprints through 27C are shipped. Phase 7 (generation policy, slot locks, presets) will add persisted fields documented in the sprint that introduces them. Optional later: `externalRefs` on ingredients, `defaultRecipeMeasurementConvention`.
+See [`docs/sprints/plan.md`](sprints/plan.md). Core sprints through 27C are shipped. Phase 7 through Sprint 37 is shipped (generation policy, slot locks, named presets). Optional later: `externalRefs` on ingredients, `defaultRecipeMeasurementConvention`.
 
 ## Starter library
 

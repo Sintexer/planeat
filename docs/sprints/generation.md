@@ -465,6 +465,8 @@ Reuse existing dependent-meal analysis from the meal editor (affected meals when
 
 Built-in set: **Balanced**, **Less cooking**, **More variety**, **Batch cooking**. Copy and dirty-indicator UX should follow saved library views (`LibraryViewService`).
 
+**Shipped.** `GenerationConfig` layered on Settings (built-in snapshots + request overlay + custom Dexie `generationPresets`); Generate meals preset bar with library-view dirty/save; `prepareGeneration` accepts request config without writing Settings; proposal `presetId` / captured config; Dexie v8 and backup format 8. `algorithmVersion` stays `'36'`. Tests: `GenerationConfig.test.ts`, `GenerationPresetService.test.ts`, `GenerationService.test.ts`, `backupSchema.test.ts`, `BackupService.test.ts`.
+
 ---
 
 ## Sprint 38 — Quality, performance, and release hardening

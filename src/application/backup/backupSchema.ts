@@ -321,6 +321,57 @@ const libraryViewSchema = z.object({
   updatedAt: z.number(),
 })
 
+const generationConfigSchema = z
+  .object({
+    generationHardPolicy: z
+      .object({
+        unknownTimePolicy: z.enum(['exclude', 'allow']),
+        unknownIngredientPolicy: z.enum(['exclude', 'allow']),
+        excludedRecipeIds: z.array(z.string()),
+        requiredTagIds: z.array(z.string()),
+        excludedTagIds: z.array(z.string()),
+        includeIngredientIds: z.array(z.string()),
+        excludeIngredientIds: z.array(z.string()),
+        maxTotalTimeMinutes: z.number().optional(),
+      })
+      .optional(),
+    quickMealsOnlyDays: z.array(weekStartDaySchema).optional(),
+    avoidMultipleDemandingPreps: z.boolean().optional(),
+    favorVegetablesDaily: z.boolean().optional(),
+    preferredBatchPrepDays: z.array(weekStartDaySchema).optional(),
+    maxBatchPrepUnits: z.number().optional(),
+    generationPreferredTagIds: z.array(z.string()).optional(),
+    generationSearchBudget: z
+      .object({
+        beamWidth: z.number(),
+        expansionBudget: z.number(),
+        perSlotCandidateLimit: z.number(),
+      })
+      .optional(),
+    generationCompositionBounds: z
+      .object({
+        maxPairingsPerRecipe: z.number(),
+        maxComponentsPerCandidate: z.number(),
+      })
+      .optional(),
+    generationBatchPolicy: z
+      .object({
+        maxExtraPlannedUses: z.number(),
+        unallocatedProduction: z.enum(['disallow', 'allow-with-warning']),
+      })
+      .optional(),
+  })
+  .passthrough()
+
+const generationPresetSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  policyVersion: z.string(),
+  config: generationConfigSchema,
+  createdAt: z.number(),
+  updatedAt: z.number(),
+})
+
 export const backupFileSchema = z
   .object({
     format: z.literal('family-menu-planner'),
@@ -342,6 +393,7 @@ export const backupFileSchema = z
       recipePairings: z.array(recipePairingSchema),
       tags: z.array(tagSchema),
       libraryViews: z.array(libraryViewSchema),
+      generationPresets: z.array(generationPresetSchema).default([]),
     }),
   })
   .refine(
@@ -420,6 +472,16 @@ export const backupFileSchema = z
       return new Set(ids).size === ids.length
     },
     { message: 'Backup contains duplicate library-view ids', path: ['data', 'libraryViews'] },
+  )
+  .refine(
+    (backup) => {
+      const ids = backup.data.generationPresets.map((preset) => preset.id)
+      return new Set(ids).size === ids.length
+    },
+    {
+      message: 'Backup contains duplicate generation-preset ids',
+      path: ['data', 'generationPresets'],
+    },
   )
 
 /** Re-export for UI selects that want the same unit list as validation awareness. */
