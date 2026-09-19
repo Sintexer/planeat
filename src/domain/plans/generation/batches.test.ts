@@ -70,7 +70,7 @@ function cookCount(proposal: ReturnType<typeof runGenerationSearch>): number {
 describe('planned batch generation', () => {
   it('cooks once for Monday and Tuesday dinners', () => {
     const proposal = runGenerationSearch(input(), 'req-1', scaleQuantity)
-    expect(proposal.algorithmVersion).toBe('35')
+    expect(proposal.algorithmVersion).toBe('36')
     expect(proposal.assignments).toHaveLength(2)
     expect(proposal.unfilled).toHaveLength(0)
     expect(cookCount(proposal)).toBe(1)

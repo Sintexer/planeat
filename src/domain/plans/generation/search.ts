@@ -15,6 +15,7 @@ import {
   GENERATION_ALGORITHM_VERSION,
   GENERATION_POLICY_VERSION,
   mergeGenerationBatchPolicy,
+  mergeGenerationMode,
   mergeGenerationSearchBudget,
   type GenerationBatchPolicy,
   type GenerationInput,
@@ -558,6 +559,8 @@ function finishProposal(
     budgetUsed: mergeGenerationSearchBudget(input.searchBudget),
     expansionsUsed,
     proposedCookingEvents: proposedEventsFromNode(node),
+    generationMode: mergeGenerationMode(input.generationMode),
+    replacementPreview: replacementPreviewFromInput(input),
   }
   const issue = validateProposalAgainstLive(proposal, input)
   if (issue) {
@@ -638,7 +641,11 @@ export function runGenerationSearch(
     const next: SearchNode[] = []
     for (const parent of beam) {
       if (exhausted) break
-      const slotIssue = validateSlotForGeneration(row.slot, row.componentCount)
+      const slotIssue = validateSlotForGeneration(
+        row.slot,
+        row.componentCount,
+        input.generationMode,
+      )
       if (slotIssue) {
         const child = withUnfilled(parent, row.slot, 'no-eligible-candidates')
         best = considerBest(best, child, batchPolicy, requested.length)
@@ -712,4 +719,16 @@ export function runGenerationSearch(
   }
 
   return finishProposal(input, requestId, best, requested, expansionsUsed)
+}
+
+function replacementPreviewFromInput(input: GenerationInput) {
+  if (mergeGenerationMode(input.generationMode) !== 'replace') return undefined
+  return input.requestedSlots
+    .filter((row) => (row.existingLabels?.length ?? 0) > 0)
+    .map((row) => ({
+      slotId: row.slot.id,
+      date: row.slot.date,
+      mealType: row.slot.mealType,
+      removedNames: [...(row.existingLabels ?? [])],
+    }))
 }

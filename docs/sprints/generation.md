@@ -431,6 +431,8 @@ Search-state extensions: proposed events, produced/consumed/remaining portions, 
 
 Reuse existing dependent-meal analysis from the meal editor (affected meals when removing shared prep).
 
+**Shipped.** Additive `MealSlot.generationLocked` (backup optional boolean). Fill-empty remains the default and never touches locked, filled, or excluded slots. Replace mode (week **Replace selected** and per-slot **Regenerate**) treats requested slots as empty for search; leftover events whose producer is being replaced are not reused. Replacing a producer with leftover consumers is blocked until those slots are confirmed into the request; a locked dependent returns `dependents-locked`. Apply clears assigned slots then writes generated components in one Dexie transaction (`algorithmVersion` `36`). Grocery lists stay untouched. No Dexie or backup-format bump.
+
 ---
 
 ## Sprint 37 — Reusable generation presets

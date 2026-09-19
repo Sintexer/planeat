@@ -37,6 +37,7 @@ import { isDayPlanned } from '../../domain/plans/weekOverview'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
 import { useLocalization } from '../localization/LocalizationContext'
+import { planErrorMessage } from '../localization/errors'
 import { formatPlanWeekLabel, planWeekRelation } from '../localization/formatDate'
 import {
   addDays,
@@ -238,6 +239,13 @@ export function PlanScreen() {
     const result = await planService.setSlotExcluded(slotId, false)
     if (!result.ok) {
       notifications.show({ message: t('plan.unexcludeFailed'), color: 'error' })
+    }
+  }
+
+  const handleLock = async (slotId: string, locked: boolean) => {
+    const result = await planService.setSlotGenerationLocked(slotId, locked)
+    if (!result.ok) {
+      notifications.show({ message: planErrorMessage(t, result.error), color: 'error' })
     }
   }
 
@@ -623,14 +631,32 @@ export function PlanScreen() {
                     onClear={() => void confirmClearSlot(planService, display.slot.id, t)}
                     onExclude={() => void confirmExcludeSlot(planService, display.slot.id, t)}
                     onUnexclude={() => void handleUnexclude(display.slot.id)}
+                    onLock={() => void handleLock(display.slot.id, true)}
+                    onUnlock={() => void handleLock(display.slot.id, false)}
                     onGenerate={
-                      display.components.length === 0 && !display.slot.excluded
+                      display.components.length === 0 &&
+                      !display.slot.excluded &&
+                      !display.slot.generationLocked
                         ? () =>
                             void openGenerateMealPreview({
                               slotId: display.slot.id,
                               generationService,
                               t,
                               formatQty,
+                            })
+                        : undefined
+                    }
+                    onRegenerate={
+                      display.components.length > 0 &&
+                      !display.slot.excluded &&
+                      !display.slot.generationLocked
+                        ? () =>
+                            void openGenerateMealPreview({
+                              slotId: display.slot.id,
+                              generationService,
+                              t,
+                              formatQty,
+                              mode: 'replace',
                             })
                         : undefined
                     }

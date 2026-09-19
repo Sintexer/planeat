@@ -54,6 +54,7 @@ export interface PlanRepository {
   createPlanWithSlots(plan: Plan, slots: MealSlot[]): Promise<void>
   getSlot(slotId: MealSlotId): Promise<MealSlot | undefined>
   setSlotExcluded(slotId: MealSlotId, excluded: boolean): Promise<void>
+  setSlotGenerationLocked(slotId: MealSlotId, locked: boolean): Promise<void>
 
   addCookingEventComponent(
     planId: PlanId,
@@ -70,6 +71,11 @@ export interface PlanRepository {
   addSimpleFoodComponent(planId: PlanId, input: AddSimpleFoodComponentInput): Promise<MealComponent>
   addGeneratedComponents(
     planId: PlanId,
+    inputs: AddGeneratedComponentInput[],
+  ): Promise<MealComponent[]>
+  replaceGeneratedComponents(
+    planId: PlanId,
+    clearSlotIds: readonly MealSlotId[],
     inputs: AddGeneratedComponentInput[],
   ): Promise<MealComponent[]>
   updateComponentAllocation(

@@ -158,6 +158,9 @@ class FakePlanRepository implements PlanRepository {
   setSlotExcluded: PlanRepository['setSlotExcluded'] = () => {
     throw new Error('not implemented')
   }
+  setSlotGenerationLocked: PlanRepository['setSlotGenerationLocked'] = () => {
+    throw new Error('not implemented')
+  }
   addCookingEventComponent: PlanRepository['addCookingEventComponent'] = () => {
     throw new Error('not implemented')
   }
@@ -171,6 +174,9 @@ class FakePlanRepository implements PlanRepository {
     throw new Error('not implemented')
   }
   addGeneratedComponents: PlanRepository['addGeneratedComponents'] = () => {
+    throw new Error('not implemented')
+  }
+  replaceGeneratedComponents: PlanRepository['replaceGeneratedComponents'] = () => {
     throw new Error('not implemented')
   }
   updateComponentAllocation: PlanRepository['updateComponentAllocation'] = () => {

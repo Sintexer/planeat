@@ -2,9 +2,15 @@ import type { Quantity } from '../../shared/Quantity'
 import type { MealSlot } from '../MealSlot'
 import { isReuseAllowed } from '../CookingEventAllocation'
 import { compositionStillEligible } from './compositions'
-import { fingerprintFromInput, type GenerationInput, type WeekGenerationProposal } from './proposal'
+import {
+  fingerprintFromInput,
+  mergeGenerationMode,
+  type GenerationInput,
+  type GenerationMode,
+  type WeekGenerationProposal,
+} from './proposal'
 
-export type GenerationSlotError = 'slot-excluded' | 'slot-not-empty'
+export type GenerationSlotError = 'slot-excluded' | 'slot-not-empty' | 'slot-locked'
 
 export type GenerationApplyError =
   | GenerationSlotError
@@ -18,6 +24,9 @@ export type GenerationApplyError =
   | 'over-allocated'
   | 'reuse-forbidden'
   | 'before-prep'
+  | 'slot-locked'
+  | 'dependents-locked'
+  | 'replace-dependents-required'
 
 export function isValidPositiveQuantity(quantity: Quantity): boolean {
   return Number.isFinite(quantity.value) && quantity.value > 0 && quantity.unit.length > 0
@@ -26,9 +35,11 @@ export function isValidPositiveQuantity(quantity: Quantity): boolean {
 export function validateSlotForGeneration(
   slot: MealSlot,
   componentCount: number,
+  mode: GenerationMode = 'fill-empty',
 ): GenerationSlotError | undefined {
   if (slot.excluded) return 'slot-excluded'
-  if (componentCount > 0) return 'slot-not-empty'
+  if (slot.generationLocked) return 'slot-locked'
+  if (mergeGenerationMode(mode) === 'fill-empty' && componentCount > 0) return 'slot-not-empty'
   return undefined
 }
 
@@ -50,7 +61,11 @@ export function validateProposalAgainstLive(
   for (const assignment of proposal.assignments) {
     const requested = liveById.get(assignment.slotId)
     if (!requested) return 'slot-not-found'
-    const slotIssue = validateSlotForGeneration(requested.slot, requested.componentCount)
+    const slotIssue = validateSlotForGeneration(
+      requested.slot,
+      requested.componentCount,
+      live.generationMode,
+    )
     if (slotIssue) return slotIssue
     if (assignment.components.length === 0) return 'stale-proposal'
     for (const component of assignment.components) {

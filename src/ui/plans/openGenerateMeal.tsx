@@ -3,11 +3,12 @@ import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
 import type { GenerationService } from '../../application/plans/GenerationService'
 import type { ConstraintReason } from '../../domain/plans/generation/constraints'
+import type { GenerationMode } from '../../domain/plans/generation/proposal'
 import type {
   GeneratedComponent,
   WeekGenerationProposal,
 } from '../../domain/plans/generation/proposal'
-import type { MealSlotId } from '../../domain/plans/MealSlot'
+import type { MealSlot, MealSlotId } from '../../domain/plans/MealSlot'
 import type { Quantity } from '../../domain/shared/Quantity'
 import { generationErrorMessage } from '../localization/errors'
 import type { ScoreReason } from '../../domain/plans/generation/scoring'
@@ -19,9 +20,23 @@ export async function openGenerateMealPreview(args: {
   generationService: GenerationService
   t: Translate
   formatQty: (quantity: Quantity) => string
+  mode?: GenerationMode
 }): Promise<void> {
-  const { slotId, generationService, t, formatQty } = args
-  const ran = await generationService.startGeneration([slotId])
+  const { slotId, generationService, t, formatQty, mode = 'fill-empty' } = args
+  let slotIds = [slotId]
+  if (mode === 'replace') {
+    const inspected = await generationService.inspectReplaceDependents(slotIds)
+    if (!inspected.ok) {
+      notifications.show({ message: generationErrorMessage(t, inspected.error), color: 'error' })
+      return
+    }
+    if (inspected.value.extraSlots.length > 0) {
+      const confirmed = await confirmReplaceDependents(t, inspected.value.extraSlots)
+      if (!confirmed) return
+      slotIds = [...slotIds, ...inspected.value.extraSlots.map((slot) => slot.id)]
+    }
+  }
+  const ran = await generationService.startGeneration(slotIds, { mode })
   if (!ran.ok) {
     if (ran.error !== 'cancelled') {
       notifications.show({ message: generationErrorMessage(t, ran.error), color: 'error' })
@@ -29,6 +44,22 @@ export async function openGenerateMealPreview(args: {
     return
   }
   openProposalPreview({ proposal: ran.value, generationService, t, formatQty })
+}
+
+export function confirmReplaceDependents(
+  t: Translate,
+  extras: readonly MealSlot[],
+): Promise<boolean> {
+  const meals = extras.map((slot) => `${slot.date} ${mealTypeLabel(t, slot.mealType)}`).join(', ')
+  return new Promise((resolve) => {
+    modals.openConfirmModal({
+      title: t('generation.includeDependentsTitle'),
+      children: <Text size="sm">{t('generation.includeDependentsBody', { meals })}</Text>,
+      labels: { confirm: t('generation.includeDependentsConfirm'), cancel: t('action.cancel') },
+      onConfirm: () => resolve(true),
+      onCancel: () => resolve(false),
+    })
+  })
 }
 
 export function openProposalPreview(args: {
@@ -52,6 +83,14 @@ export function openProposalPreview(args: {
     title: t('generation.previewTitle'),
     children: (
       <Stack gap="sm">
+        {(proposal.replacementPreview ?? []).map((row) => (
+          <Text size="sm" key={`remove-${row.slotId}`}>
+            {t('generation.previewRemove', {
+              meal: `${row.date} ${mealTypeLabel(t, row.mealType)}`,
+              names: row.removedNames.join(', '),
+            })}
+          </Text>
+        ))}
         {proposal.assignments.map((row) => (
           <Stack gap={2} key={row.slotId}>
             {row.source.type === 'favorite' && (

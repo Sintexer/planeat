@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped through **Sprint 35**. Next sequenced work is **Sprint 36** (regenerate selected meals and lock content). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
+Shipped through **Sprint 36**. Next sequenced work is **Sprint 37** (named generation presets). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
 
 ## Done — project initialization
 
@@ -163,7 +163,13 @@ Shipped through **Sprint 35**. Next sequenced work is **Sprint 36** (regenerate 
 - Generate may cook extra portions on a new cooking event and reuse them later in the same week, within extra-use and unallocated-production settings.
 - Apply creates the event once and links later meals. Grocery lists stay untouched. Additive `generationBatchPolicy`. No Dexie or backup-format bump.
 
-## Next — Phase 7 automatic meal planning (Sprints 36–38)
+## Done — Sprint 36 (lock and replace selected meals)
+
+- Slot-level generation lock on Plan and the meal editor. Locked meals are never filled or replaced.
+- Fill-empty stays the default. Replace selected (week modal or regenerate on a filled slot) requires confirming leftover dependents; a locked dependent blocks destructive regeneration.
+- Preview lists removals; Apply clears then writes in one transaction. Grocery lists stay untouched. Additive `generationLocked` on meal slots. No Dexie or backup-format bump.
+
+## Next — Phase 7 automatic meal planning (Sprints 37–38)
 
 Local, explainable generation. Proposals only; apply through existing cooking events; grocery lists stay manual. No backend or LLM.
 

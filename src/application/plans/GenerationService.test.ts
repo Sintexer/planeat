@@ -212,6 +212,25 @@ class FakePlanRepository implements PlanRepository {
     return components
   }
 
+  async replaceGeneratedComponents(
+    planId: PlanId,
+    clearSlotIds: readonly string[],
+    inputs: AddGeneratedComponentInput[],
+  ) {
+    const keep = this.graph.components.filter((row) => !clearSlotIds.includes(row.slotId))
+    const usedEventIds = new Set(
+      keep.flatMap((row) =>
+        row.source.type === 'cooking-event' ? [row.source.cookingEventId] : [],
+      ),
+    )
+    this.graph = {
+      ...this.graph,
+      components: keep,
+      cookingEvents: this.graph.cookingEvents.filter((event) => usedEventIds.has(event.id)),
+    }
+    return this.addGeneratedComponents(planId, inputs)
+  }
+
   getByStartDate: PlanRepository['getByStartDate'] = async (startDate) => {
     if (this.graph.plan.startDate === startDate) return this.graph.plan
     if (this.previous?.plan.startDate === startDate) return this.previous.plan
@@ -222,6 +241,15 @@ class FakePlanRepository implements PlanRepository {
   }
   setSlotExcluded: PlanRepository['setSlotExcluded'] = () => {
     throw new Error('not implemented')
+  }
+  setSlotGenerationLocked: PlanRepository['setSlotGenerationLocked'] = async (slotId, locked) => {
+    this.graph = {
+      ...this.graph,
+      slots: this.graph.slots.map((slot) =>
+        slot.id === slotId ? { ...slot, generationLocked: locked } : slot,
+      ),
+      plan: { ...this.graph.plan, revision: this.graph.plan.revision + 1 },
+    }
   }
   linkCookingEventComponent: PlanRepository['linkCookingEventComponent'] = async (
     planId,
@@ -1027,6 +1055,315 @@ describe('GenerationService', () => {
         (row) => row.source.type === 'cooking-event' && row.source.cookingEventId === eventId,
       ),
     ).toBe(true)
+    expect(plans.graph.plan.revision).toBe(2)
+  })
+
+  it('rejects a locked empty slot on fill-empty prepare', async () => {
+    const { generation } = makeServices(
+      makeGraph({ slots: [emptySlot({ generationLocked: true })] }),
+      [baseRecipe()],
+    )
+    expect(await generation.prepareGeneration(['slot-dinner'])).toEqual({
+      ok: false,
+      error: 'slot-locked',
+    })
+  })
+
+  it('rejects replace of a producer without leftover dependents', async () => {
+    const chili = baseRecipe({ id: 'chili', name: 'Chili' })
+    const { tagIds, ...chiliRest } = chili
+    void tagIds
+    const event: CookingEvent = {
+      id: 'event-chili',
+      planId: 'plan-1',
+      sessionId: 'session-1',
+      recipeId: chili.id,
+      recipeSnapshot: { ...chiliRest, tags: ['Comfort'] },
+      outputQuantity: { value: 6, unit: 'serving' },
+      scheduledDate: '2026-01-05',
+    }
+    const monday = emptySlot({ id: 'slot-mon', date: '2026-01-05' })
+    const tuesday = emptySlot({ id: 'slot-tue', date: '2026-01-06' })
+    const { generation } = makeServices(
+      makeGraph({
+        slots: [monday, tuesday],
+        cookingEvents: [event],
+        components: [
+          {
+            id: 'c-mon',
+            slotId: 'slot-mon',
+            source: { type: 'cooking-event', cookingEventId: 'event-chili' },
+            allocatedQuantity: { value: 3, unit: 'serving' },
+          },
+          {
+            id: 'c-tue',
+            slotId: 'slot-tue',
+            source: { type: 'cooking-event', cookingEventId: 'event-chili' },
+            allocatedQuantity: { value: 3, unit: 'serving' },
+          },
+        ],
+      }),
+      [chili],
+    )
+    expect(await generation.prepareGeneration(['slot-mon'], { mode: 'replace' })).toEqual({
+      ok: false,
+      error: 'replace-dependents-required',
+    })
+    const inspected = await generation.inspectReplaceDependents(['slot-mon'])
+    expect(inspected.ok).toBe(true)
+    if (!inspected.ok) return
+    expect(inspected.value.extraSlots.map((slot) => slot.id)).toEqual(['slot-tue'])
+  })
+
+  it('blocks replace when a leftover dependent is locked', async () => {
+    const chili = baseRecipe({ id: 'chili', name: 'Chili' })
+    const { tagIds, ...chiliRest } = chili
+    void tagIds
+    const event: CookingEvent = {
+      id: 'event-chili',
+      planId: 'plan-1',
+      sessionId: 'session-1',
+      recipeId: chili.id,
+      recipeSnapshot: { ...chiliRest, tags: ['Comfort'] },
+      outputQuantity: { value: 6, unit: 'serving' },
+      scheduledDate: '2026-01-05',
+    }
+    const monday = emptySlot({ id: 'slot-mon', date: '2026-01-05' })
+    const tuesday = emptySlot({ id: 'slot-tue', date: '2026-01-06', generationLocked: true })
+    const { generation } = makeServices(
+      makeGraph({
+        slots: [monday, tuesday],
+        cookingEvents: [event],
+        components: [
+          {
+            id: 'c-mon',
+            slotId: 'slot-mon',
+            source: { type: 'cooking-event', cookingEventId: 'event-chili' },
+            allocatedQuantity: { value: 3, unit: 'serving' },
+          },
+          {
+            id: 'c-tue',
+            slotId: 'slot-tue',
+            source: { type: 'cooking-event', cookingEventId: 'event-chili' },
+            allocatedQuantity: { value: 3, unit: 'serving' },
+          },
+        ],
+      }),
+      [chili],
+    )
+    expect(await generation.inspectReplaceDependents(['slot-mon'])).toEqual({
+      ok: false,
+      error: 'dependents-locked',
+    })
+    expect(
+      await generation.prepareGeneration(['slot-mon', 'slot-tue'], { mode: 'replace' }),
+    ).toEqual({ ok: false, error: 'slot-locked' })
+  })
+
+  it('replace apply clears selected meals and leaves a nonselected meal', async () => {
+    const soup = baseRecipe()
+    const stew = baseRecipe({ id: 'stew', name: 'Stew' })
+    const { tagIds, ...soupRest } = soup
+    void tagIds
+    const event: CookingEvent = {
+      id: 'event-soup',
+      planId: 'plan-1',
+      sessionId: 'session-1',
+      recipeId: soup.id,
+      recipeSnapshot: { ...soupRest, tags: ['Comfort'] },
+      outputQuantity: { value: 3, unit: 'serving' },
+      scheduledDate: '2026-01-06',
+    }
+    const lunch = emptySlot({ id: 'slot-lunch', mealType: 'lunch', date: '2026-01-05' })
+    const dinner = emptySlot()
+    const { generation, plans } = makeServices(
+      makeGraph({
+        slots: [lunch, dinner],
+        cookingEvents: [event],
+        components: [
+          {
+            id: 'c-dinner',
+            slotId: 'slot-dinner',
+            source: { type: 'cooking-event', cookingEventId: 'event-soup' },
+            allocatedQuantity: { value: 3, unit: 'serving' },
+          },
+          {
+            id: 'c-lunch',
+            slotId: 'slot-lunch',
+            source: { type: 'simple-food', simpleFoodId: 'yogurt' },
+            allocatedQuantity: { value: 1, unit: 'cup' },
+          },
+        ],
+      }),
+      [soup, stew],
+      undefined,
+      DEFAULT_SETTINGS,
+      undefined,
+      {
+        simpleFoods: [
+          {
+            id: 'yogurt',
+            ingredientId: 'ing-yogurt',
+            name: 'Yogurt',
+            defaultPortion: { value: 1, unit: 'cup' },
+            roles: ['complete'],
+            mealTypes: ['lunch'],
+            tagIds: [],
+            enabledInSuggestions: true,
+            createdAt: 0,
+            updatedAt: 0,
+          },
+        ],
+      },
+    )
+    const started = await generation.startGeneration(['slot-dinner'], {
+      seed: 'seed-1',
+      mode: 'replace',
+    })
+    if (!started.ok) throw new Error(started.error)
+    expect(started.value.generationMode).toBe('replace')
+    expect(started.value.replacementPreview?.[0]?.removedNames).toEqual(['Soup'])
+    const applied = await generation.applyProposal(started.value)
+    expect(applied.ok).toBe(true)
+    expect(plans.graph.components.some((row) => row.id === 'c-lunch')).toBe(true)
+    expect(plans.graph.components.some((row) => row.id === 'c-dinner')).toBe(false)
+    expect(plans.graph.components.some((row) => row.slotId === 'slot-dinner')).toBe(true)
+    expect(plans.graph.plan.revision).toBe(2)
+  })
+
+  it('rejects a stale replace proposal after a lock toggle', async () => {
+    const soup = baseRecipe()
+    const { tagIds, ...soupRest } = soup
+    void tagIds
+    const event: CookingEvent = {
+      id: 'event-soup',
+      planId: 'plan-1',
+      sessionId: 'session-1',
+      recipeId: soup.id,
+      recipeSnapshot: { ...soupRest, tags: ['Comfort'] },
+      outputQuantity: { value: 3, unit: 'serving' },
+      scheduledDate: '2026-01-06',
+    }
+    const { generation, plans } = makeServices(
+      makeGraph({
+        cookingEvents: [event],
+        components: [
+          {
+            id: 'c-dinner',
+            slotId: 'slot-dinner',
+            source: { type: 'cooking-event', cookingEventId: 'event-soup' },
+            allocatedQuantity: { value: 3, unit: 'serving' },
+          },
+        ],
+      }),
+      [soup],
+    )
+    const started = await generation.startGeneration(['slot-dinner'], {
+      seed: 'seed-1',
+      mode: 'replace',
+    })
+    if (!started.ok) throw new Error(started.error)
+    await plans.setSlotGenerationLocked('slot-dinner', true)
+    const applied = await generation.applyProposal(started.value)
+    expect(applied).toEqual({ ok: false, error: 'stale-proposal' })
+    expect(plans.graph.components.some((row) => row.id === 'c-dinner')).toBe(true)
+  })
+
+  it('replace of a leftover consumer does not require the source meal', async () => {
+    const chili = baseRecipe({ id: 'chili', name: 'Chili' })
+    const stew = baseRecipe({ id: 'stew', name: 'Stew' })
+    const { tagIds, ...chiliRest } = chili
+    void tagIds
+    const event: CookingEvent = {
+      id: 'event-chili',
+      planId: 'plan-1',
+      sessionId: 'session-1',
+      recipeId: chili.id,
+      recipeSnapshot: { ...chiliRest, tags: ['Comfort'] },
+      outputQuantity: { value: 6, unit: 'serving' },
+      scheduledDate: '2026-01-05',
+    }
+    const monday = emptySlot({ id: 'slot-mon', date: '2026-01-05' })
+    const tuesday = emptySlot({ id: 'slot-tue', date: '2026-01-06' })
+    const { generation, plans } = makeServices(
+      makeGraph({
+        slots: [monday, tuesday],
+        cookingEvents: [event],
+        components: [
+          {
+            id: 'c-mon',
+            slotId: 'slot-mon',
+            source: { type: 'cooking-event', cookingEventId: 'event-chili' },
+            allocatedQuantity: { value: 3, unit: 'serving' },
+          },
+          {
+            id: 'c-tue',
+            slotId: 'slot-tue',
+            source: { type: 'cooking-event', cookingEventId: 'event-chili' },
+            allocatedQuantity: { value: 3, unit: 'serving' },
+          },
+        ],
+      }),
+      [chili, stew],
+    )
+    const started = await generation.startGeneration(['slot-tue'], {
+      seed: 'seed-1',
+      mode: 'replace',
+    })
+    if (!started.ok) throw new Error(started.error)
+    const applied = await generation.applyProposal(started.value)
+    expect(applied.ok).toBe(true)
+    expect(plans.graph.components.some((row) => row.id === 'c-mon')).toBe(true)
+    expect(plans.graph.components.some((row) => row.id === 'c-tue')).toBe(false)
+    expect(plans.graph.cookingEvents.some((row) => row.id === 'event-chili')).toBe(true)
+  })
+
+  it('replace of producer plus dependents is atomic and does not construct groceries', async () => {
+    const chili = baseRecipe({ id: 'chili', name: 'Chili' })
+    const stew = baseRecipe({ id: 'stew', name: 'Stew' })
+    const { tagIds, ...chiliRest } = chili
+    void tagIds
+    const event: CookingEvent = {
+      id: 'event-chili',
+      planId: 'plan-1',
+      sessionId: 'session-1',
+      recipeId: chili.id,
+      recipeSnapshot: { ...chiliRest, tags: ['Comfort'] },
+      outputQuantity: { value: 6, unit: 'serving' },
+      scheduledDate: '2026-01-05',
+    }
+    const monday = emptySlot({ id: 'slot-mon', date: '2026-01-05' })
+    const tuesday = emptySlot({ id: 'slot-tue', date: '2026-01-06' })
+    const { generation, plans } = makeServices(
+      makeGraph({
+        slots: [monday, tuesday],
+        cookingEvents: [event],
+        components: [
+          {
+            id: 'c-mon',
+            slotId: 'slot-mon',
+            source: { type: 'cooking-event', cookingEventId: 'event-chili' },
+            allocatedQuantity: { value: 3, unit: 'serving' },
+          },
+          {
+            id: 'c-tue',
+            slotId: 'slot-tue',
+            source: { type: 'cooking-event', cookingEventId: 'event-chili' },
+            allocatedQuantity: { value: 3, unit: 'serving' },
+          },
+        ],
+      }),
+      [chili, stew],
+    )
+    const started = await generation.startGeneration(['slot-mon', 'slot-tue'], {
+      seed: 'seed-1',
+      mode: 'replace',
+    })
+    if (!started.ok) throw new Error(started.error)
+    const applied = await generation.applyProposal(started.value)
+    expect(applied.ok).toBe(true)
+    expect(plans.graph.components.some((row) => row.id === 'c-mon')).toBe(false)
+    expect(plans.graph.components.some((row) => row.id === 'c-tue')).toBe(false)
     expect(plans.graph.plan.revision).toBe(2)
   })
 })

@@ -162,6 +162,16 @@ export class PlanService {
     return { ok: true }
   }
 
+  async setSlotGenerationLocked(
+    slotId: MealSlotId,
+    locked: boolean,
+  ): Promise<{ ok: true } | { ok: false; error: PlanError }> {
+    const slot = await this.plans.getSlot(slotId)
+    if (!slot) return { ok: false, error: 'slot-not-found' }
+    await this.plans.setSlotGenerationLocked(slotId, locked)
+    return { ok: true }
+  }
+
   async addNewCookingEventComponent(
     slotId: MealSlotId,
     recipeId: RecipeId,
@@ -201,14 +211,18 @@ export class PlanService {
 
   async addGeneratedMealComponents(
     items: Array<{ slotId: MealSlotId; components: GeneratedComponent[] }>,
+    options: { clearSlotIds?: readonly MealSlotId[] } = {},
   ): Promise<{ ok: true; components: MealComponent[] } | { ok: false; error: PlanError }> {
-    if (items.length === 0) return { ok: true, components: [] }
+    if (items.length === 0 && (options.clearSlotIds?.length ?? 0) === 0) {
+      return { ok: true, components: [] }
+    }
     const inputs: AddGeneratedComponentInput[] = []
     let planId: PlanId | undefined
     let graph: PlanGraph | undefined
     const leftoverUsed = new Map<CookingEventId, Quantity>()
     const proposedToReal = new Map<string, CookingEventId>()
     const proposedEvents = new Map<string, CookingEvent>()
+    const clearSlotIds = new Set(options.clearSlotIds ?? [])
     for (const item of items) {
       for (const component of item.components) {
         if (component.type === 'recipe') {
@@ -275,7 +289,9 @@ export class PlanService {
             ? this.quantities.add(already, component.allocatedQuantity)
             : component.allocatedQuantity
           if (!extra) return { ok: false, error: 'incompatible-quantity' }
-          const graphComponents = proposed ? [] : graph.components
+          const graphComponents = proposed
+            ? []
+            : graph.components.filter((row) => !clearSlotIds.has(row.slotId))
           const allocCheck = this.checkAllocation(event, graphComponents, extra)
           if (allocCheck !== 'ok') return { ok: false, error: allocCheck }
           leftoverUsed.set(event.id, extra)
@@ -308,7 +324,10 @@ export class PlanService {
       }
     }
     if (!planId) return { ok: false, error: 'not-found' }
-    const components = await this.plans.addGeneratedComponents(planId, inputs)
+    const components =
+      clearSlotIds.size > 0
+        ? await this.plans.replaceGeneratedComponents(planId, [...clearSlotIds], inputs)
+        : await this.plans.addGeneratedComponents(planId, inputs)
     return { ok: true, components }
   }
 

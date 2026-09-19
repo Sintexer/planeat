@@ -23,8 +23,16 @@ import {
   type ScoreReason,
 } from './scoring'
 
-export const GENERATION_ALGORITHM_VERSION = '35'
+export const GENERATION_ALGORITHM_VERSION = '36'
 export const GENERATION_POLICY_VERSION = '31'
+
+export const GENERATION_MODES = ['fill-empty', 'replace'] as const
+export type GenerationMode = (typeof GENERATION_MODES)[number]
+export const DEFAULT_GENERATION_MODE: GenerationMode = 'fill-empty'
+
+export function mergeGenerationMode(mode?: GenerationMode): GenerationMode {
+  return mode === 'replace' ? 'replace' : 'fill-empty'
+}
 
 export type GenerationSearchBudget = {
   beamWidth: number
@@ -155,6 +163,7 @@ export function canonicalizeGenerationBatchPolicy(
 export type RequestedGenerationSlot = {
   slot: MealSlot
   componentCount: number
+  existingLabels?: readonly string[]
 }
 
 export type GenerationCatalogIds = {
@@ -200,6 +209,7 @@ export type GenerationInput = {
   searchBudget?: GenerationSearchBudget
   compositionBounds?: GenerationCompositionBounds
   batchPolicy?: GenerationBatchPolicy
+  generationMode?: GenerationMode
 }
 
 export type SlotAssignmentSource =
@@ -261,6 +271,13 @@ export type UnfilledSlot = {
   reason: UnfilledReason
 }
 
+export type ReplacementPreviewSlot = {
+  slotId: MealSlotId
+  date: LocalDate
+  mealType: MealType
+  removedNames: readonly string[]
+}
+
 export type WeekGenerationProposal = {
   requestId: string
   algorithmVersion: string
@@ -275,6 +292,8 @@ export type WeekGenerationProposal = {
   budgetUsed: GenerationSearchBudget
   expansionsUsed: number
   proposedCookingEvents?: ProposedCookingEvent[]
+  generationMode?: GenerationMode
+  replacementPreview?: readonly ReplacementPreviewSlot[]
 }
 
 /** Sprint 28 name: a week proposal, often with a single assignment. */
@@ -287,7 +306,8 @@ export type GenerationFingerprintParts = {
   planRevision: number
   peopleCount: number
   seed: string
-  requested: readonly { slotId: string; mealType: string }[]
+  generationMode: GenerationMode
+  requested: readonly { slotId: string; mealType: string; generationLocked: boolean }[]
   eligible: readonly { id: string; updatedAt: number }[]
   overrides: readonly { slotId: string; value: number; unit: string }[]
   policy: GenerationHardPolicy
@@ -326,6 +346,7 @@ export function generationInputFingerprint(parts: GenerationFingerprintParts): s
     planRevision: parts.planRevision,
     peopleCount: parts.peopleCount,
     seed: parts.seed,
+    generationMode: parts.generationMode,
     requested,
     eligible,
     overrides,
@@ -371,9 +392,11 @@ export function fingerprintFromInput(input: GenerationInput): string {
     planRevision: input.planRevision,
     peopleCount: input.peopleCount,
     seed: input.seed,
+    generationMode: mergeGenerationMode(input.generationMode),
     requested: input.requestedSlots.map((row) => ({
       slotId: row.slot.id,
       mealType: row.slot.mealType,
+      generationLocked: row.slot.generationLocked === true,
     })),
     eligible: [...eligibleIds.entries()].map(([id, updatedAt]) => ({ id, updatedAt })),
     overrides,

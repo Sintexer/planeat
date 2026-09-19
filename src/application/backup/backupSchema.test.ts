@@ -126,6 +126,39 @@ describe('backupFileSchema — tag catalog + tagIds shape', () => {
     expect(result.data.data.tags[1]?.archived).toBeUndefined()
   })
 
+  it('round-trips generationLocked on a meal slot and still accepts slots that omit it', () => {
+    const data = emptyData()
+    data.mealSlots = [
+      {
+        id: 'slot-1',
+        planId: 'plan-1',
+        date: '2026-01-05',
+        mealType: 'dinner',
+        excluded: false,
+        generationLocked: true,
+      },
+      {
+        id: 'slot-2',
+        planId: 'plan-1',
+        date: '2026-01-06',
+        mealType: 'lunch',
+        excluded: false,
+      },
+    ]
+
+    const file = {
+      format: 'family-menu-planner',
+      schemaVersion: CURRENT_BACKUP_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    }
+    const result = backupFileSchema.safeParse(JSON.parse(JSON.stringify(file)))
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.data.data.mealSlots[0]?.generationLocked).toBe(true)
+    expect(result.data.data.mealSlots[1]?.generationLocked).toBeUndefined()
+  })
+
   it('rejects duplicate tag ids', () => {
     const data = emptyData()
     data.tags = [

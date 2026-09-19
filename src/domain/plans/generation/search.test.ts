@@ -142,7 +142,7 @@ describe('runGenerationSearch', () => {
     const b = runGenerationSearch(snapshot, 'req-b', scaleQuantity)
     expect(a.fingerprint).toBe(b.fingerprint)
     expect(a.assignments).toEqual(b.assignments)
-    expect(a.algorithmVersion).toBe('35')
+    expect(a.algorithmVersion).toBe('36')
   })
 
   it('uses a per-slot quantity override', () => {
@@ -247,6 +247,18 @@ describe('fingerprintFromInput', () => {
       ),
     ).not.toBe(base)
     expect(fingerprintFromInput(input({ previousWeekRecipeIds: ['soup'] }))).not.toBe(base)
+  })
+
+  it('changes when generation mode or slot lock changes', () => {
+    const base = fingerprintFromInput(input())
+    expect(fingerprintFromInput(input({ generationMode: 'replace' }))).not.toBe(base)
+    expect(
+      fingerprintFromInput(
+        input({
+          requestedSlots: [{ slot: slot({ generationLocked: true }), componentCount: 0 }],
+        }),
+      ),
+    ).not.toBe(base)
   })
 
   it('changes when the search budget changes', () => {

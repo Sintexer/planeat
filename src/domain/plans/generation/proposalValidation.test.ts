@@ -102,14 +102,27 @@ function proposal(
 }
 
 describe('validateSlotForGeneration', () => {
-  it('rejects excluded and filled slots', () => {
+  it('rejects excluded, filled, and locked slots', () => {
     expect(validateSlotForGeneration(slot({ excluded: true }), 0)).toBe('slot-excluded')
     expect(validateSlotForGeneration(slot(), 1)).toBe('slot-not-empty')
+    expect(validateSlotForGeneration(slot({ generationLocked: true }), 0)).toBe('slot-locked')
     expect(validateSlotForGeneration(slot(), 0)).toBeUndefined()
+    expect(validateSlotForGeneration(slot(), 1, 'replace')).toBeUndefined()
+    expect(validateSlotForGeneration(slot({ generationLocked: true }), 1, 'replace')).toBe(
+      'slot-locked',
+    )
   })
 })
 
 describe('validateProposalAgainstLive', () => {
+  it('accepts a filled slot in replace mode', () => {
+    const snapshot = live({
+      generationMode: 'replace',
+      requestedSlots: [{ slot: slot(), componentCount: 1, existingLabels: ['Soup'] }],
+    })
+    expect(validateProposalAgainstLive(proposal(snapshot), snapshot)).toBeUndefined()
+  })
+
   it('accepts a matching empty-slot proposal', () => {
     const snapshot = live()
     expect(validateProposalAgainstLive(proposal(snapshot), snapshot)).toBeUndefined()

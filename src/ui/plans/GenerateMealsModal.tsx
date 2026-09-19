@@ -1,14 +1,25 @@
-import { Button, Checkbox, Group, Loader, Stack, Switch, Text } from '@mantine/core'
+import {
+  Button,
+  Checkbox,
+  Group,
+  Loader,
+  SegmentedControl,
+  Stack,
+  Switch,
+  Text,
+} from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { useState } from 'react'
 import { useServices } from '../../app/servicesContext'
+import type { GenerationMode } from '../../domain/plans/generation/proposal'
+import { isGenerationLocked } from '../../domain/plans/MealSlot'
 import type { PlanGraph } from '../../domain/plans/PlanGraph'
 import type { Quantity } from '../../domain/shared/Quantity'
 import { QuantityFields } from '../components/QuantityFields'
 import { generationErrorMessage } from '../localization/errors'
 import { mealTypeLabel } from '../localization/labels'
 import { useLocalization } from '../localization/LocalizationContext'
-import { openProposalPreview } from './openGenerateMeal'
+import { confirmReplaceDependents, openProposalPreview } from './openGenerateMeal'
 
 export function GenerateMealsModal({
   graph,
@@ -21,13 +32,36 @@ export function GenerateMealsModal({
 }) {
   const { generationService } = useServices()
   const { t } = useLocalization()
-  const emptySlots = graph.slots.filter(
-    (slot) => !slot.excluded && graph.components.every((component) => component.slotId !== slot.id),
+  const [mode, setMode] = useState<GenerationMode>('fill-empty')
+  const eligibleSlots = graph.slots.filter((slot) => {
+    if (slot.excluded || isGenerationLocked(slot)) return false
+    const filled = graph.components.some((component) => component.slotId === slot.id)
+    return mode === 'fill-empty' ? !filled : filled
+  })
+  const [selected, setSelected] = useState<string[]>(() =>
+    graph.slots
+      .filter(
+        (slot) =>
+          !slot.excluded &&
+          !isGenerationLocked(slot) &&
+          graph.components.every((component) => component.slotId !== slot.id),
+      )
+      .map((slot) => slot.id),
   )
-  const [selected, setSelected] = useState<string[]>(() => emptySlots.map((slot) => slot.id))
   const [custom, setCustom] = useState<Record<string, boolean>>({})
   const [amounts, setAmounts] = useState<Record<string, { value: number | ''; unit: string }>>({})
   const [running, setRunning] = useState(false)
+
+  const changeMode = (next: string) => {
+    const generationMode = next === 'replace' ? 'replace' : 'fill-empty'
+    setMode(generationMode)
+    const nextSlots = graph.slots.filter((slot) => {
+      if (slot.excluded || isGenerationLocked(slot)) return false
+      const filled = graph.components.some((component) => component.slotId === slot.id)
+      return generationMode === 'fill-empty' ? !filled : filled
+    })
+    setSelected(generationMode === 'fill-empty' ? nextSlots.map((slot) => slot.id) : [])
+  }
 
   const toggle = (slotId: string, checked: boolean) => {
     setSelected((current) =>
@@ -43,9 +77,23 @@ export function GenerateMealsModal({
       if (!amount || amount.value === '') continue
       overrides[slotId] = { value: amount.value, unit: amount.unit }
     }
+    let slotIds = selected
+    if (mode === 'replace') {
+      const inspected = await generationService.inspectReplaceDependents(selected)
+      if (!inspected.ok) {
+        notifications.show({ message: generationErrorMessage(t, inspected.error), color: 'error' })
+        return
+      }
+      if (inspected.value.extraSlots.length > 0) {
+        const confirmed = await confirmReplaceDependents(t, inspected.value.extraSlots)
+        if (!confirmed) return
+        slotIds = [...new Set([...selected, ...inspected.value.extraSlots.map((slot) => slot.id)])]
+      }
+    }
     setRunning(true)
-    const result = await generationService.startGeneration(selected, {
+    const result = await generationService.startGeneration(slotIds, {
       quantityOverrides: Object.keys(overrides).length > 0 ? overrides : undefined,
+      mode,
     })
     setRunning(false)
     if (!result.ok) {
@@ -65,13 +113,24 @@ export function GenerateMealsModal({
 
   return (
     <Stack gap="sm">
-      <Text size="sm">{t('generation.selectSlots')}</Text>
-      {emptySlots.length === 0 && (
+      <SegmentedControl
+        fullWidth
+        value={mode}
+        onChange={changeMode}
+        data={[
+          { value: 'fill-empty', label: t('generation.modeFillEmpty') },
+          { value: 'replace', label: t('generation.modeReplace') },
+        ]}
+      />
+      <Text size="sm">
+        {mode === 'replace' ? t('generation.selectReplaceSlots') : t('generation.selectSlots')}
+      </Text>
+      {eligibleSlots.length === 0 && (
         <Text size="sm" c="dimmed">
-          {t('generation.noEmptySlots')}
+          {mode === 'replace' ? t('generation.noReplaceSlots') : t('generation.noEmptySlots')}
         </Text>
       )}
-      {emptySlots.map((slot) => (
+      {eligibleSlots.map((slot) => (
         <Stack key={slot.id} gap={6}>
           <Checkbox
             checked={selected.includes(slot.id)}

@@ -331,6 +331,7 @@ export function fixedMealsFromPlan(args: {
   cookingEvents: readonly CookingEvent[]
   recipes: readonly Recipe[]
   simpleFoods: readonly SimpleFood[]
+  omitSlotIds?: ReadonlySet<string>
 }): FixedMeal[] {
   const recipesById = new Map(args.recipes.map((recipe) => [recipe.id, recipe]))
   const foodsById = new Map(args.simpleFoods.map((food) => [food.id, food]))
@@ -341,6 +342,7 @@ export function fixedMealsFromPlan(args: {
   for (const component of args.components) {
     const slot = slotsById.get(component.slotId)
     if (!slot || slot.excluded) continue
+    if (args.omitSlotIds?.has(slot.id)) continue
     const existing = filled.get(slot.id) ?? {
       slotId: slot.id,
       date: slot.date,

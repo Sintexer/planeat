@@ -27,7 +27,7 @@ Adds weekly planning tables; settings rows gain `weekStartDay` (default Monday =
 | Table            | Primary key | Indexes                            | Notes                                                                         |
 | ---------------- | ----------- | ---------------------------------- | ----------------------------------------------------------------------------- |
 | `plans`          | `id`        | `startDate`                        | Seven-day plan; `peopleCount`, `revision`, empty `preferences`                |
-| `mealSlots`      | `id`        | `planId`, `[planId+date+mealType]` | One row per day × breakfast/lunch/dinner; `excluded` flag                     |
+| `mealSlots`      | `id`        | `planId`, `[planId+date+mealType]` | One row per day × breakfast/lunch/dinner; `excluded` flag; optional `generationLocked` (Sprint 36, not indexed) |
 | `mealComponents` | `id`        | `slotId`                           | Source is cooking-event or simple-food; allocated quantity; multiple per slot |
 | `cookingEvents`  | `id`        | `planId`                           | Recipe snapshot + output quantity; `sessionId` filled in v5 migration         |
 

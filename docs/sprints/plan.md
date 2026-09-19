@@ -699,7 +699,7 @@ Test one question early, though: is “family” a household using one shared de
 
 # Phase 7 — Automatic meal planning
 
-Offline generator on the existing cooking-event model. **Next: Sprint 36.**
+Offline generator on the existing cooking-event model. **Next: Sprint 37.**
 
 Generation always produces a proposal. Apply goes through existing `PlanService` writes. Grocery lists never update as a side effect. Full implementation cards, module boundaries, acceptance tests, and demo scripts: [`generation.md`](generation.md).
 
@@ -823,4 +823,6 @@ Sprint 34 is done: generate may allocate remaining portions of existing same-wee
 
 Sprint 35 is done: generate may cook extra portions on a new same-week cooking event and reuse them later (`algorithmVersion` 35), within `generationBatchPolicy` extra-use and unallocated-production settings; Apply writes one event plus leftover links; grocery lists stay untouched. Additive settings only — no Dexie or backup-format bump.
 
-**Next:** Sprint 36 — regenerate selected meals and lock content. Phase 7 cards: [`generation.md`](generation.md). Lane B remains optional.
+Sprint 36 is done: slot-level `generationLocked` (additive backup); fill-empty remains default and skips locked slots; replace selected meals (week modal or regenerate) with leftover-dependent confirmation; locked dependents block destructive regeneration; preview lists removals; Apply clears then writes in one Dexie transaction; grocery lists stay untouched. `algorithmVersion` `36`. No Dexie or backup-format bump.
+
+**Next:** Sprint 37 — reusable generation presets. Phase 7 cards: [`generation.md`](generation.md). Lane B remains optional.

@@ -15,6 +15,9 @@ const GENERATION_ERRORS: Record<string, MessageId> = {
   'no-eligible-candidates': 'generation.noEligible',
   'slot-not-empty': 'generation.slotNotEmpty',
   'slot-excluded': 'generation.slotExcluded',
+  'slot-locked': 'generation.slotLocked',
+  'dependents-locked': 'generation.dependentsLocked',
+  'replace-dependents-required': 'generation.replaceDependentsRequired',
   'stale-proposal': 'generation.stale',
 }
 

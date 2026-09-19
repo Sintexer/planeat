@@ -11,4 +11,10 @@ export interface MealSlot {
   mealType: MealType
   excluded: boolean
   note?: string
+  /** When true, generation never fills or replaces this slot. Omitted means unlocked. */
+  generationLocked?: boolean
+}
+
+export function isGenerationLocked(slot: MealSlot): boolean {
+  return slot.generationLocked === true
 }

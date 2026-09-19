@@ -1,5 +1,5 @@
 import { ActionIcon, Badge, Group, Paper, Stack, Text, Menu, UnstyledButton } from '@mantine/core'
-import { DotsThree, MagicWand, Plus, Warning, X } from '@phosphor-icons/react'
+import { DotsThree, LockSimple, MagicWand, Plus, Warning, X } from '@phosphor-icons/react'
 import { mealTypeLabel } from '../localization/labels'
 import { RecipePhotoThumb } from './RecipePhotoThumb'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
@@ -15,7 +15,10 @@ interface MealSlotCardProps {
   onClear: () => void
   onExclude: () => void
   onUnexclude: () => void
+  onLock: () => void
+  onUnlock: () => void
   onGenerate?: () => void
+  onRegenerate?: () => void
 }
 
 function DishRow({
@@ -94,18 +97,24 @@ function AddDishButton({ onOpen, label }: { onOpen: () => void; label: string })
 
 function SlotMenu({
   excluded,
+  locked,
   hasComponents,
   onOpen,
   onClear,
   onExclude,
   onUnexclude,
+  onLock,
+  onUnlock,
 }: {
   excluded: boolean
+  locked: boolean
   hasComponents: boolean
   onOpen: () => void
   onClear: () => void
   onExclude: () => void
   onUnexclude: () => void
+  onLock: () => void
+  onUnlock: () => void
 }) {
   const { t } = useLocalization()
   return (
@@ -120,6 +129,11 @@ function SlotMenu({
           <>
             <Menu.Item onClick={onUnexclude}>{t('slot.includeAgain')}</Menu.Item>
             <Menu.Item onClick={onOpen}>{t('slot.editMeal')}</Menu.Item>
+            {locked ? (
+              <Menu.Item onClick={onUnlock}>{t('slot.unlock')}</Menu.Item>
+            ) : (
+              <Menu.Item onClick={onLock}>{t('slot.lock')}</Menu.Item>
+            )}
           </>
         ) : (
           <>
@@ -132,6 +146,11 @@ function SlotMenu({
               </Menu.Item>
             )}
             <Menu.Item onClick={onExclude}>{t('slot.excludeEatingOut')}</Menu.Item>
+            {locked ? (
+              <Menu.Item onClick={onUnlock}>{t('slot.unlock')}</Menu.Item>
+            ) : (
+              <Menu.Item onClick={onLock}>{t('slot.lock')}</Menu.Item>
+            )}
           </>
         )}
       </Menu.Dropdown>
@@ -146,7 +165,10 @@ export function MealSlotCard({
   onClear,
   onExclude,
   onUnexclude,
+  onLock,
+  onUnlock,
   onGenerate,
+  onRegenerate,
 }: MealSlotCardProps) {
   const { slot, components } = display
   const hasComponents = components.length > 0
@@ -175,14 +197,27 @@ export function MealSlotCard({
             <Text fw={600} style={{ fontFamily: 'Sora, Inter, sans-serif' }}>
               {mealTypeLabel(t, slot.mealType)}
             </Text>
+            {slot.generationLocked && (
+              <Badge
+                variant="light"
+                size="sm"
+                radius="xl"
+                leftSection={<LockSimple size={12} weight="fill" />}
+              >
+                {t('slot.locked')}
+              </Badge>
+            )}
           </Group>
           <SlotMenu
             excluded={slot.excluded}
+            locked={slot.generationLocked === true}
             hasComponents={hasComponents}
             onOpen={onOpen}
             onClear={onClear}
             onExclude={onExclude}
             onUnexclude={onUnexclude}
+            onLock={onLock}
+            onUnlock={onUnlock}
           />
         </Group>
 
@@ -224,6 +259,25 @@ export function MealSlotCard({
                     <MagicWand size={16} />
                     <Text size="sm" fw={500}>
                       {t('generation.generate')}
+                    </Text>
+                  </Group>
+                </Paper>
+              </UnstyledButton>
+            )}
+            {hasComponents && onRegenerate && (
+              <UnstyledButton onClick={onRegenerate} w="100%" style={{ textAlign: 'center' }}>
+                <Paper
+                  p={10}
+                  radius="md"
+                  style={{
+                    border: '1.5px dashed var(--mantine-color-default-border)',
+                    background: 'transparent',
+                  }}
+                >
+                  <Group gap={6} justify="center">
+                    <MagicWand size={16} />
+                    <Text size="sm" fw={500}>
+                      {t('generation.regenerate')}
                     </Text>
                   </Group>
                 </Paper>

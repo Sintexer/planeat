@@ -16,6 +16,7 @@ import {
   Calendar,
   DotsThreeVertical,
   ForkKnife,
+  LockSimple,
   MagicWand,
   PencilSimple,
   Plus,
@@ -699,7 +700,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
           <Button leftSection={<Plus size={16} />} onClick={() => setAddOpen(true)}>
             {t('meal.addComponent')}
           </Button>
-          {components.length === 0 && !slot.excluded && (
+          {components.length === 0 && !slot.excluded && !slot.generationLocked && (
             <Button
               variant="light"
               leftSection={<MagicWand size={16} />}
@@ -713,6 +714,23 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
               }
             >
               {t('generation.generate')}
+            </Button>
+          )}
+          {components.length > 0 && !slot.excluded && !slot.generationLocked && (
+            <Button
+              variant="light"
+              leftSection={<MagicWand size={16} />}
+              onClick={() =>
+                void openGenerateMealPreview({
+                  slotId: slot.id,
+                  generationService,
+                  t,
+                  formatQty,
+                  mode: 'replace',
+                })
+              }
+            >
+              {t('generation.regenerate')}
             </Button>
           )}
           <Group gap="xs" wrap="nowrap">
@@ -739,6 +757,21 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                 >
                   {t('meal.insertFavorite')}
                 </Menu.Item>
+                {slot.generationLocked ? (
+                  <Menu.Item
+                    leftSection={<LockSimple size={16} />}
+                    onClick={() => void planService.setSlotGenerationLocked(slot.id, false)}
+                  >
+                    {t('slot.unlock')}
+                  </Menu.Item>
+                ) : (
+                  <Menu.Item
+                    leftSection={<LockSimple size={16} />}
+                    onClick={() => void planService.setSlotGenerationLocked(slot.id, true)}
+                  >
+                    {t('slot.lock')}
+                  </Menu.Item>
+                )}
               </Menu.Dropdown>
             </Menu>
             <Button variant="default" style={{ flex: 1 }} onClick={onClose}>

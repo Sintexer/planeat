@@ -183,6 +183,7 @@ const mealSlotSchema = z.object({
   mealType: z.enum(MEAL_TYPES),
   excluded: z.boolean(),
   note: z.string().optional(),
+  generationLocked: z.boolean().optional(),
 })
 
 const componentSourceSchema = z.discriminatedUnion('type', [

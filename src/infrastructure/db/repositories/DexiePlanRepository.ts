@@ -66,6 +66,15 @@ export class DexiePlanRepository implements PlanRepository {
     await this.db.mealSlots.update(slotId, { excluded })
   }
 
+  async setSlotGenerationLocked(slotId: MealSlotId, locked: boolean): Promise<void> {
+    await this.db.transaction('rw', this.db.plans, this.db.mealSlots, async () => {
+      const slot = await this.db.mealSlots.get(slotId)
+      if (!slot) return
+      await this.db.mealSlots.update(slotId, { generationLocked: locked })
+      await this.bumpRevisionInTx(slot.planId)
+    })
+  }
+
   listComponentsForSlot(slotId: MealSlotId): Promise<MealComponent[]> {
     return this.db.mealComponents.where('slotId').equals(slotId).toArray()
   }
@@ -184,7 +193,15 @@ export class DexiePlanRepository implements PlanRepository {
     planId: PlanId,
     inputs: AddGeneratedComponentInput[],
   ): Promise<MealComponent[]> {
-    if (inputs.length === 0) return []
+    return this.replaceGeneratedComponents(planId, [], inputs)
+  }
+
+  async replaceGeneratedComponents(
+    planId: PlanId,
+    clearSlotIds: readonly MealSlotId[],
+    inputs: AddGeneratedComponentInput[],
+  ): Promise<MealComponent[]> {
+    if (clearSlotIds.length === 0 && inputs.length === 0) return []
     return this.db.transaction(
       'rw',
       this.db.plans,
@@ -193,6 +210,9 @@ export class DexiePlanRepository implements PlanRepository {
       this.db.cookingEvents,
       this.db.prepSessions,
       async () => {
+        for (const slotId of clearSlotIds) {
+          await this.clearSlotContents(slotId)
+        }
         const components: MealComponent[] = []
         for (const input of inputs) {
           await this.db.mealSlots.update(input.slotId, { excluded: false })
