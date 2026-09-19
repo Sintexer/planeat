@@ -1,6 +1,7 @@
 import type { Recipe } from '../../recipes/Recipe'
 import type { SimpleFood } from '../../simpleFoods/SimpleFood'
 import type { MealType } from '../../shared/MealEnums'
+import type { Quantity } from '../../shared/Quantity'
 import type { CookingEvent } from '../CookingEvent'
 import type { MealComponent } from '../MealComponent'
 import type { MealSlot } from '../MealSlot'
@@ -68,10 +69,17 @@ export type FixedMealConflict = {
   reasons: ConstraintReason[]
 }
 
+export type UnallocatedRemainder = {
+  proposedEventId: string
+  recipeName: string
+  remaining: Quantity
+}
+
 export type GenerationDiagnostics = {
   dropCounts: FacetDropCount[]
   fixedConflicts: FixedMealConflict[]
   missingPolicyRefs: MissingPolicyRefs
+  unallocatedRemainders?: UnallocatedRemainder[]
 }
 
 const UNKNOWN_POLICIES = new Set<UnknownDataPolicy>(['exclude', 'allow'])

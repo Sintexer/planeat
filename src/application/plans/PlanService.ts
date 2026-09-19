@@ -207,6 +207,8 @@ export class PlanService {
     let planId: PlanId | undefined
     let graph: PlanGraph | undefined
     const leftoverUsed = new Map<CookingEventId, Quantity>()
+    const proposedToReal = new Map<string, CookingEventId>()
+    const proposedEvents = new Map<string, CookingEvent>()
     for (const item of items) {
       for (const component of item.components) {
         if (component.type === 'recipe') {
@@ -223,20 +225,45 @@ export class PlanService {
           if (planId !== undefined && built.planId !== planId)
             return { ok: false, error: 'not-found' }
           planId = built.planId
-          inputs.push({ kind: 'cooking-event', ...built.input })
+          const cookingEventId = component.proposedEventId ? crypto.randomUUID() : undefined
+          if (component.proposedEventId && cookingEventId) {
+            proposedToReal.set(component.proposedEventId, cookingEventId)
+            leftoverUsed.set(cookingEventId, component.allocatedQuantity)
+            proposedEvents.set(component.proposedEventId, {
+              id: cookingEventId,
+              planId,
+              sessionId: '',
+              recipeId: component.recipeId,
+              recipeSnapshot: built.input.recipeSnapshot,
+              outputQuantity: component.outputQuantity,
+              scheduledDate: built.input.scheduledDate,
+            })
+          }
+          inputs.push({
+            kind: 'cooking-event',
+            ...built.input,
+            cookingEventId,
+          })
         } else if (component.type === 'leftover') {
           const ctx = await this.slotPlanContext(item.slotId)
           if (!ctx.ok) return ctx
           if (planId !== undefined && ctx.plan.id !== planId)
             return { ok: false, error: 'not-found' }
           planId = ctx.plan.id
-          graph = graph ?? (await this.plans.getGraph(planId))
-          if (!graph) return { ok: false, error: 'not-found' }
-          const event = graph.cookingEvents.find((row) => row.id === component.cookingEventId)
-          if (!event) return { ok: false, error: 'cooking-event-not-found' }
           if (!this.isValidPositiveQuantity(component.allocatedQuantity)) {
             return { ok: false, error: 'invalid-quantity' }
           }
+          const proposed = component.proposedEventId
+            ? proposedEvents.get(component.proposedEventId)
+            : undefined
+          const realId = component.proposedEventId
+            ? proposedToReal.get(component.proposedEventId)
+            : component.cookingEventId
+          if (!realId) return { ok: false, error: 'cooking-event-not-found' }
+          graph = graph ?? (await this.plans.getGraph(planId))
+          if (!graph) return { ok: false, error: 'not-found' }
+          const event = proposed ?? graph.cookingEvents.find((row) => row.id === realId)
+          if (!event) return { ok: false, error: 'cooking-event-not-found' }
           const reuse = checkReusePolicy(
             event.recipeSnapshot.reusePolicy,
             event.scheduledDate,
@@ -248,7 +275,8 @@ export class PlanService {
             ? this.quantities.add(already, component.allocatedQuantity)
             : component.allocatedQuantity
           if (!extra) return { ok: false, error: 'incompatible-quantity' }
-          const allocCheck = this.checkAllocation(event, graph.components, extra)
+          const graphComponents = proposed ? [] : graph.components
+          const allocCheck = this.checkAllocation(event, graphComponents, extra)
           if (allocCheck !== 'ok') return { ok: false, error: allocCheck }
           leftoverUsed.set(event.id, extra)
           inputs.push({

@@ -656,4 +656,29 @@ describe('backupFileSchema — saved library views (Sprint 22)', () => {
       maxComponentsPerCandidate: 3,
     })
   })
+
+  it('accepts optional generationBatchPolicy on settings', () => {
+    const data = emptyData()
+    data.settings = [
+      {
+        ...DEFAULT_SETTINGS,
+        generationBatchPolicy: {
+          maxExtraPlannedUses: 1,
+          unallocatedProduction: 'allow-with-warning',
+        },
+      },
+    ]
+    const result = backupFileSchema.safeParse({
+      format: 'family-menu-planner',
+      schemaVersion: CURRENT_BACKUP_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      data,
+    })
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.data.data.settings[0].generationBatchPolicy).toEqual({
+      maxExtraPlannedUses: 1,
+      unallocatedProduction: 'allow-with-warning',
+    })
+  })
 })

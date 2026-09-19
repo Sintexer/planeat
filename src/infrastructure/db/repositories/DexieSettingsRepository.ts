@@ -31,7 +31,8 @@ export class DexieSettingsRepository implements SettingsRepository {
         !('generationHardPolicy' in existing) ||
         !Array.isArray(existing.generationPreferredTagIds) ||
         !('generationSearchBudget' in existing) ||
-        !('generationCompositionBounds' in existing)
+        !('generationCompositionBounds' in existing) ||
+        !('generationBatchPolicy' in existing)
       ) {
         await this.db.settings.put(merged)
       }

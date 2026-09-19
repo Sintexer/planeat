@@ -42,8 +42,11 @@ export function openProposalPreview(args: {
   const dropCounts = proposal.diagnostics.dropCounts.filter((row) =>
     unfilledMealTypes.has(row.mealType),
   )
+  const remainders = proposal.diagnostics.unallocatedRemainders ?? []
   const showDiagnostics =
-    proposal.unfilled.length > 0 || proposal.diagnostics.fixedConflicts.length > 0
+    proposal.unfilled.length > 0 ||
+    proposal.diagnostics.fixedConflicts.length > 0 ||
+    remainders.length > 0
 
   modals.open({
     title: t('generation.previewTitle'),
@@ -70,11 +73,19 @@ export function openProposalPreview(args: {
             )}
             {row.components.map((component) => (
               <Text size="sm" key={componentKey(component)}>
-                {t('generation.previewBody', {
-                  name: componentDisplayName(component),
-                  meal: mealTypeLabel(t, row.mealType),
-                  quantity: formatQty(component.allocatedQuantity),
-                })}
+                {component.type === 'recipe' &&
+                component.outputQuantity.value !== component.allocatedQuantity.value
+                  ? t('generation.previewCookedBatch', {
+                      name: componentDisplayName(component),
+                      meal: mealTypeLabel(t, row.mealType),
+                      cooked: formatQty(component.outputQuantity),
+                      eaten: formatQty(component.allocatedQuantity),
+                    })
+                  : t('generation.previewBody', {
+                      name: componentDisplayName(component),
+                      meal: mealTypeLabel(t, row.mealType),
+                      quantity: formatQty(component.allocatedQuantity),
+                    })}
               </Text>
             ))}
             {row.scoreReasons.map((reason, index) => (
@@ -131,6 +142,14 @@ export function openProposalPreview(args: {
                 ))}
               </>
             )}
+            {remainders.map((row) => (
+              <Text size="sm" c="dimmed" key={row.proposedEventId}>
+                {t('meal.unallocatedLine', {
+                  name: row.recipeName,
+                  quantity: formatQty(row.remaining),
+                })}
+              </Text>
+            ))}
           </Stack>
         )}
         <Group>

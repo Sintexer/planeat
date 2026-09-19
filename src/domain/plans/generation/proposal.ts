@@ -23,7 +23,7 @@ import {
   type ScoreReason,
 } from './scoring'
 
-export const GENERATION_ALGORITHM_VERSION = '34'
+export const GENERATION_ALGORITHM_VERSION = '35'
 export const GENERATION_POLICY_VERSION = '31'
 
 export type GenerationSearchBudget = {
@@ -113,6 +113,45 @@ export function canonicalizeGenerationCompositionBounds(
   return mergeGenerationCompositionBounds(bounds)
 }
 
+export const UNALLOCATED_PRODUCTION_POLICIES = ['disallow', 'allow-with-warning'] as const
+export type UnallocatedProductionPolicy = (typeof UNALLOCATED_PRODUCTION_POLICIES)[number]
+
+export type GenerationBatchPolicy = {
+  maxExtraPlannedUses: number
+  unallocatedProduction: UnallocatedProductionPolicy
+}
+
+export const DEFAULT_GENERATION_BATCH_POLICY: GenerationBatchPolicy = {
+  maxExtraPlannedUses: 0,
+  unallocatedProduction: 'disallow',
+}
+
+const MAX_EXTRA_PLANNED_USES = 3
+
+function parseUnallocatedProduction(value: unknown): UnallocatedProductionPolicy {
+  return value === 'allow-with-warning' ? 'allow-with-warning' : 'disallow'
+}
+
+export function mergeGenerationBatchPolicy(
+  row?: Partial<GenerationBatchPolicy> | null,
+): GenerationBatchPolicy {
+  return {
+    maxExtraPlannedUses: clampBudgetInt(
+      row?.maxExtraPlannedUses,
+      DEFAULT_GENERATION_BATCH_POLICY.maxExtraPlannedUses,
+      0,
+      MAX_EXTRA_PLANNED_USES,
+    ),
+    unallocatedProduction: parseUnallocatedProduction(row?.unallocatedProduction),
+  }
+}
+
+export function canonicalizeGenerationBatchPolicy(
+  policy: GenerationBatchPolicy,
+): GenerationBatchPolicy {
+  return mergeGenerationBatchPolicy(policy)
+}
+
 export type RequestedGenerationSlot = {
   slot: MealSlot
   componentCount: number
@@ -136,6 +175,8 @@ export type GenerationLeftoverEvent = {
   mealTypes: readonly MealType[]
   recipe: Recipe
   role?: RecipeRole
+  proposed?: boolean
+  producerSlotId?: MealSlotId
 }
 
 export type GenerationInput = {
@@ -158,6 +199,7 @@ export type GenerationInput = {
   tagNamesById: Readonly<Record<string, string>>
   searchBudget?: GenerationSearchBudget
   compositionBounds?: GenerationCompositionBounds
+  batchPolicy?: GenerationBatchPolicy
 }
 
 export type SlotAssignmentSource =
@@ -174,6 +216,7 @@ export type GeneratedComponent =
       outputQuantity: Quantity
       allocatedQuantity: Quantity
       role?: RecipeRole
+      proposedEventId?: string
     }
   | {
       type: 'simple-food'
@@ -190,7 +233,17 @@ export type GeneratedComponent =
       scheduledDate: LocalDate
       allocatedQuantity: Quantity
       role?: RecipeRole
+      proposedEventId?: string
     }
+
+export type ProposedCookingEvent = {
+  id: string
+  recipeId: string
+  recipeName: string
+  scheduledDate: LocalDate
+  outputQuantity: Quantity
+  producerSlotId: MealSlotId
+}
 
 export type SlotAssignment = {
   slotId: MealSlotId
@@ -221,6 +274,7 @@ export type WeekGenerationProposal = {
   diagnostics: GenerationDiagnostics
   budgetUsed: GenerationSearchBudget
   expansionsUsed: number
+  proposedCookingEvents?: ProposedCookingEvent[]
 }
 
 /** Sprint 28 name: a week proposal, often with a single assignment. */
@@ -241,6 +295,7 @@ export type GenerationFingerprintParts = {
   previousWeekRecipeIds: readonly string[]
   searchBudget: GenerationSearchBudget
   compositionBounds: GenerationCompositionBounds
+  batchPolicy: GenerationBatchPolicy
   simpleFoods: readonly { id: string; updatedAt: number }[]
   favorites: readonly { id: string; updatedAt: number }[]
   pairings: readonly { id: string }[]
@@ -281,6 +336,7 @@ export function generationInputFingerprint(parts: GenerationFingerprintParts): s
     ),
     searchBudget: canonicalizeGenerationSearchBudget(parts.searchBudget),
     compositionBounds: canonicalizeGenerationCompositionBounds(parts.compositionBounds),
+    batchPolicy: canonicalizeGenerationBatchPolicy(parts.batchPolicy),
     simpleFoods: [...parts.simpleFoods].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
     favorites: [...parts.favorites].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
     pairings: [...parts.pairings].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
@@ -295,6 +351,7 @@ export function fingerprintFromInput(input: GenerationInput): string {
   const softPrefs = input.softPrefs ?? DEFAULT_GENERATION_SOFT_PREFS
   const searchBudget = mergeGenerationSearchBudget(input.searchBudget)
   const compositionBounds = mergeGenerationCompositionBounds(input.compositionBounds)
+  const batchPolicy = mergeGenerationBatchPolicy(input.batchPolicy)
   const mealTypes = [...new Set(input.requestedSlots.map((row) => row.slot.mealType))]
   const eligibleIds = new Map<string, number>()
   for (const mealType of mealTypes) {
@@ -325,6 +382,7 @@ export function fingerprintFromInput(input: GenerationInput): string {
     previousWeekRecipeIds: input.previousWeekRecipeIds ?? [],
     searchBudget,
     compositionBounds,
+    batchPolicy,
     simpleFoods: (input.simpleFoods ?? []).map((food) => ({
       id: food.id,
       updatedAt: food.updatedAt,

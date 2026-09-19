@@ -157,6 +157,12 @@ const settingsSchema = z.object({
       maxComponentsPerCandidate: z.number(),
     })
     .optional(),
+  generationBatchPolicy: z
+    .object({
+      maxExtraPlannedUses: z.number(),
+      unallocatedProduction: z.enum(['disallow', 'allow-with-warning']),
+    })
+    .optional(),
 })
 
 const planSchema = z.object({

@@ -396,6 +396,8 @@ Soft preferences: quick-meal days, effort, recipe repetition (include `maxPrefer
 
 Search-state extensions: proposed events, produced/consumed/remaining portions, future feasible reuse, limited lookahead. Candidate variants: cook only for this meal; cook enough for one compatible later use; additional variants only within explicit batch limits.
 
+**Shipped.** `algorithmVersion` `35`: standalone cook-new variants with bounded extra portions (`generationBatchPolicy.maxExtraPlannedUses`, default 0); proposed leftover remaining in search; unallocated-production `disallow` / `allow-with-warning`; Apply creates one cooking event then `link-cooking-event` in the same transaction. Existing event `outputQuantity` is unchanged. Additive `generationBatchPolicy` on Settings (backup optional object). No Dexie or backup-format bump.
+
 ---
 
 ## Sprint 36 — Regenerate selected meals and lock content

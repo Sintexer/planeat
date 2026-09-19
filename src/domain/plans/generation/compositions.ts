@@ -35,12 +35,16 @@ export type CompositionPart =
       scheduledDate: LocalDate
       desiredQuantity: Quantity
       role?: RecipeRole
+      proposed?: boolean
     }
 
 export type CompositionCandidate = {
   id: string
   source: SlotAssignmentSource
   parts: CompositionPart[]
+  extraUses?: number
+  extraQuantity?: Quantity
+  proposedEventId?: string
 }
 
 function matchesOccasion(mealTypes: readonly MealType[], mealType: MealType): boolean {
@@ -231,6 +235,7 @@ export function enumerateCompositionCandidates(
         scheduledDate: event.scheduledDate,
         desiredQuantity: event.desiredQuantity,
         role: event.role ?? event.recipe.roles[0],
+        proposed: event.proposed,
       }
       if (!compositionAllowed([leftoverPart], policy, bounds)) continue
       out.push({
@@ -250,18 +255,34 @@ export function compositionStillEligible(
   mealType: MealType,
   slotDate: LocalDate,
 ): boolean {
+  const first = assignment.components[0]
+  if (first?.type === 'leftover' && first.proposedEventId) {
+    const recipe = input.recipes.find((row) => row.id === first.recipeId)
+    if (!recipe) return false
+    if (!matchesOccasion(recipe.mealTypes, mealType)) return false
+    return isReuseAllowed(recipe.reusePolicy, first.scheduledDate, slotDate)
+  }
   const candidates = enumerateCompositionCandidates(input, mealType, slotDate)
-  return candidates.some((candidate) => candidate.id === compositionIdFromAssignment(assignment))
+  const id = compositionIdFromAssignment(assignment)
+  return candidates.some((candidate) => candidate.id === id)
 }
 
 export function compositionIdFromAssignment(assignment: SlotAssignment): string {
   if (assignment.source.type === 'favorite') return `favorite:${assignment.source.favoriteId}`
   if (assignment.source.type === 'pairing') return `pairing:${assignment.source.pairingId}`
-  if (assignment.source.type === 'leftover') return `leftover:${assignment.source.cookingEventId}`
+  if (assignment.source.type === 'leftover') {
+    const leftover = assignment.components.find((component) => component.type === 'leftover')
+    if (leftover?.type === 'leftover' && leftover.proposedEventId) {
+      return `leftover:${leftover.proposedEventId}`
+    }
+    return `leftover:${assignment.source.cookingEventId}`
+  }
   const first = assignment.components[0]
   if (first?.type === 'simple-food') return `standalone:food:${first.simpleFoodId}`
   if (first?.type === 'recipe') return `standalone:recipe:${first.recipeId}`
-  if (first?.type === 'leftover') return `leftover:${first.cookingEventId}`
+  if (first?.type === 'leftover') {
+    return `leftover:${first.proposedEventId ?? first.cookingEventId}`
+  }
   return `standalone:unknown:${assignment.slotId}`
 }
 
@@ -315,13 +336,20 @@ export function assignmentFromCandidate(
         ? override
         : (part.favoriteQuantity ?? scale(part.recipe.defaultPortionPerPerson, peopleCount))
       if (!validQuantity(quantity)) return undefined
+      const extra = candidate.extraQuantity
+      const outputQuantity =
+        extra && extra.unit === quantity.unit
+          ? { value: quantity.value + extra.value, unit: quantity.unit }
+          : quantity
+      if (!validQuantity(outputQuantity)) return undefined
       components.push({
         type: 'recipe',
         recipeId: part.recipe.id,
         recipeName: part.recipe.name,
-        outputQuantity: quantity,
+        outputQuantity,
         allocatedQuantity: quantity,
         role: part.role ?? part.recipe.roles[0],
+        proposedEventId: candidate.proposedEventId,
       })
     } else if (part.type === 'leftover') {
       const remaining = remainingByEventId?.get(part.eventId)
@@ -345,6 +373,7 @@ export function assignmentFromCandidate(
         scheduledDate: part.scheduledDate,
         allocatedQuantity: allocated,
         role: part.role ?? part.recipe.roles[0],
+        proposedEventId: part.proposed ? part.eventId : undefined,
       })
     } else {
       const quantity = part.favoriteQuantity ?? scale(part.food.defaultPortion, peopleCount)

@@ -2,7 +2,7 @@
 
 No dates. Keep the app releasable after every sprint. Each sprint delivers **one visible improvement**, including its UI, domain changes, persistence, backup support, and tests.
 
-**Current position:** Sprints 1–34, 26C–27C, and checkpoints A/B/C/D are shipped. Lane A and Lane C are complete. Lane B remains optional. Next sequenced work is Sprint 35 — cards in [`generation.md`](generation.md).
+**Current position:** Sprints 1–35, 26C–27C, and checkpoints A/B/C/D are shipped. Lane A and Lane C are complete. Lane B remains optional. Next sequenced work is Sprint 36 — cards in [`generation.md`](generation.md).
 
 Sprints 1–6 had no automated test runner. Vitest arrived in Sprint 8 (tags/backup). Measurement/grocery scenario tests landed in Sprint 13. Localization settings (`uiLocale`, `measurementPreference`) shipped before Phase 1; Sprint 14 applied them consistently to displayed quantities.
 
@@ -699,7 +699,7 @@ Test one question early, though: is “family” a household using one shared de
 
 # Phase 7 — Automatic meal planning
 
-Offline generator on the existing cooking-event model. **Next: Sprint 35.**
+Offline generator on the existing cooking-event model. **Next: Sprint 36.**
 
 Generation always produces a proposal. Apply goes through existing `PlanService` writes. Grocery lists never update as a side effect. Full implementation cards, module boundaries, acceptance tests, and demo scripts: [`generation.md`](generation.md).
 
@@ -821,4 +821,6 @@ Sprint 33 is done: generate can fill a slot with a stored favorite, a stored pai
 
 Sprint 34 is done: generate may allocate remaining portions of existing same-week cooking events (`algorithmVersion` 34) without changing stored output or inventing new batches; reuse policy and remaining are reserved; Apply links leftover in the same transaction as other generated components. Grocery lists stay untouched. No Dexie or backup-format bump.
 
-**Next:** Sprint 35 — generate new batches and planned reuse. Phase 7 cards: [`generation.md`](generation.md). Lane B remains optional.
+Sprint 35 is done: generate may cook extra portions on a new same-week cooking event and reuse them later (`algorithmVersion` 35), within `generationBatchPolicy` extra-use and unallocated-production settings; Apply writes one event plus leftover links; grocery lists stay untouched. Additive settings only — no Dexie or backup-format bump.
+
+**Next:** Sprint 36 — regenerate selected meals and lock content. Phase 7 cards: [`generation.md`](generation.md). Lane B remains optional.

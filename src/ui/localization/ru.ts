@@ -41,6 +41,7 @@ export const ruMessages = {
   'generation.previewSourceFavorite': 'Из избранного «{name}».',
   'generation.previewSourcePairing': 'Из сохранённой пары.',
   'generation.previewSourceLeftover': 'Остаток с {date}.',
+  'generation.previewCookedBatch': '{name} на {meal}: сварить {cooked}, в этот приём {eaten}.',
   'generation.applied': 'Блюдо добавлено',
   'generation.noEligible': 'Нет полных блюд для этого приёма пищи.',
   'generation.slotNotEmpty': 'На этот приём уже есть блюдо.',
@@ -174,6 +175,12 @@ export const ruMessages = {
     'Эти значения ограничивают, сколько сохранённых пар и частей может быть в подобранном приёме. Подбор не составляет гарнир с основным блюдом, если это не избранное или явная пара.',
   'settings.maxPairingsPerRecipe': 'Пар на один рецепт',
   'settings.maxComponentsPerCandidate': 'Максимум блюд в одном подобранном приёме',
+  'settings.batchPolicyHelp':
+    'Подбор может сварить больше порций для более поздних приёмов на этой неделе. Ноль — только на заполняемый приём. Неиспользованный остаток зависит от политики ниже.',
+  'settings.maxExtraPlannedUses': 'Дополнительные использования заготовки',
+  'settings.unallocatedProduction': 'Неиспользованный избыток',
+  'settings.unallocatedDisallow': 'Не оставлять неиспользованный избыток',
+  'settings.unallocatedAllowWarning': 'Разрешить избыток с предупреждением',
   'settings.missingGenerationRefs':
     'Нет в этой библиотеке — ограничение сохраняется: рецепты {recipes}, метки {tags}, ингредиенты {ingredients}.',
   'settings.backupMissingGenerationRefs':

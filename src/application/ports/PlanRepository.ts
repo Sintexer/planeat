@@ -18,6 +18,7 @@ export interface AddCookingEventComponentInput {
   allocatedQuantity: Quantity
   role?: RecipeRole
   scheduledDate: LocalDate
+  cookingEventId?: CookingEventId
 }
 
 export interface LinkCookingEventComponentInput {

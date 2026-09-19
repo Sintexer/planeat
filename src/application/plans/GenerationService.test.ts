@@ -156,7 +156,7 @@ class FakePlanRepository implements PlanRepository {
           scheduledDate: input.scheduledDate,
         })
         const event: CookingEvent = {
-          id: `event-${this.addCalls.length}`,
+          id: input.cookingEventId ?? `event-${this.addCalls.length}`,
           planId,
           sessionId: 'session-1',
           recipeId: input.recipeId,
@@ -997,5 +997,36 @@ describe('GenerationService', () => {
     const applied = await generation.applyProposal(started.value)
     expect(applied).toEqual({ ok: false, error: 'stale-proposal' })
     expect(plans.graph.components).toHaveLength(2)
+  })
+
+  it('applies a planned batch as one cooking event and a leftover link', async () => {
+    const chili = baseRecipe({ id: 'chili', name: 'Chili', reusePolicy: 'batch-friendly' })
+    const monday = emptySlot({ id: 'slot-mon', date: '2026-01-05' })
+    const tuesday = emptySlot({ id: 'slot-tue', date: '2026-01-06' })
+    const { generation, plans } = makeServices(
+      makeGraph({ slots: [monday, tuesday] }),
+      [chili],
+      undefined,
+      {
+        ...DEFAULT_SETTINGS,
+        generationBatchPolicy: { maxExtraPlannedUses: 1, unallocatedProduction: 'disallow' },
+      },
+    )
+    const started = await generation.startGeneration(['slot-mon', 'slot-tue'], { seed: 'seed-1' })
+    if (!started.ok) throw new Error(started.error)
+    expect(started.value.proposedCookingEvents).toHaveLength(1)
+    const applied = await generation.applyProposal(started.value)
+    expect(applied.ok).toBe(true)
+    expect(plans.graph.cookingEvents).toHaveLength(1)
+    expect(plans.graph.cookingEvents[0]?.outputQuantity).toEqual({ value: 6, unit: 'serving' })
+    expect(plans.graph.components).toHaveLength(2)
+    const eventId = plans.graph.cookingEvents[0]?.id
+    expect(plans.graph.components.every((row) => row.source.type === 'cooking-event')).toBe(true)
+    expect(
+      plans.graph.components.every(
+        (row) => row.source.type === 'cooking-event' && row.source.cookingEventId === eventId,
+      ),
+    ).toBe(true)
+    expect(plans.graph.plan.revision).toBe(2)
   })
 })

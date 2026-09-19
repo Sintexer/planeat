@@ -55,29 +55,56 @@ export function validateProposalAgainstLive(
     if (assignment.components.length === 0) return 'stale-proposal'
     for (const component of assignment.components) {
       if (component.type === 'recipe') {
-        if (!recipes.has(component.recipeId)) return 'recipe-not-found'
+        const recipe = recipes.get(component.recipeId)
+        if (!recipe) return 'recipe-not-found'
         if (
           !isValidPositiveQuantity(component.outputQuantity) ||
           !isValidPositiveQuantity(component.allocatedQuantity)
         ) {
           return 'invalid-quantity'
         }
+        if (component.proposedEventId) {
+          if (component.outputQuantity.unit !== component.allocatedQuantity.unit) {
+            return 'invalid-quantity'
+          }
+          const extraValue = component.outputQuantity.value - component.allocatedQuantity.value
+          if (extraValue <= 0) return 'invalid-quantity'
+          remainingByEventId.set(component.proposedEventId, {
+            value: extraValue,
+            unit: component.outputQuantity.unit,
+          })
+          events.set(component.proposedEventId, {
+            id: component.proposedEventId,
+            recipeId: recipe.id,
+            recipeName: recipe.name,
+            scheduledDate: requested.slot.date,
+            outputQuantity: component.outputQuantity,
+            remaining: { value: extraValue, unit: component.outputQuantity.unit },
+            desiredQuantity: component.allocatedQuantity,
+            reusePolicy: recipe.reusePolicy,
+            mealTypes: recipe.mealTypes,
+            recipe,
+            proposed: true,
+            producerSlotId: requested.slot.id,
+          })
+        }
       } else if (component.type === 'simple-food') {
         if (!foods.has(component.simpleFoodId)) return 'simple-food-not-found'
         if (!isValidPositiveQuantity(component.allocatedQuantity)) return 'invalid-quantity'
       } else {
-        const event = events.get(component.cookingEventId)
+        const eventId = component.proposedEventId ?? component.cookingEventId
+        const event = events.get(eventId)
         if (!event) return 'cooking-event-not-found'
         if (!isValidPositiveQuantity(component.allocatedQuantity)) return 'invalid-quantity'
         if (!isReuseAllowed(event.reusePolicy, event.scheduledDate, requested.slot.date)) {
           return requested.slot.date < event.scheduledDate ? 'before-prep' : 'reuse-forbidden'
         }
-        const remaining = remainingByEventId.get(component.cookingEventId)
+        const remaining = remainingByEventId.get(eventId)
         if (!remaining || remaining.unit !== component.allocatedQuantity.unit) {
           return 'invalid-quantity'
         }
         if (component.allocatedQuantity.value > remaining.value + 1e-9) return 'over-allocated'
-        remainingByEventId.set(component.cookingEventId, {
+        remainingByEventId.set(eventId, {
           value: remaining.value - component.allocatedQuantity.value,
           unit: remaining.unit,
         })

@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped through **Sprint 34**. Next sequenced work is **Sprint 35** (generate new batches and planned reuse). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
+Shipped through **Sprint 35**. Next sequenced work is **Sprint 36** (regenerate selected meals and lock content). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
 
 ## Done — project initialization
 
@@ -158,7 +158,12 @@ Shipped through **Sprint 34**. Next sequenced work is **Sprint 35** (generate ne
 - Generate may fill later empty meals with remaining portions of existing same-week cooking events, after reuse policy and already-planned allocations.
 - Stored event output is unchanged. Apply links leftover in the same transaction as other generated components. Grocery lists stay untouched until the cook later generates/updates a list.
 
-## Next — Phase 7 automatic meal planning (Sprints 35–38)
+## Done — Sprint 35 (new batches and planned reuse)
+
+- Generate may cook extra portions on a new cooking event and reuse them later in the same week, within extra-use and unallocated-production settings.
+- Apply creates the event once and links later meals. Grocery lists stay untouched. Additive `generationBatchPolicy`. No Dexie or backup-format bump.
+
+## Next — Phase 7 automatic meal planning (Sprints 36–38)
 
 Local, explainable generation. Proposals only; apply through existing cooking events; grocery lists stay manual. No backend or LLM.
 

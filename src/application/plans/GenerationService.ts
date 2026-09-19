@@ -20,6 +20,7 @@ import {
   type WeekGenerationProposal,
   mergeGenerationCompositionBounds,
   mergeGenerationSearchBudget,
+  mergeGenerationBatchPolicy,
 } from '../../domain/plans/generation/proposal'
 import {
   fixedMealsFromPlan,
@@ -258,6 +259,7 @@ export class GenerationService {
         tagNamesById,
         searchBudget: mergeGenerationSearchBudget(settings.generationSearchBudget),
         compositionBounds: mergeGenerationCompositionBounds(settings.generationCompositionBounds),
+        batchPolicy: mergeGenerationBatchPolicy(settings.generationBatchPolicy),
         cookingEvents: leftoverEventsFromGraph(
           graph,
           recipes,

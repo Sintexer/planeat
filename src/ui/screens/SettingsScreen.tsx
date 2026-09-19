@@ -46,8 +46,10 @@ import {
   type UnknownDataPolicy,
 } from '../../domain/plans/generation/constraints'
 import {
+  DEFAULT_GENERATION_BATCH_POLICY,
   DEFAULT_GENERATION_COMPOSITION_BOUNDS,
   DEFAULT_GENERATION_SEARCH_BUDGET,
+  mergeGenerationBatchPolicy,
   mergeGenerationCompositionBounds,
   mergeGenerationSearchBudget,
 } from '../../domain/plans/generation/proposal'
@@ -76,6 +78,8 @@ interface SettingsForm {
   perSlotCandidateLimit: number
   maxPairingsPerRecipe: number
   maxComponentsPerCandidate: number
+  maxExtraPlannedUses: number
+  unallocatedProduction: 'disallow' | 'allow-with-warning'
 }
 
 async function downloadCurrentBackup(
@@ -184,6 +188,8 @@ export function SettingsScreen() {
       perSlotCandidateLimit: DEFAULT_GENERATION_SEARCH_BUDGET.perSlotCandidateLimit,
       maxPairingsPerRecipe: DEFAULT_GENERATION_COMPOSITION_BOUNDS.maxPairingsPerRecipe,
       maxComponentsPerCandidate: DEFAULT_GENERATION_COMPOSITION_BOUNDS.maxComponentsPerCandidate,
+      maxExtraPlannedUses: DEFAULT_GENERATION_BATCH_POLICY.maxExtraPlannedUses,
+      unallocatedProduction: DEFAULT_GENERATION_BATCH_POLICY.unallocatedProduction,
     },
   })
 
@@ -200,6 +206,8 @@ export function SettingsScreen() {
   const compositionBoundsKey = compositionBounds
     ? JSON.stringify(mergeGenerationCompositionBounds(compositionBounds))
     : ''
+  const batchPolicy = settings?.generationBatchPolicy
+  const batchPolicyKey = batchPolicy ? JSON.stringify(mergeGenerationBatchPolicy(batchPolicy)) : ''
 
   useEffect(() => {
     if (!settings) return
@@ -227,6 +235,8 @@ export function SettingsScreen() {
       perSlotCandidateLimit: settings.generationSearchBudget.perSlotCandidateLimit,
       maxPairingsPerRecipe: settings.generationCompositionBounds.maxPairingsPerRecipe,
       maxComponentsPerCandidate: settings.generationCompositionBounds.maxComponentsPerCandidate,
+      maxExtraPlannedUses: settings.generationBatchPolicy.maxExtraPlannedUses,
+      unallocatedProduction: settings.generationBatchPolicy.unallocatedProduction,
     })
     // Hydrate from stored fields, not the liveQuery object identity (a new
     // mergeSettingsDefaults result every emit would retrigger setValues forever).
@@ -245,6 +255,7 @@ export function SettingsScreen() {
     preferredTagsKey,
     searchBudgetKey,
     compositionBoundsKey,
+    batchPolicyKey,
   ])
 
   const handleSubmit = form.onSubmit(async (values) => {
@@ -279,6 +290,10 @@ export function SettingsScreen() {
       generationCompositionBounds: mergeGenerationCompositionBounds({
         maxPairingsPerRecipe: values.maxPairingsPerRecipe,
         maxComponentsPerCandidate: values.maxComponentsPerCandidate,
+      }),
+      generationBatchPolicy: mergeGenerationBatchPolicy({
+        maxExtraPlannedUses: values.maxExtraPlannedUses,
+        unallocatedProduction: values.unallocatedProduction,
       }),
     })
     notifications.show({ message: t('settings.saved'), color: 'success' })
@@ -621,6 +636,26 @@ export function SettingsScreen() {
                   max={8}
                   disabled={!settings}
                   {...form.getInputProps('maxComponentsPerCandidate')}
+                />
+                <Text size="sm" c="dimmed">
+                  {t('settings.batchPolicyHelp')}
+                </Text>
+                <NumberInput
+                  label={t('settings.maxExtraPlannedUses')}
+                  min={0}
+                  max={3}
+                  disabled={!settings}
+                  {...form.getInputProps('maxExtraPlannedUses')}
+                />
+                <Select
+                  label={t('settings.unallocatedProduction')}
+                  data={[
+                    { value: 'disallow', label: t('settings.unallocatedDisallow') },
+                    { value: 'allow-with-warning', label: t('settings.unallocatedAllowWarning') },
+                  ]}
+                  disabled={!settings}
+                  allowDeselect={false}
+                  {...form.getInputProps('unallocatedProduction')}
                 />
                 {missingRefCount > 0 && (
                   <Text size="sm" c="dimmed">

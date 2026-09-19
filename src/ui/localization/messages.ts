@@ -37,6 +37,7 @@ export const enMessages = {
   'generation.previewSourceFavorite': 'From favorite “{name}”.',
   'generation.previewSourcePairing': 'From a saved pairing.',
   'generation.previewSourceLeftover': 'Leftover from {date}.',
+  'generation.previewCookedBatch': '{name} for {meal}: cook {cooked}, this meal {eaten}.',
   'generation.applied': 'Meal added',
   'generation.noEligible': 'No complete recipes for this meal yet.',
   'generation.slotNotEmpty': 'This meal already has a dish.',
@@ -171,6 +172,12 @@ export const enMessages = {
     'These cap how many stored pairings and components a generated meal may use. The generator never invents a main and side that were not saved as a favorite or pairing.',
   'settings.maxPairingsPerRecipe': 'Pairings considered per recipe',
   'settings.maxComponentsPerCandidate': 'Maximum dishes in one generated meal',
+  'settings.batchPolicyHelp':
+    'Generate can cook extra portions for later meals this week. Zero means cook only for the meal being filled. Unused extra leftovers follow the remainder policy.',
+  'settings.maxExtraPlannedUses': 'Extra planned leftover uses',
+  'settings.unallocatedProduction': 'Unused extra portions',
+  'settings.unallocatedDisallow': 'Do not leave unused extra portions',
+  'settings.unallocatedAllowWarning': 'Allow leftover extra, with a warning',
   'settings.missingGenerationRefs':
     'Missing from this library — still applied: recipes {recipes}, tags {tags}, ingredients {ingredients}.',
   'settings.backupMissingGenerationRefs':

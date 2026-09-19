@@ -101,7 +101,7 @@ export class DexiePlanRepository implements PlanRepository {
 
           const sessionId = await this.ensureSessionInTx(planId, input.scheduledDate)
           const cookingEvent: CookingEvent = {
-            id: crypto.randomUUID(),
+            id: input.cookingEventId ?? crypto.randomUUID(),
             planId,
             sessionId,
             recipeId: input.recipeId,
@@ -199,7 +199,7 @@ export class DexiePlanRepository implements PlanRepository {
           if (input.kind === 'cooking-event') {
             const sessionId = await this.ensureSessionInTx(planId, input.scheduledDate)
             const cookingEvent: CookingEvent = {
-              id: crypto.randomUUID(),
+              id: input.cookingEventId ?? crypto.randomUUID(),
               planId,
               sessionId,
               recipeId: input.recipeId,
