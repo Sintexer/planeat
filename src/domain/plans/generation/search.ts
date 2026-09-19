@@ -563,6 +563,7 @@ function finishProposal(
     replacementPreview: replacementPreviewFromInput(input),
     presetId: input.presetId,
     generationConfig: input.generationConfig,
+    generationSessionId: input.generationSessionId,
   }
   const issue = validateProposalAgainstLive(proposal, input)
   if (issue) {

@@ -213,6 +213,7 @@ export type GenerationInput = {
   generationMode?: GenerationMode
   presetId?: string
   generationConfig?: GenerationConfig
+  generationSessionId?: string
 }
 
 export type SlotAssignmentSource =
@@ -299,6 +300,7 @@ export type WeekGenerationProposal = {
   replacementPreview?: readonly ReplacementPreviewSlot[]
   presetId?: string
   generationConfig?: GenerationConfig
+  generationSessionId?: string
 }
 
 /** Sprint 28 name: a week proposal, often with a single assignment. */
@@ -307,6 +309,7 @@ export type MealGenerationProposal = WeekGenerationProposal
 export type GenerationFingerprintParts = {
   algorithmVersion: string
   policyVersion: string
+  generationSessionId: string
   planId: string
   planRevision: number
   peopleCount: number
@@ -347,6 +350,7 @@ export function generationInputFingerprint(parts: GenerationFingerprintParts): s
   return JSON.stringify({
     algorithmVersion: parts.algorithmVersion,
     policyVersion: parts.policyVersion,
+    generationSessionId: parts.generationSessionId,
     planId: parts.planId,
     planRevision: parts.planRevision,
     peopleCount: parts.peopleCount,
@@ -393,6 +397,7 @@ export function fingerprintFromInput(input: GenerationInput): string {
   return generationInputFingerprint({
     algorithmVersion: GENERATION_ALGORITHM_VERSION,
     policyVersion: GENERATION_POLICY_VERSION,
+    generationSessionId: input.generationSessionId ?? '',
     planId: input.planId,
     planRevision: input.planRevision,
     peopleCount: input.peopleCount,

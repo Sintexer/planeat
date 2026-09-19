@@ -89,9 +89,10 @@ export function bootstrap(): AppServices {
       quantityService,
       planService,
       createWorkerGenerationRunner(
-        new Worker(new URL('../infrastructure/planning/generationWorker.ts', import.meta.url), {
-          type: 'module',
-        }),
+        () =>
+          new Worker(new URL('../infrastructure/planning/generationWorker.ts', import.meta.url), {
+            type: 'module',
+          }),
       ),
       settingsRepository,
       simpleFoodRepository,
@@ -99,6 +100,7 @@ export function bootstrap(): AppServices {
       ingredientRepository,
       mealFavoriteRepository,
       pairingRepository,
+      crypto.randomUUID(),
     ),
     groceryService: new GroceryService(
       groceryRepository,

@@ -28,6 +28,16 @@ Vitest covers **domain and application unit tests only** — pure functions and 
 - **Backup round-trip tests** exercise the Zod schema directly (`backupFileSchema.safeParse(...)`), including a deliberate case per additive field proving a legacy/foreign/unrecognized value (e.g. a `dishType` outside the curated list, a `locale` outside the current `UI_LOCALES`) survives export → parse unchanged. See `src/application/backup/backupSchema.test.ts`.
 - New pure logic in `domain/` or a new `application/*Service` should ship with a same-directory `*.test.ts` file following whichever of the two patterns above fits. UI code (`src/ui/**`) has no established test convention yet beyond `src/ui/catalog/catalogModel.test.ts`/`pickerWhyThis.test.ts`, which test pure data-shaping functions exported from otherwise-React files, not components.
 
+## Generation worker cancel (Sprint 38a)
+
+Cancel on a running generate job clears the active request id (late results are ignored) and **terminates** the Web Worker, then creates a replacement worker so the next generate can run. A numeric Cancel-to-UI target is **postponed** (no invented budget).
+
+Worker throw, `error`, and `messageerror` resolve the in-flight job as `worker-failed` and do not write the plan. Apply of a proposal whose `generationSessionId` (page-load token in the fingerprint) does not match the current session is `stale-proposal`. Offline generate-after-reload is a manual IndexedDB check, not Vitest.
+
+## Generation quality fixtures (Sprint 38b)
+
+Named catalogs and handwritten seed loops live in `src/domain/plans/generation/generationQuality.test.ts` (`fixtures.ts` / `invariants.ts`). They check partition, hard constraints, leftover accounting, fingerprint stale, budget, and reproducibility. They are **not** a wall-clock or memory performance gate.
+
 ## Test Categories
 
 - **Domain unit tests**: pure functions and type helpers with no dependencies (`normalizeIngredientName`, `presentQuantity`, `UnitRegistry` lookups, `shoppingSections` helpers, etc.).

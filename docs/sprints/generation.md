@@ -19,7 +19,7 @@ Do not delay household trials until Sprint 38. Use generated proposals from Spri
 | **Initial generator**        | 28–29   | Safely fill empty meals with preview and explicit apply.                   |
 | **Preference-aware planner** | 30–32   | Respect restrictions and optimize across the week.                         |
 | **Household meal planner**   | 33–35   | Generate compositions, allocate leftovers, and schedule batches.           |
-| **Core-feature release**     | 36–38   | Selective regeneration, reusable configuration, and validated performance. |
+| **Core-feature release**     | 36–38   | Selective regeneration, reusable configuration, and reliability. Device-validated performance is postponed. |
 
 ## Shared implementation requirements
 
@@ -503,8 +503,14 @@ Built-in set: **Balanced**, **Less cooking**, **More variety**, **Batch cooking*
 
 1. Benchmark suite: small/incomplete catalogs; large similar recipes; restrictive ingredients; many fixed meals; no-leftover vs batch-cooking; multi-component; existing events with reserved future portions.
 2. Property tests: no hard-constraint violations; coverage monotonic vs empty; leftover accounting; fingerprint reject on mutation; grocery untouched by apply.
-3. Tune pruning, eligibility caches, incremental scoring, beam width, budget, worker memory — only with benchmark evidence.
-4. Optional conservative local-improvement pass: keep the original result unless the replacement is valid **and** lexicographically better.
+3. **Postponed.** Tune pruning, eligibility caches, incremental scoring, beam width, budget, worker memory — only with named-device evidence.
+4. **Postponed.** Optional conservative local-improvement pass: keep the original result unless the replacement is valid **and** lexicographically better.
+
+**Shipped — 38a.** Worker `error` / throw posts a recoverable `worker-failed` result and writes nothing. Cancel `terminate`s the worker and recreates it via a factory. `generationSessionId` (minted at bootstrap) is part of the input fingerprint so a proposal from a previous page session cannot apply (`stale-proposal`).
+
+**Shipped — 38b.** Named generation fixtures and handwritten seed/invariant tests (`generationQuality.test.ts`). Correctness only — not a wall-clock or memory gate.
+
+**Postponed:** named-device runtime/memory, cancel-latency target, pruning/eligibility caches/beam/budget/worker-memory tuning, optional local-improvement pass. Do not treat invented numbers as a gate. Household trials can continue on shipped generation; they are not a sequenced sprint.
 
 ---
 

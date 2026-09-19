@@ -52,6 +52,7 @@ export const ruMessages = {
   'generation.replaceDependentsRequired':
     'Этот приём ещё кормит остатки. Включите те приёмы и подберите снова.',
   'generation.stale': 'План или рецепты изменились. Подберите снова.',
+  'generation.workerFailed': 'Подбор прервался. План не изменился.',
   'generation.weekGenerate': 'Подобрать меню',
   'generation.weekTitle': 'Подобрать меню',
   'generation.selectSlots':

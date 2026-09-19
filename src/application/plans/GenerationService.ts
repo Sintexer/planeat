@@ -60,6 +60,7 @@ export type GenerationError =
   | 'replace-dependents-required'
   | 'stale-proposal'
   | 'cancelled'
+  | 'worker-failed'
   | PlanError
 
 export type GenerationResult<T> = { ok: true; value: T } | { ok: false; error: GenerationError }
@@ -84,6 +85,7 @@ export class GenerationService {
   private readonly ingredients: IngredientRepository
   private readonly favorites: MealFavoriteRepository
   private readonly pairings: PairingRepository
+  private readonly generationSessionId: string
   private activeRequestId: string | undefined
 
   constructor(
@@ -98,6 +100,7 @@ export class GenerationService {
     ingredients: IngredientRepository,
     favorites: MealFavoriteRepository,
     pairings: PairingRepository,
+    generationSessionId: string,
   ) {
     this.plans = plans
     this.recipes = recipes
@@ -110,6 +113,7 @@ export class GenerationService {
     this.ingredients = ingredients
     this.favorites = favorites
     this.pairings = pairings
+    this.generationSessionId = generationSessionId
   }
 
   async inspectReplaceDependents(
@@ -204,6 +208,7 @@ export class GenerationService {
   cancel(_proposal?: WeekGenerationProposal): void {
     void _proposal
     this.activeRequestId = undefined
+    this.runner.abort()
   }
 
   async applyProposal(
@@ -351,6 +356,7 @@ export class GenerationService {
         generationMode: mode,
         presetId,
         generationConfig: requestConfig ? config : undefined,
+        generationSessionId: this.generationSessionId,
         cookingEvents: leftoverEventsFromGraph(
           graph,
           recipes,

@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped through **Sprint 37**. Next sequenced work is **Sprint 38** (quality, performance, and release hardening). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
+Shipped through **Sprint 38** (38a worker reliability, 38b fixtures/invariants). Device measurement and search tuning are postponed. Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
 
 ## Done — project initialization
 
@@ -175,18 +175,16 @@ Shipped through **Sprint 37**. Next sequenced work is **Sprint 38** (quality, pe
 - Generate meals preset bar: request-only drafts, dirty indicator, Save as new, Update (custom only). Generate does not write Settings.
 - Dexie schema v8 (`generationPresets`), backup format 8. `algorithmVersion` stays `36`.
 
-## Next — Phase 7 automatic meal planning (Sprint 38)
+## Done — Sprint 38 (reliability and invariants)
 
-Local, explainable generation. Proposals only; apply through existing cooking events; grocery lists stay manual. No backend or LLM.
+- Worker failure is recoverable (`worker-failed`); Cancel terminates and recreates the worker; page-session token in the fingerprint.
+- Named generation fixtures and handwritten invariants (`generationQuality.test.ts`). No Dexie or backup-format bump. `algorithmVersion` stays `36`.
 
-| Gate                     | Sprints | Capability                                       |
-| ------------------------ | ------- | ------------------------------------------------ |
-| Initial generator        | 28–29   | Fill empty meals with preview and explicit apply |
-| Preference-aware planner | 30–32   | Hard restrictions and week-level search          |
-| Household meal planner   | 33–35   | Known compositions, leftovers, bounded batches   |
-| Core-feature release     | 36–38   | Locks, presets, performance hardening            |
+## Later — postponed performance work
 
-Start household trials on proposals from Sprint 29. Details: [`sprints/generation.md`](sprints/generation.md).
+Do not tune beam width, expansion budget, caches, or worker memory, and do not invent device or cancel-latency budgets, until there is a named-device measurement. Optional local-improvement pass stays with that later work.
+
+Phase 7 sequenced generation (Sprints 28–38) is shipped: proposals only; apply through existing cooking events; grocery lists stay manual. No backend or LLM. Household trials can continue. Details: [`sprints/generation.md`](sprints/generation.md).
 
 ## Later (still out of Phase 7)
 

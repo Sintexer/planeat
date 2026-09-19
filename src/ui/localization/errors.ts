@@ -19,6 +19,7 @@ const GENERATION_ERRORS: Record<string, MessageId> = {
   'dependents-locked': 'generation.dependentsLocked',
   'replace-dependents-required': 'generation.replaceDependentsRequired',
   'stale-proposal': 'generation.stale',
+  'worker-failed': 'generation.workerFailed',
 }
 
 export function planErrorMessage(t: Translate, error: string): string {

@@ -48,6 +48,7 @@ export const enMessages = {
   'generation.replaceDependentsRequired':
     'This meal still feeds leftovers. Include those meals, then generate again.',
   'generation.stale': 'The plan or recipes changed. Generate again.',
+  'generation.workerFailed': 'Generation stopped unexpectedly. The plan was not changed.',
   'generation.weekGenerate': 'Generate meals',
   'generation.weekTitle': 'Generate meals',
   'generation.selectSlots':

@@ -699,7 +699,7 @@ Test one question early, though: is “family” a household using one shared de
 
 # Phase 7 — Automatic meal planning
 
-Offline generator on the existing cooking-event model. **Next: Sprint 38.**
+Offline generator on the existing cooking-event model. **Phase 7 sequenced sprints 28–38 are shipped** (performance measurement and search tuning postponed).
 
 Generation always produces a proposal. Apply goes through existing `PlanService` writes. Grocery lists never update as a side effect. Full implementation cards, module boundaries, acceptance tests, and demo scripts: [`generation.md`](generation.md).
 
@@ -715,7 +715,7 @@ Generation always produces a proposal. Apply goes through existing `PlanService`
 | **35** | Bounded new batches and planned reuse inside the same week.                            |
 | **36** | Slot locks and explicit replacement of selected meals, with dependency confirmation.   |
 | **37** | Named generation presets (built-in + custom) layered on the same policy model.         |
-| **38** | Benchmarks, property tests, performance/PWA hardening, household-trial metrics.        |
+| **38** | Worker reliability, session-stale apply, named fixtures, and handwritten invariants.   |
 
 **Gates:** 28–29 initial generator · 30–32 preference-aware planner · 33–35 household meal planner · 36–38 core-feature release.
 
@@ -827,4 +827,6 @@ Sprint 36 is done: slot-level `generationLocked` (additive backup); fill-empty r
 
 Sprint 37 is done: named generation presets on the same Sprint 30–35 policy model. Built-ins Balanced / Less cooking / More variety / Batch cooking are code snapshots with stable ids; custom presets are Dexie `generationPresets` rows (`policyVersion` `'31'`). Generate meals can pick a preset, dirty-edit the request (extra excluded recipes and max recorded time), and Save as new / Update (custom only) without writing Settings. `prepareGeneration` uses a request `config` overlay; proposals store `presetId` and the captured config. Dexie schema v8 and backup format 8 (`generationPresets`, older files parse as `[]`). Tests: `GenerationConfig.test.ts`, `GenerationPresetService.test.ts`, `GenerationService.test.ts`, `backupSchema.test.ts`, `BackupService.test.ts`.
 
-**Next:** Sprint 38 — quality, performance, and release hardening. Phase 7 cards: [`generation.md`](generation.md). Lane B remains optional.
+Sprint 38 is done: worker throw/terminate is `worker-failed` and writes nothing; Cancel terminates and recreates the worker; `generationSessionId` in the fingerprint rejects a previous page session (`stale-proposal`). Named generation fixtures and handwritten seed/invariant tests (`generationQuality.test.ts`) cover partition, hard constraints, leftover accounting, fingerprint stale, budget, and reproducibility. `algorithmVersion` stays `'36'`. No Dexie or backup-format bump. Tests: `generationRunner.test.ts`, `generationQuality.test.ts`, `GenerationService.test.ts`.
+
+**Postponed (not next):** device runtime/memory budgets, cancel-latency targets, pruning/beam/worker-memory tuning, optional local-improvement pass. Do not raise search budget or add caches without a named-device measurement later. Optional Lane B remains. Phase 7 cards: [`generation.md`](generation.md).

@@ -271,6 +271,11 @@ describe('fingerprintFromInput', () => {
       ),
     ).not.toBe(base)
   })
+
+  it('changes when the generation session changes', () => {
+    const base = fingerprintFromInput(input({ generationSessionId: 'session-a' }))
+    expect(fingerprintFromInput(input({ generationSessionId: 'session-b' }))).not.toBe(base)
+  })
 })
 
 describe('mergeGenerationSearchBudget', () => {

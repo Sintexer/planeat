@@ -478,6 +478,7 @@ function makeServices(
     simpleFoods?: SimpleFood[]
     favorites?: MealFavorite[]
     pairings?: RecipePairing[]
+    sessionId?: string
   } = {},
 ) {
   const plans = new FakePlanRepository(graph, previous)
@@ -508,6 +509,7 @@ function makeServices(
     unusedIngredients(),
     favorites,
     pairings,
+    extras.sessionId ?? 'session-test',
   )
   return { plans, recipeRepo, generation, quantities, favorites, settingsRepo }
 }
@@ -585,12 +587,16 @@ describe('GenerationService', () => {
   it('cancel before a late runner result writes nothing', async () => {
     let finish: ((proposal: WeekGenerationProposal) => void) | undefined
     let entered: (() => void) | undefined
+    let aborted = false
     const delayed: GenerationSearchRunner = {
       run: () => {
         entered?.()
         return new Promise((resolve) => {
           finish = (proposal) => resolve({ ok: true, value: proposal })
         })
+      },
+      abort() {
+        aborted = true
       },
     }
     const { generation, plans } = makeServices(makeGraph(), [baseRecipe()], delayed)
@@ -606,6 +612,7 @@ describe('GenerationService', () => {
     generation.cancel()
     finish?.(sync.value)
     expect(await pending).toEqual({ ok: false, error: 'cancelled' })
+    expect(aborted).toBe(true)
     expect(plans.batchCalls).toHaveLength(0)
   })
 
@@ -621,6 +628,7 @@ describe('GenerationService', () => {
           resolvers.push((proposal) => resolve({ ok: true, value: proposal }))
         })
       },
+      abort() {},
     }
     const { generation, plans } = makeServices(makeGraph(), [baseRecipe()], delayed)
     const prepared = await generation.prepareGeneration(['slot-dinner'], { seed: 'seed-1' })
@@ -796,8 +804,15 @@ describe('GenerationService', () => {
     expect(plans.graph.plan.revision).toBe(1)
   })
 
-  it('does not construct or call a grocery service', () => {
-    const { generation } = makeServices(makeGraph(), [baseRecipe()])
+  it('apply writes the plan and never uses a grocery service', async () => {
+    const { generation, plans } = makeServices(makeGraph(), [baseRecipe()])
+    const started = await generation.startGeneration(['slot-dinner'], { seed: 'seed-1' })
+    expect(started.ok).toBe(true)
+    if (!started.ok) return
+    const applied = await generation.applyProposal(started.value)
+    expect(applied.ok).toBe(true)
+    expect(plans.batchCalls).toHaveLength(1)
+    expect(plans.batchCalls[0]).toHaveLength(1)
     expect(generation).toBeInstanceOf(GenerationService)
   })
 
@@ -1477,5 +1492,46 @@ describe('GenerationService', () => {
     if (!started.ok) return
     expect(started.value.assignments).toHaveLength(0)
     expect(started.value.unfilled[0]?.reason).toBe('no-eligible-candidates')
+  })
+
+  it('returns worker-failed and writes nothing when the runner fails', async () => {
+    const failing: GenerationSearchRunner = {
+      run: async () => ({ ok: false, error: 'worker-failed' }),
+      abort() {},
+    }
+    const { generation, plans } = makeServices(makeGraph(), [baseRecipe()], failing)
+    const started = await generation.startGeneration(['slot-dinner'], { seed: 'seed-1' })
+    expect(started).toEqual({ ok: false, error: 'worker-failed' })
+    expect(plans.batchCalls).toHaveLength(0)
+  })
+
+  it('rejects apply when the generation session no longer matches', async () => {
+    const { generation } = makeServices(
+      makeGraph(),
+      [baseRecipe()],
+      undefined,
+      DEFAULT_SETTINGS,
+      undefined,
+      {
+        sessionId: 'session-a',
+      },
+    )
+    const started = await generation.startGeneration(['slot-dinner'], { seed: 'seed-1' })
+    expect(started.ok).toBe(true)
+    if (!started.ok) return
+    expect(started.value.generationSessionId).toBe('session-a')
+    const other = makeServices(
+      makeGraph(),
+      [baseRecipe()],
+      undefined,
+      DEFAULT_SETTINGS,
+      undefined,
+      {
+        sessionId: 'session-b',
+      },
+    )
+    const applied = await other.generation.applyProposal(started.value)
+    expect(applied).toEqual({ ok: false, error: 'stale-proposal' })
+    expect(other.plans.batchCalls).toHaveLength(0)
   })
 })
