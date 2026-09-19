@@ -61,10 +61,17 @@ export function openProposalPreview(args: {
                 {t('generation.previewSourcePairing')}
               </Text>
             )}
+            {row.source.type === 'leftover' && (
+              <Text size="xs" c="dimmed">
+                {t('generation.previewSourceLeftover', {
+                  date: leftoverDate(row.components),
+                })}
+              </Text>
+            )}
             {row.components.map((component) => (
               <Text size="sm" key={componentKey(component)}>
                 {t('generation.previewBody', {
-                  name: component.type === 'recipe' ? component.recipeName : component.name,
+                  name: componentDisplayName(component),
                   meal: mealTypeLabel(t, row.mealType),
                   quantity: formatQty(component.allocatedQuantity),
                 })}
@@ -153,9 +160,19 @@ export function openProposalPreview(args: {
 }
 
 function componentKey(component: GeneratedComponent): string {
-  return component.type === 'recipe'
-    ? `recipe:${component.recipeId}`
-    : `food:${component.simpleFoodId}`
+  if (component.type === 'recipe') return `recipe:${component.recipeId}`
+  if (component.type === 'leftover') return `leftover:${component.cookingEventId}`
+  return `food:${component.simpleFoodId}`
+}
+
+function componentDisplayName(component: GeneratedComponent): string {
+  if (component.type === 'simple-food') return component.name
+  return component.recipeName
+}
+
+function leftoverDate(components: readonly GeneratedComponent[]): string {
+  const leftover = components.find((row) => row.type === 'leftover')
+  return leftover?.type === 'leftover' ? leftover.scheduledDate : ''
 }
 
 function scoreReasonLine(t: Translate, reason: ScoreReason): string {

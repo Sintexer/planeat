@@ -177,6 +177,19 @@ class FakePlanRepository implements PlanRepository {
           components: [...this.graph.components, component],
         }
         components.push(component)
+      } else if (input.kind === 'link-cooking-event') {
+        const component: MealComponent = {
+          id: `link-${this.graph.components.length + 1}`,
+          slotId: input.slotId,
+          source: { type: 'cooking-event', cookingEventId: input.cookingEventId },
+          allocatedQuantity: input.allocatedQuantity,
+          role: input.role,
+        }
+        this.graph = {
+          ...this.graph,
+          components: [...this.graph.components, component],
+        }
+        components.push(component)
       } else {
         const component: MealComponent = {
           id: `food-${this.graph.components.length + 1}`,
@@ -210,8 +223,14 @@ class FakePlanRepository implements PlanRepository {
   setSlotExcluded: PlanRepository['setSlotExcluded'] = () => {
     throw new Error('not implemented')
   }
-  linkCookingEventComponent: PlanRepository['linkCookingEventComponent'] = () => {
-    throw new Error('not implemented')
+  linkCookingEventComponent: PlanRepository['linkCookingEventComponent'] = async (
+    planId,
+    input,
+  ) => {
+    const [component] = await this.addGeneratedComponents(planId, [
+      { kind: 'link-cooking-event', ...input },
+    ])
+    return component
   }
   updateComponentAllocation: PlanRepository['updateComponentAllocation'] = () => {
     throw new Error('not implemented')
@@ -840,5 +859,143 @@ describe('GenerationService', () => {
     expect(applied).toEqual({ ok: false, error: 'stale-proposal' })
     expect(plans.batchCalls).toHaveLength(0)
     expect(plans.graph.plan.revision).toBe(1)
+  })
+
+  it('applies leftover as a link without changing output quantity', async () => {
+    const chili = baseRecipe({ id: 'chili', name: 'Chili' })
+    const { tagIds, ...chiliRest } = chili
+    void tagIds
+    const event: CookingEvent = {
+      id: 'event-chili',
+      planId: 'plan-1',
+      sessionId: 'session-1',
+      recipeId: chili.id,
+      recipeSnapshot: { ...chiliRest, tags: ['Comfort'] },
+      outputQuantity: { value: 6, unit: 'serving' },
+      scheduledDate: '2026-01-05',
+    }
+    const monday = emptySlot({ id: 'slot-mon', date: '2026-01-05' })
+    const tuesday = emptySlot({ id: 'slot-tue', date: '2026-01-06' })
+    const { generation, plans } = makeServices(
+      makeGraph({
+        slots: [monday, tuesday],
+        cookingEvents: [event],
+        components: [
+          {
+            id: 'c-mon',
+            slotId: 'slot-mon',
+            source: { type: 'cooking-event', cookingEventId: 'event-chili' },
+            allocatedQuantity: { value: 3, unit: 'serving' },
+          },
+        ],
+      }),
+      [chili],
+    )
+    const started = await generation.startGeneration(['slot-tue'], { seed: 'seed-1' })
+    if (!started.ok) throw new Error(started.error)
+    expect(started.value.assignments[0]?.source).toEqual({
+      type: 'leftover',
+      cookingEventId: 'event-chili',
+    })
+    const applied = await generation.applyProposal(started.value)
+    expect(applied.ok).toBe(true)
+    expect(plans.batchCalls).toHaveLength(0)
+    expect(plans.graph.cookingEvents[0]?.outputQuantity).toEqual({ value: 6, unit: 'serving' })
+    expect(plans.graph.components).toHaveLength(2)
+    expect(plans.graph.components[1]?.source).toEqual({
+      type: 'cooking-event',
+      cookingEventId: 'event-chili',
+    })
+    expect(plans.graph.plan.revision).toBe(2)
+  })
+
+  it('applies leftover and a new cook in one revision bump', async () => {
+    const chili = baseRecipe({ id: 'chili', name: 'Chili' })
+    const stew = baseRecipe({ id: 'stew', name: 'Stew' })
+    const { tagIds, ...chiliRest } = chili
+    void tagIds
+    const event: CookingEvent = {
+      id: 'event-chili',
+      planId: 'plan-1',
+      sessionId: 'session-1',
+      recipeId: chili.id,
+      recipeSnapshot: { ...chiliRest, tags: ['Comfort'] },
+      outputQuantity: { value: 6, unit: 'serving' },
+      scheduledDate: '2026-01-05',
+    }
+    const monday = emptySlot({ id: 'slot-mon', date: '2026-01-05' })
+    const tuesday = emptySlot({ id: 'slot-tue', date: '2026-01-06' })
+    const wednesday = emptySlot({ id: 'slot-wed', date: '2026-01-07' })
+    const { generation, plans } = makeServices(
+      makeGraph({
+        slots: [monday, tuesday, wednesday],
+        cookingEvents: [event],
+        components: [
+          {
+            id: 'c-mon',
+            slotId: 'slot-mon',
+            source: { type: 'cooking-event', cookingEventId: 'event-chili' },
+            allocatedQuantity: { value: 3, unit: 'serving' },
+          },
+        ],
+      }),
+      [chili, stew],
+    )
+    const started = await generation.startGeneration(['slot-tue', 'slot-wed'], { seed: 'seed-1' })
+    if (!started.ok) throw new Error(started.error)
+    const applied = await generation.applyProposal(started.value)
+    expect(applied.ok).toBe(true)
+    expect(plans.graph.plan.revision).toBe(2)
+    expect(plans.graph.cookingEvents.some((row) => row.id === 'event-chili')).toBe(true)
+    expect(plans.graph.cookingEvents.some((row) => row.id !== 'event-chili')).toBe(true)
+  })
+
+  it('rejects leftover apply when remaining is consumed after generate', async () => {
+    const chili = baseRecipe({ id: 'chili', name: 'Chili' })
+    const { tagIds, ...chiliRest } = chili
+    void tagIds
+    const event: CookingEvent = {
+      id: 'event-chili',
+      planId: 'plan-1',
+      sessionId: 'session-1',
+      recipeId: chili.id,
+      recipeSnapshot: { ...chiliRest, tags: ['Comfort'] },
+      outputQuantity: { value: 6, unit: 'serving' },
+      scheduledDate: '2026-01-05',
+    }
+    const monday = emptySlot({ id: 'slot-mon', date: '2026-01-05' })
+    const tuesday = emptySlot({ id: 'slot-tue', date: '2026-01-06' })
+    const { generation, plans } = makeServices(
+      makeGraph({
+        slots: [monday, tuesday],
+        cookingEvents: [event],
+        components: [
+          {
+            id: 'c-mon',
+            slotId: 'slot-mon',
+            source: { type: 'cooking-event', cookingEventId: 'event-chili' },
+            allocatedQuantity: { value: 3, unit: 'serving' },
+          },
+        ],
+      }),
+      [chili],
+    )
+    const started = await generation.startGeneration(['slot-tue'], { seed: 'seed-1' })
+    if (!started.ok) throw new Error(started.error)
+    plans.graph = {
+      ...plans.graph,
+      components: [
+        ...plans.graph.components,
+        {
+          id: 'c-extra',
+          slotId: 'slot-mon',
+          source: { type: 'cooking-event', cookingEventId: 'event-chili' },
+          allocatedQuantity: { value: 3, unit: 'serving' },
+        },
+      ],
+    }
+    const applied = await generation.applyProposal(started.value)
+    expect(applied).toEqual({ ok: false, error: 'stale-proposal' })
+    expect(plans.graph.components).toHaveLength(2)
   })
 })

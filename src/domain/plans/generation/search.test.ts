@@ -142,7 +142,7 @@ describe('runGenerationSearch', () => {
     const b = runGenerationSearch(snapshot, 'req-b', scaleQuantity)
     expect(a.fingerprint).toBe(b.fingerprint)
     expect(a.assignments).toEqual(b.assignments)
-    expect(a.algorithmVersion).toBe('33')
+    expect(a.algorithmVersion).toBe('34')
   })
 
   it('uses a per-slot quantity override', () => {

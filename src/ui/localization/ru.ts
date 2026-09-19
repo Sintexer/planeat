@@ -40,6 +40,7 @@ export const ruMessages = {
   'generation.previewBody': '{name} на {meal}, порции: {quantity}.',
   'generation.previewSourceFavorite': 'Из избранного «{name}».',
   'generation.previewSourcePairing': 'Из сохранённой пары.',
+  'generation.previewSourceLeftover': 'Остаток с {date}.',
   'generation.applied': 'Блюдо добавлено',
   'generation.noEligible': 'Нет полных блюд для этого приёма пищи.',
   'generation.slotNotEmpty': 'На этот приём уже есть блюдо.',

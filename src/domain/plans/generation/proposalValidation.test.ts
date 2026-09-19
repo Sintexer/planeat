@@ -63,7 +63,7 @@ function proposal(
   const target = snapshot.requestedSlots[0]
   return {
     requestId: 'req-1',
-    algorithmVersion: '33',
+    algorithmVersion: '34',
     policyVersion: '31',
     seed: snapshot.seed,
     fingerprint: fingerprintFromInput(snapshot),

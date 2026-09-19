@@ -205,6 +205,8 @@ export class PlanService {
     if (items.length === 0) return { ok: true, components: [] }
     const inputs: AddGeneratedComponentInput[] = []
     let planId: PlanId | undefined
+    let graph: PlanGraph | undefined
+    const leftoverUsed = new Map<CookingEventId, Quantity>()
     for (const item of items) {
       for (const component of item.components) {
         if (component.type === 'recipe') {
@@ -222,6 +224,40 @@ export class PlanService {
             return { ok: false, error: 'not-found' }
           planId = built.planId
           inputs.push({ kind: 'cooking-event', ...built.input })
+        } else if (component.type === 'leftover') {
+          const ctx = await this.slotPlanContext(item.slotId)
+          if (!ctx.ok) return ctx
+          if (planId !== undefined && ctx.plan.id !== planId)
+            return { ok: false, error: 'not-found' }
+          planId = ctx.plan.id
+          graph = graph ?? (await this.plans.getGraph(planId))
+          if (!graph) return { ok: false, error: 'not-found' }
+          const event = graph.cookingEvents.find((row) => row.id === component.cookingEventId)
+          if (!event) return { ok: false, error: 'cooking-event-not-found' }
+          if (!this.isValidPositiveQuantity(component.allocatedQuantity)) {
+            return { ok: false, error: 'invalid-quantity' }
+          }
+          const reuse = checkReusePolicy(
+            event.recipeSnapshot.reusePolicy,
+            event.scheduledDate,
+            ctx.slot.date,
+          )
+          if (reuse !== 'ok') return { ok: false, error: reuse }
+          const already = leftoverUsed.get(event.id)
+          const extra = already
+            ? this.quantities.add(already, component.allocatedQuantity)
+            : component.allocatedQuantity
+          if (!extra) return { ok: false, error: 'incompatible-quantity' }
+          const allocCheck = this.checkAllocation(event, graph.components, extra)
+          if (allocCheck !== 'ok') return { ok: false, error: allocCheck }
+          leftoverUsed.set(event.id, extra)
+          inputs.push({
+            kind: 'link-cooking-event',
+            slotId: item.slotId,
+            cookingEventId: event.id,
+            allocatedQuantity: component.allocatedQuantity,
+            role: component.role ?? event.recipeSnapshot.roles[0],
+          })
         } else {
           const ctx = await this.slotPlanContext(item.slotId)
           if (!ctx.ok) return ctx

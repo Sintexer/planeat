@@ -1,9 +1,10 @@
 import type { Recipe } from '../../recipes/Recipe'
-import type { MealType } from '../../shared/MealEnums'
+import type { MealType, RecipeRole, ReusePolicy } from '../../shared/MealEnums'
 import type { Quantity } from '../../shared/Quantity'
-import type { RecipeRole } from '../../shared/MealEnums'
+import type { LocalDate } from '../../shared/LocalDate'
 import type { MealSlot, MealSlotId } from '../MealSlot'
 import type { PlanId } from '../Plan'
+import type { CookingEventId } from '../CookingEvent'
 import type { MealFavorite } from '../../favorites/MealFavorite'
 import type { RecipePairing } from '../../pairings/RecipePairing'
 import type { SimpleFood } from '../../simpleFoods/SimpleFood'
@@ -22,7 +23,7 @@ import {
   type ScoreReason,
 } from './scoring'
 
-export const GENERATION_ALGORITHM_VERSION = '33'
+export const GENERATION_ALGORITHM_VERSION = '34'
 export const GENERATION_POLICY_VERSION = '31'
 
 export type GenerationSearchBudget = {
@@ -123,6 +124,20 @@ export type GenerationCatalogIds = {
   ingredientIds: readonly string[]
 }
 
+export type GenerationLeftoverEvent = {
+  id: CookingEventId
+  recipeId: string
+  recipeName: string
+  scheduledDate: LocalDate
+  outputQuantity: Quantity
+  remaining: Quantity
+  desiredQuantity?: Quantity
+  reusePolicy: ReusePolicy
+  mealTypes: readonly MealType[]
+  recipe: Recipe
+  role?: RecipeRole
+}
+
 export type GenerationInput = {
   planId: PlanId
   planRevision: number
@@ -131,6 +146,7 @@ export type GenerationInput = {
   simpleFoods?: readonly SimpleFood[]
   favorites?: readonly MealFavorite[]
   pairings?: readonly RecipePairing[]
+  cookingEvents?: readonly GenerationLeftoverEvent[]
   requestedSlots: readonly RequestedGenerationSlot[]
   quantityOverrides?: Readonly<Record<string, Quantity>>
   seed: string
@@ -148,6 +164,7 @@ export type SlotAssignmentSource =
   | { type: 'standalone' }
   | { type: 'favorite'; favoriteId: string; favoriteName: string }
   | { type: 'pairing'; pairingId: string }
+  | { type: 'leftover'; cookingEventId: CookingEventId }
 
 export type GeneratedComponent =
   | {
@@ -162,6 +179,15 @@ export type GeneratedComponent =
       type: 'simple-food'
       simpleFoodId: string
       name: string
+      allocatedQuantity: Quantity
+      role?: RecipeRole
+    }
+  | {
+      type: 'leftover'
+      cookingEventId: CookingEventId
+      recipeId: string
+      recipeName: string
+      scheduledDate: LocalDate
       allocatedQuantity: Quantity
       role?: RecipeRole
     }
@@ -218,6 +244,14 @@ export type GenerationFingerprintParts = {
   simpleFoods: readonly { id: string; updatedAt: number }[]
   favorites: readonly { id: string; updatedAt: number }[]
   pairings: readonly { id: string }[]
+  cookingEvents: readonly {
+    id: string
+    scheduledDate: string
+    outputValue: number
+    outputUnit: string
+    remainingValue: number
+    remainingUnit: string
+  }[]
 }
 
 export function generationInputFingerprint(parts: GenerationFingerprintParts): string {
@@ -250,6 +284,9 @@ export function generationInputFingerprint(parts: GenerationFingerprintParts): s
     simpleFoods: [...parts.simpleFoods].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
     favorites: [...parts.favorites].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
     pairings: [...parts.pairings].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+    cookingEvents: [...parts.cookingEvents].sort((a, b) =>
+      a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+    ),
   })
 }
 
@@ -297,5 +334,13 @@ export function fingerprintFromInput(input: GenerationInput): string {
       updatedAt: favorite.updatedAt,
     })),
     pairings: (input.pairings ?? []).map((pairing) => ({ id: pairing.id })),
+    cookingEvents: (input.cookingEvents ?? []).map((event) => ({
+      id: event.id,
+      scheduledDate: event.scheduledDate,
+      outputValue: event.outputQuantity.value,
+      outputUnit: event.outputQuantity.unit,
+      remainingValue: event.remaining.value,
+      remainingUnit: event.remaining.unit,
+    })),
   })
 }

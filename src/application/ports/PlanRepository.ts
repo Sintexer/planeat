@@ -37,6 +37,7 @@ export interface AddSimpleFoodComponentInput {
 export type AddGeneratedComponentInput =
   | ({ kind: 'cooking-event' } & AddCookingEventComponentInput)
   | ({ kind: 'simple-food' } & AddSimpleFoodComponentInput)
+  | ({ kind: 'link-cooking-event' } & LinkCookingEventComponentInput)
 
 export interface CookingEventDependent {
   componentId: MealComponentId

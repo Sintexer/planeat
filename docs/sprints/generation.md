@@ -361,6 +361,8 @@ Soft preferences: quick-meal days, effort, recipe repetition (include `maxPrefer
 
 6. **Demo script.** Cook-new a large batch Monday. Manually allocate part to Monday dinner. Generate Tuesday dinner; preview shows leftover from Monday’s event. Try to generate Sunday breakfast from that event → rejected/not proposed. Confirm grocery list still unchanged until explicit update.
 
+**Shipped.** Leftover is a standalone composition candidate (`algorithmVersion` `34`) linking an existing same-week cooking event after `checkReusePolicy` and remaining (fixed allocations, then search reservation). Apply uses `link-cooking-event` in the same Dexie transaction as cook-new/simple-food; `outputQuantity` is unchanged. Grocery lists stay untouched; leftover grocery dedup remains the existing `GroceryService` leftover-reuse test. No leftover Settings flag. No Dexie or backup-format bump.
+
 ---
 
 ## Sprint 35 — Generate new batches and planned reuse

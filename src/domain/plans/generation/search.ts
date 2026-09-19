@@ -4,6 +4,7 @@ import {
   assignmentFromCandidate,
   enumerateCompositionCandidates,
   foodsInComposition,
+  leftoverRecipesInComposition,
   recipesInComposition,
   type CompositionCandidate,
 } from './compositions'
@@ -48,6 +49,7 @@ type SearchNode = {
   weekRecipeIds: string[]
   demandingByDate: Map<string, number>
   cooksByDate: Map<string, number>
+  remainingByEventId: Map<string, Quantity>
   objective: WeekObjective
 }
 
@@ -115,6 +117,7 @@ function scoreable(candidate: CompositionCandidate): ScoreableComposition {
     id: candidate.id,
     recipes: recipesInComposition(candidate),
     foods: foodsInComposition(candidate),
+    leftoverRecipes: leftoverRecipesInComposition(candidate),
   }
 }
 
@@ -155,7 +158,11 @@ function assignmentKey(node: SearchNode): string {
     .map((row) => {
       const ids = row.components
         .map((component) =>
-          component.type === 'recipe' ? component.recipeId : component.simpleFoodId,
+          component.type === 'recipe'
+            ? component.recipeId
+            : component.type === 'leftover'
+              ? `leftover:${component.cookingEventId}`
+              : component.simpleFoodId,
         )
         .join('+')
       return `${row.slotId}:${ids}`
@@ -173,7 +180,11 @@ function uniqueRecipeCount(node: SearchNode): number {
   return new Set(
     node.assignments.flatMap((row) =>
       row.components.flatMap((component) =>
-        component.type === 'recipe' ? [component.recipeId] : [],
+        component.type === 'recipe'
+          ? [component.recipeId]
+          : component.type === 'leftover'
+            ? [component.recipeId]
+            : [],
       ),
     ),
   ).size
@@ -214,9 +225,22 @@ function withUnfilled(
     unfilled: [...node.unfilled, { slotId: slot.id, mealType: slot.mealType, reason }],
     demandingByDate: new Map(node.demandingByDate),
     cooksByDate: new Map(node.cooksByDate),
+    remainingByEventId: new Map(node.remainingByEventId),
     weekRecipeIds: [...node.weekRecipeIds],
     assignments: [...node.assignments],
   }
+}
+
+function leftoverFitsRemaining(
+  candidate: CompositionCandidate,
+  remainingByEventId: ReadonlyMap<string, Quantity>,
+): boolean {
+  for (const part of candidate.parts) {
+    if (part.type !== 'leftover') continue
+    const remaining = remainingByEventId.get(part.eventId)
+    if (!remaining || remaining.value <= 0) return false
+  }
+  return true
 }
 
 function withAssignment(
@@ -228,12 +252,23 @@ function withAssignment(
   ctx: ScoringContext,
 ): SearchNode {
   const recipes = recipesInComposition(candidate)
+  const leftoverRecipes = leftoverRecipesInComposition(candidate)
   const cooksByDate = new Map(node.cooksByDate)
   const demandingByDate = new Map(node.demandingByDate)
+  const remainingByEventId = new Map(node.remainingByEventId)
   cooksByDate.set(row.slot.date, (cooksByDate.get(row.slot.date) ?? 0) + recipes.length)
   const demandingAdded = recipes.filter((recipe) => recipe.effort === 'demanding').length
   if (demandingAdded > 0) {
     demandingByDate.set(row.slot.date, (demandingByDate.get(row.slot.date) ?? 0) + demandingAdded)
+  }
+  for (const component of assignment.components) {
+    if (component.type !== 'leftover') continue
+    const remaining = remainingByEventId.get(component.cookingEventId)
+    if (!remaining || remaining.unit !== component.allocatedQuantity.unit) continue
+    remainingByEventId.set(component.cookingEventId, {
+      value: remaining.value - component.allocatedQuantity.value,
+      unit: remaining.unit,
+    })
   }
   const scored = scoreable(candidate)
   return {
@@ -246,9 +281,14 @@ function withAssignment(
       },
     ],
     unfilled: [...node.unfilled],
-    weekRecipeIds: [...node.weekRecipeIds, ...recipes.map((recipe) => recipe.id)],
+    weekRecipeIds: [
+      ...node.weekRecipeIds,
+      ...recipes.map((recipe) => recipe.id),
+      ...leftoverRecipes.map((recipe) => recipe.id),
+    ],
     demandingByDate,
     cooksByDate,
+    remainingByEventId,
     objective: addAssignmentToObjective(node.objective, compositionScoreTuple(scored, ctx)),
   }
 }
@@ -272,6 +312,9 @@ function initialNode(input: GenerationInput): SearchNode {
     weekRecipeIds,
     demandingByDate,
     cooksByDate,
+    remainingByEventId: new Map(
+      (input.cookingEvents ?? []).map((event) => [event.id, { ...event.remaining }]),
+    ),
     objective: emptyWeekObjective(),
   }
 }
@@ -352,12 +395,15 @@ export function weekObjectiveForAssignments(
     const assignment = bySlot.get(row.slot.id)
     if (!assignment) continue
     const ctx = scoringContext(input, row, node)
-    const eligible = enumerateCompositionCandidates(input, row.slot.mealType)
+    const eligible = enumerateCompositionCandidates(input, row.slot.mealType, row.slot.date)
     const candidate = eligible.find((item) =>
       assignment.components.every((component, index) => {
         const part = item.parts[index]
         if (component.type === 'recipe') {
           return part?.type === 'recipe' && part.recipe.id === component.recipeId
+        }
+        if (component.type === 'leftover') {
+          return part?.type === 'leftover' && part.eventId === component.cookingEventId
         }
         return part?.type === 'simple-food' && part.food.id === component.simpleFoodId
       }),
@@ -400,7 +446,11 @@ export function runGenerationSearch(
         continue
       }
       const ctx = scoringContext(input, row, parent)
-      const eligible = enumerateCompositionCandidates(input, row.slot.mealType)
+      const eligible = enumerateCompositionCandidates(
+        input,
+        row.slot.mealType,
+        row.slot.date,
+      ).filter((candidate) => leftoverFitsRemaining(candidate, parent.remainingByEventId))
       if (eligible.length === 0) {
         const child = withUnfilled(parent, row.slot, 'no-eligible-candidates')
         best = considerBest(best, child)
@@ -421,6 +471,7 @@ export function runGenerationSearch(
           input.peopleCount,
           scale,
           input.quantityOverrides?.[row.slot.id],
+          parent.remainingByEventId,
         )
         if (!assignment) continue
         if (

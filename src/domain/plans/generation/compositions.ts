@@ -1,6 +1,8 @@
 import type { RecipePairing } from '../../pairings/RecipePairing'
 import type { Recipe } from '../../recipes/Recipe'
 import type { MealType, RecipeRole } from '../../shared/MealEnums'
+import { isReuseAllowed } from '../CookingEventAllocation'
+import type { LocalDate } from '../../shared/LocalDate'
 import type { Quantity } from '../../shared/Quantity'
 import type { SimpleFood } from '../../simpleFoods/SimpleFood'
 import { eligibleStandaloneRecipes } from './candidates'
@@ -25,6 +27,15 @@ export type ScaleQuantity = (quantity: Quantity | null, factor: number) => Quant
 export type CompositionPart =
   | { type: 'recipe'; recipe: Recipe; role?: RecipeRole; favoriteQuantity?: Quantity }
   | { type: 'simple-food'; food: SimpleFood; role?: RecipeRole; favoriteQuantity?: Quantity }
+  | {
+      type: 'leftover'
+      eventId: string
+      recipe: Recipe
+      recipeName: string
+      scheduledDate: LocalDate
+      desiredQuantity: Quantity
+      role?: RecipeRole
+    }
 
 export type CompositionCandidate = {
   id: string
@@ -41,6 +52,14 @@ function includePartsFromComposition(
 ): { tagIds: readonly string[]; linkedIngredientIds: readonly string[] }[] {
   return parts.map((part) => {
     if (part.type === 'recipe') {
+      return {
+        tagIds: part.recipe.tagIds,
+        linkedIngredientIds: part.recipe.ingredientLines.flatMap((line) =>
+          line.ingredientId !== undefined ? [line.ingredientId] : [],
+        ),
+      }
+    }
+    if (part.type === 'leftover') {
       return {
         tagIds: part.recipe.tagIds,
         linkedIngredientIds: part.recipe.ingredientLines.flatMap((line) =>
@@ -92,9 +111,16 @@ function compareCandidates(a: CompositionCandidate, b: CompositionCandidate): nu
 export function enumerateCompositionCandidates(
   input: Pick<
     GenerationInput,
-    'recipes' | 'simpleFoods' | 'favorites' | 'pairings' | 'policy' | 'compositionBounds'
+    | 'recipes'
+    | 'simpleFoods'
+    | 'favorites'
+    | 'pairings'
+    | 'policy'
+    | 'compositionBounds'
+    | 'cookingEvents'
   >,
   mealType: MealType,
+  slotDate?: LocalDate,
 ): CompositionCandidate[] {
   const policy = input.policy ?? DEFAULT_GENERATION_HARD_POLICY
   const bounds = mergeGenerationCompositionBounds(input.compositionBounds)
@@ -191,6 +217,30 @@ export function enumerateCompositionCandidates(
     })
   }
 
+  if (slotDate !== undefined) {
+    for (const event of input.cookingEvents ?? []) {
+      if (!event.desiredQuantity || event.remaining.value <= 0) continue
+      if (!matchesOccasion(event.mealTypes, mealType)) continue
+      if (!isReuseAllowed(event.reusePolicy, event.scheduledDate, slotDate)) continue
+      if (recipeExcludeReasons(event.recipe, policy).length > 0) continue
+      const leftoverPart: CompositionPart = {
+        type: 'leftover',
+        eventId: event.id,
+        recipe: event.recipe,
+        recipeName: event.recipeName,
+        scheduledDate: event.scheduledDate,
+        desiredQuantity: event.desiredQuantity,
+        role: event.role ?? event.recipe.roles[0],
+      }
+      if (!compositionAllowed([leftoverPart], policy, bounds)) continue
+      out.push({
+        id: `leftover:${event.id}`,
+        source: { type: 'leftover', cookingEventId: event.id },
+        parts: [leftoverPart],
+      })
+    }
+  }
+
   return out.sort(compareCandidates)
 }
 
@@ -198,17 +248,20 @@ export function compositionStillEligible(
   assignment: SlotAssignment,
   input: GenerationInput,
   mealType: MealType,
+  slotDate: LocalDate,
 ): boolean {
-  const candidates = enumerateCompositionCandidates(input, mealType)
+  const candidates = enumerateCompositionCandidates(input, mealType, slotDate)
   return candidates.some((candidate) => candidate.id === compositionIdFromAssignment(assignment))
 }
 
 export function compositionIdFromAssignment(assignment: SlotAssignment): string {
   if (assignment.source.type === 'favorite') return `favorite:${assignment.source.favoriteId}`
   if (assignment.source.type === 'pairing') return `pairing:${assignment.source.pairingId}`
+  if (assignment.source.type === 'leftover') return `leftover:${assignment.source.cookingEventId}`
   const first = assignment.components[0]
   if (first?.type === 'simple-food') return `standalone:food:${first.simpleFoodId}`
   if (first?.type === 'recipe') return `standalone:recipe:${first.recipeId}`
+  if (first?.type === 'leftover') return `leftover:${first.cookingEventId}`
   return `standalone:unknown:${assignment.slotId}`
 }
 
@@ -216,13 +269,18 @@ export function findCompositionCandidate(
   input: GenerationInput,
   mealType: MealType,
   assignment: SlotAssignment,
+  slotDate: LocalDate,
 ): CompositionCandidate | undefined {
   const id = compositionIdFromAssignment(assignment)
-  return enumerateCompositionCandidates(input, mealType).find((row) => row.id === id)
+  return enumerateCompositionCandidates(input, mealType, slotDate).find((row) => row.id === id)
 }
 
 export function recipesInComposition(candidate: CompositionCandidate): Recipe[] {
   return candidate.parts.flatMap((part) => (part.type === 'recipe' ? [part.recipe] : []))
+}
+
+export function leftoverRecipesInComposition(candidate: CompositionCandidate): Recipe[] {
+  return candidate.parts.flatMap((part) => (part.type === 'leftover' ? [part.recipe] : []))
 }
 
 export function foodsInComposition(candidate: CompositionCandidate): SimpleFood[] {
@@ -242,10 +300,14 @@ export function assignmentFromCandidate(
   peopleCount: number,
   scale: ScaleQuantity,
   override?: Quantity,
+  remainingByEventId?: ReadonlyMap<string, Quantity>,
 ): SlotAssignment | undefined {
   const recipeParts = candidate.parts.filter((part) => part.type === 'recipe')
+  const leftoverParts = candidate.parts.filter((part) => part.type === 'leftover')
   const useOverride =
-    override !== undefined && recipeParts.length === 1 && candidate.parts.length === 1
+    override !== undefined &&
+    candidate.parts.length === 1 &&
+    (recipeParts.length === 1 || leftoverParts.length === 1)
   const components: GeneratedComponent[] = []
   for (const part of candidate.parts) {
     if (part.type === 'recipe') {
@@ -259,6 +321,29 @@ export function assignmentFromCandidate(
         recipeName: part.recipe.name,
         outputQuantity: quantity,
         allocatedQuantity: quantity,
+        role: part.role ?? part.recipe.roles[0],
+      })
+    } else if (part.type === 'leftover') {
+      const remaining = remainingByEventId?.get(part.eventId)
+      if (!validQuantity(remaining)) return undefined
+      let desired = part.desiredQuantity
+      if (useOverride && override) {
+        if (override.unit !== remaining.unit) return undefined
+        desired = override
+      }
+      if (desired.unit !== remaining.unit) return undefined
+      const allocated = {
+        value: Math.min(desired.value, remaining.value),
+        unit: remaining.unit,
+      }
+      if (!validQuantity(allocated)) return undefined
+      components.push({
+        type: 'leftover',
+        cookingEventId: part.eventId,
+        recipeId: part.recipe.id,
+        recipeName: part.recipeName,
+        scheduledDate: part.scheduledDate,
+        allocatedQuantity: allocated,
         role: part.role ?? part.recipe.roles[0],
       })
     } else {

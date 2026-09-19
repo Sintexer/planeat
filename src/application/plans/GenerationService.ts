@@ -1,6 +1,10 @@
 import type { Quantity } from '../../domain/shared/Quantity'
+import type { CookingEvent } from '../../domain/plans/CookingEvent'
+import type { Recipe } from '../../domain/recipes/Recipe'
+import { hasPositiveRemaining } from '../../domain/plans/CookingEventAllocation'
 import type { MealSlotId } from '../../domain/plans/MealSlot'
 import type { MealComponent } from '../../domain/plans/MealComponent'
+import type { PlanGraph } from '../../domain/plans/PlanGraph'
 import type { PlanRepository } from '../ports/PlanRepository'
 import type { RecipeRepository } from '../ports/RecipeRepository'
 import type { QuantityService } from '../quantities/QuantityService'
@@ -12,6 +16,7 @@ import type { MealFavoriteRepository } from '../ports/MealFavoriteRepository'
 import type { PairingRepository } from '../ports/PairingRepository'
 import {
   type GenerationInput,
+  type GenerationLeftoverEvent,
   type WeekGenerationProposal,
   mergeGenerationCompositionBounds,
   mergeGenerationSearchBudget,
@@ -253,7 +258,55 @@ export class GenerationService {
         tagNamesById,
         searchBudget: mergeGenerationSearchBudget(settings.generationSearchBudget),
         compositionBounds: mergeGenerationCompositionBounds(settings.generationCompositionBounds),
+        cookingEvents: leftoverEventsFromGraph(
+          graph,
+          recipes,
+          plan.peopleCount,
+          this.quantities,
+          this.planService,
+        ),
       },
     }
   }
+}
+
+function leftoverEventsFromGraph(
+  graph: PlanGraph,
+  recipes: readonly Recipe[],
+  peopleCount: number,
+  quantities: QuantityService,
+  planService: PlanService,
+): GenerationLeftoverEvent[] {
+  const liveById = new Map(recipes.map((recipe) => [recipe.id, recipe]))
+  return graph.cookingEvents.map((event) => {
+    const remaining = planService.remainingForCookingEvent(graph, event.id) ?? {
+      value: 0,
+      unit: event.outputQuantity.unit,
+    }
+    const recipe = liveById.get(event.recipeId) ?? recipeFromSnapshot(event)
+    const scaled = quantities.scale(event.recipeSnapshot.defaultPortionPerPerson, peopleCount)
+    const desiredQuantity =
+      scaled && hasPositiveRemaining(remaining)
+        ? (quantities.convert(scaled, remaining.unit) ?? undefined)
+        : undefined
+    return {
+      id: event.id,
+      recipeId: event.recipeId,
+      recipeName: event.recipeSnapshot.name,
+      scheduledDate: event.scheduledDate,
+      outputQuantity: event.outputQuantity,
+      remaining,
+      desiredQuantity: desiredQuantity ?? undefined,
+      reusePolicy: event.recipeSnapshot.reusePolicy,
+      mealTypes: event.recipeSnapshot.mealTypes,
+      recipe,
+      role: event.recipeSnapshot.roles[0],
+    }
+  })
+}
+
+function recipeFromSnapshot(event: CookingEvent): Recipe {
+  const { tags, ...rest } = event.recipeSnapshot
+  void tags
+  return { ...rest, tagIds: [] }
 }

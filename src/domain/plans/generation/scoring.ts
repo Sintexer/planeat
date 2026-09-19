@@ -128,6 +128,7 @@ export type ScoreableComposition = {
   id: string
   recipes: readonly Recipe[]
   foods: readonly SimpleFood[]
+  leftoverRecipes?: readonly Recipe[]
 }
 
 export function scoreableFromRecipe(recipe: Recipe): ScoreableComposition {
@@ -153,6 +154,8 @@ export function compositionScoreTuple(
   const weekday = weekdayOf(ctx.date)
   const isQuickDay = ctx.prefs.quickMealsOnlyDays.includes(weekday)
   const recipes = composition.recipes
+  const leftoverRecipes = composition.leftoverRecipes ?? []
+  const scoredRecipes = [...recipes, ...leftoverRecipes]
   const cooks = recipes.length
   const demanding = recipes.some((recipe) => recipe.effort === 'demanding')
   const demandingStack =
@@ -160,25 +163,25 @@ export function compositionScoreTuple(
   const nextUnits = effortUnits(ctx.cookingEventCountOnDate + cooks)
   const workload = cooks > 0 && nextUnits > ctx.prefs.maxBatchPrepUnits ? 1 : 0
   let repetition = 0
-  for (const recipe of recipes) {
+  for (const recipe of scoredRecipes) {
     const weekUses = ctx.weekRecipeIds.filter((id) => id === recipe.id).length
     repetition += weekUses
     if (recipe.maxPreferredRepeats !== undefined && weekUses + 1 > recipe.maxPreferredRepeats) {
       repetition += 1
     }
   }
-  const historyUses = recipes.reduce(
+  const historyUses = scoredRecipes.reduce(
     (sum, recipe) => sum + ctx.previousWeekRecipeIds.filter((id) => id === recipe.id).length,
     0,
   )
   const providesVeg =
-    recipes.some((recipe) => recipeProvidesVegetable(recipe, ctx.tagNamesById)) ||
+    scoredRecipes.some((recipe) => recipeProvidesVegetable(recipe, ctx.tagNamesById)) ||
     composition.foods.some((food) => foodProvidesVegetable(food, ctx.tagNamesById))
   const vegMiss = ctx.prefs.favorVegetablesDaily && !providesVeg ? 1 : 0
   const preferred = ctx.prefs.generationPreferredTagIds
   const hasPreferred =
     preferred.length === 0 ||
-    recipes.some((recipe) => preferred.some((id) => recipe.tagIds.includes(id))) ||
+    scoredRecipes.some((recipe) => preferred.some((id) => recipe.tagIds.includes(id))) ||
     composition.foods.some((food) => preferred.some((id) => food.tagIds.includes(id)))
   const tagMiss = preferred.length > 0 && !hasPreferred ? 1 : 0
   const offPrep =

@@ -217,6 +217,16 @@ export class DexiePlanRepository implements PlanRepository {
             }
             await this.db.mealComponents.add(component)
             components.push(component)
+          } else if (input.kind === 'link-cooking-event') {
+            const component: MealComponent = {
+              id: crypto.randomUUID(),
+              slotId: input.slotId,
+              source: { type: 'cooking-event', cookingEventId: input.cookingEventId },
+              allocatedQuantity: input.allocatedQuantity,
+              role: input.role,
+            }
+            await this.db.mealComponents.add(component)
+            components.push(component)
           } else {
             const component: MealComponent = {
               id: crypto.randomUUID(),

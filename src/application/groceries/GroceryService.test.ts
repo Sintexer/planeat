@@ -669,6 +669,8 @@ describe('GroceryService.generateFromPlan aggregation', () => {
 })
 
 describe('GroceryService.generateFromPlan leftover reuse', () => {
+  // Sprint 34 generate-apply only links existing cooking events. Grocery lists stay
+  // untouched until the cook later generates/updates a list; this fixture is that proof.
   it('the same cooking event referenced by two meal components is scaled once, not twice', async () => {
     const graph = buildGraph({
       cookingEvents: [

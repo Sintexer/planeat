@@ -1,6 +1,6 @@
 # Roadmap
 
-Shipped through **Sprint 33**. Next sequenced work is **Sprint 34** (allocate existing leftovers). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
+Shipped through **Sprint 34**. Next sequenced work is **Sprint 35** (generate new batches and planned reuse). Optional Lane B remains. Full Status log: [`docs/sprints/plan.md`](sprints/plan.md). Phase 7 cards: [`docs/sprints/generation.md`](sprints/generation.md).
 
 ## Done — project initialization
 
@@ -153,7 +153,12 @@ Shipped through **Sprint 33**. Next sequenced work is **Sprint 34** (allocate ex
 - Suggestion-disabled simple foods are not standalone picks; they may still appear inside a known composition.
 - Apply writes mixed cook-new and simple-food components in one transaction. Additive `generationCompositionBounds`. No Dexie or backup-format bump.
 
-## Next — Phase 7 automatic meal planning (Sprints 34–38)
+## Done — Sprint 34 (allocate existing leftovers)
+
+- Generate may fill later empty meals with remaining portions of existing same-week cooking events, after reuse policy and already-planned allocations.
+- Stored event output is unchanged. Apply links leftover in the same transaction as other generated components. Grocery lists stay untouched until the cook later generates/updates a list.
+
+## Next — Phase 7 automatic meal planning (Sprints 35–38)
 
 Local, explainable generation. Proposals only; apply through existing cooking events; grocery lists stay manual. No backend or LLM.
 

@@ -36,6 +36,7 @@ export const enMessages = {
   'generation.previewBody': '{name} for {meal}, scaled to {quantity}.',
   'generation.previewSourceFavorite': 'From favorite “{name}”.',
   'generation.previewSourcePairing': 'From a saved pairing.',
+  'generation.previewSourceLeftover': 'Leftover from {date}.',
   'generation.applied': 'Meal added',
   'generation.noEligible': 'No complete recipes for this meal yet.',
   'generation.slotNotEmpty': 'This meal already has a dish.',
