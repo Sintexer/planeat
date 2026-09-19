@@ -108,6 +108,7 @@ export const enMessages = {
   'generation.requestTweaks': 'This generate only',
   'generation.requestTweaksHelp':
     'These changes apply to this run. Save a preset if you want to reuse them.',
+  'generation.presetActions': 'Preset actions',
   'generation.updatePreset': 'Update preset',
   'generation.savePresetAsNew': 'Save as new',
   'generation.savePresetTitle': 'Save as new preset',

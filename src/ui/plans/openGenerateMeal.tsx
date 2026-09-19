@@ -1,6 +1,7 @@
-import { Button, Group, Stack, Text } from '@mantine/core'
+import { Button, Group, Paper, Stack, Text } from '@mantine/core'
 import { modals } from '@mantine/modals'
 import { notifications } from '@mantine/notifications'
+import { Warning } from '@phosphor-icons/react'
 import type { ReactElement } from 'react'
 import type { GenerationService } from '../../application/plans/GenerationService'
 import type { ConstraintReason } from '../../domain/plans/generation/constraints'
@@ -84,34 +85,40 @@ export function GenerationProposalView({
 
   return (
     <Stack gap="sm">
-      {(proposal.cookingBlocks ?? []).length > 0 && (
-        <Stack gap={4}>
-          <Text size="sm" fw={600}>
-            {t('generation.prepStructure')}
-          </Text>
-          {proposal.cookingBlocks?.map((block) => (
-            <Text size="sm" key={block.id}>
-              {t('generation.prepBlock', {
-                date: block.prepareDate,
-                name: block.recipeName,
-                count: block.mealCount,
-              })}
-            </Text>
-          ))}
-        </Stack>
-      )}
-      {(proposal.capacityNotes ?? []).length > 0 && (
-        <Stack gap={2}>
-          {proposal.capacityNotes?.map((note) => (
-            <Text size="xs" c="dimmed" key={note.date}>
-              {t('generation.capacityNote', {
-                date: note.date,
-                cooks: note.cookCount,
-                units: String(note.effortUnits),
-              })}
-            </Text>
-          ))}
-        </Stack>
+      {((proposal.cookingBlocks ?? []).length > 0 || (proposal.capacityNotes ?? []).length > 0) && (
+        <Paper withBorder p="xs" radius="md">
+          <Stack gap={4}>
+            {(proposal.cookingBlocks ?? []).length > 0 && (
+              <>
+                <Text size="sm" fw={600}>
+                  {t('generation.prepStructure')}
+                </Text>
+                {proposal.cookingBlocks?.map((block) => (
+                  <Text size="sm" key={block.id}>
+                    {t('generation.prepBlock', {
+                      date: block.prepareDate,
+                      name: block.recipeName,
+                      count: block.mealCount,
+                    })}
+                  </Text>
+                ))}
+              </>
+            )}
+            {(proposal.capacityNotes ?? []).length > 0 && (
+              <Stack gap={2}>
+                {proposal.capacityNotes?.map((note) => (
+                  <Text size="xs" c="dimmed" key={note.date}>
+                    {t('generation.capacityNote', {
+                      date: note.date,
+                      cooks: note.cookCount,
+                      units: String(note.effortUnits),
+                    })}
+                  </Text>
+                ))}
+              </Stack>
+            )}
+          </Stack>
+        </Paper>
       )}
       {(proposal.replacementPreview ?? []).map((row) => (
         <Text size="sm" key={`remove-${row.slotId}`}>
@@ -165,13 +172,16 @@ export function GenerationProposalView({
         </Stack>
       ))}
       {proposal.unfilled.map((row) => (
-        <Text size="sm" c="dimmed" key={row.slotId}>
-          {row.reason === 'search-incomplete'
-            ? t('generation.searchIncompleteRow', { meal: mealTypeLabel(t, row.mealType) })
-            : row.reason === 'capacity-exhausted'
-              ? t('generation.capacityExhaustedRow', { meal: mealTypeLabel(t, row.mealType) })
-              : t('generation.unfilledRow', { meal: mealTypeLabel(t, row.mealType) })}
-        </Text>
+        <Group key={row.slotId} gap={6} wrap="nowrap">
+          <Warning size={12} color="var(--mantine-color-warning-6)" />
+          <Text size="sm" c="warning">
+            {row.reason === 'search-incomplete'
+              ? t('generation.searchIncompleteRow', { meal: mealTypeLabel(t, row.mealType) })
+              : row.reason === 'capacity-exhausted'
+                ? t('generation.capacityExhaustedRow', { meal: mealTypeLabel(t, row.mealType) })
+                : t('generation.unfilledRow', { meal: mealTypeLabel(t, row.mealType) })}
+          </Text>
+        </Group>
       ))}
       {proposal.unfilled.some((row) => row.reason === 'search-incomplete') && (
         <Text size="sm" c="dimmed">
@@ -182,46 +192,53 @@ export function GenerationProposalView({
         </Text>
       )}
       {showDiagnostics && (
-        <Stack gap={4}>
-          {dropCounts.length > 0 && (
-            <Text size="sm" fw={600}>
-              {t('generation.diagnosticsTitle')}
-            </Text>
-          )}
-          {dropCounts.map((row) => (
-            <Text size="sm" c="dimmed" key={`${row.mealType}-${row.reason}`}>
-              {t('generation.dropCount', {
-                count: row.count,
-                meal: mealTypeLabel(t, row.mealType),
-                reason: constraintReasonLabel(t, row.reason),
-              })}
-            </Text>
-          ))}
-          {proposal.diagnostics.fixedConflicts.length > 0 && (
-            <>
-              <Text size="sm" fw={600}>
-                {t('generation.fixedConflictHelp')}
+        <Paper
+          withBorder
+          p="xs"
+          radius="md"
+          style={{ borderColor: 'var(--mantine-color-default-border)' }}
+        >
+          <Stack gap={4}>
+            {dropCounts.length > 0 && (
+              <Text size="xs" fw={600} c="dimmed">
+                {t('generation.diagnosticsTitle')}
               </Text>
-              {proposal.diagnostics.fixedConflicts.map((row) => (
-                <Text size="sm" c="dimmed" key={row.slotId}>
-                  {t('generation.fixedConflict', {
-                    date: row.date,
-                    meal: mealTypeLabel(t, row.mealType),
-                    reasons: formatReasons(t, row.reasons),
-                  })}
+            )}
+            {dropCounts.map((row) => (
+              <Text size="sm" c="dimmed" key={`${row.mealType}-${row.reason}`}>
+                {t('generation.dropCount', {
+                  count: row.count,
+                  meal: mealTypeLabel(t, row.mealType),
+                  reason: constraintReasonLabel(t, row.reason),
+                })}
+              </Text>
+            ))}
+            {proposal.diagnostics.fixedConflicts.length > 0 && (
+              <>
+                <Text size="xs" fw={600} c="dimmed">
+                  {t('generation.fixedConflictHelp')}
                 </Text>
-              ))}
-            </>
-          )}
-          {remainders.map((row) => (
-            <Text size="sm" c="dimmed" key={row.proposedEventId}>
-              {t('meal.unallocatedLine', {
-                name: row.recipeName,
-                quantity: formatQty(row.remaining),
-              })}
-            </Text>
-          ))}
-        </Stack>
+                {proposal.diagnostics.fixedConflicts.map((row) => (
+                  <Text size="sm" c="dimmed" key={row.slotId}>
+                    {t('generation.fixedConflict', {
+                      date: row.date,
+                      meal: mealTypeLabel(t, row.mealType),
+                      reasons: formatReasons(t, row.reasons),
+                    })}
+                  </Text>
+                ))}
+              </>
+            )}
+            {remainders.map((row) => (
+              <Text size="sm" c="dimmed" key={row.proposedEventId}>
+                {t('meal.unallocatedLine', {
+                  name: row.recipeName,
+                  quantity: formatQty(row.remaining),
+                })}
+              </Text>
+            ))}
+          </Stack>
+        </Paper>
       )}
     </Stack>
   )

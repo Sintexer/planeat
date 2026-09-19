@@ -1,4 +1,14 @@
-import { ActionIcon, Badge, Group, Paper, Stack, Text, Menu, UnstyledButton } from '@mantine/core'
+import {
+  ActionIcon,
+  Badge,
+  Button,
+  Group,
+  Paper,
+  Stack,
+  Text,
+  Menu,
+  UnstyledButton,
+} from '@mantine/core'
 import { DotsThree, LockSimple, MagicWand, Plus, Warning, X } from '@phosphor-icons/react'
 import { mealTypeLabel } from '../localization/labels'
 import { RecipePhotoThumb } from './RecipePhotoThumb'
@@ -246,42 +256,24 @@ export function MealSlotCard({
             )}
             <AddDishButton onOpen={onOpen} label={t('slot.addDish')} />
             {!hasComponents && onGenerate && (
-              <UnstyledButton onClick={onGenerate} w="100%" style={{ textAlign: 'center' }}>
-                <Paper
-                  p={10}
-                  radius="md"
-                  style={{
-                    border: '1.5px dashed var(--mantine-color-default-border)',
-                    background: 'transparent',
-                  }}
-                >
-                  <Group gap={6} justify="center">
-                    <MagicWand size={16} />
-                    <Text size="sm" fw={500}>
-                      {t('generation.generate')}
-                    </Text>
-                  </Group>
-                </Paper>
-              </UnstyledButton>
+              <Button
+                fullWidth
+                variant="light"
+                leftSection={<MagicWand size={16} />}
+                onClick={onGenerate}
+              >
+                {t('generation.generate')}
+              </Button>
             )}
             {hasComponents && onRegenerate && (
-              <UnstyledButton onClick={onRegenerate} w="100%" style={{ textAlign: 'center' }}>
-                <Paper
-                  p={10}
-                  radius="md"
-                  style={{
-                    border: '1.5px dashed var(--mantine-color-default-border)',
-                    background: 'transparent',
-                  }}
-                >
-                  <Group gap={6} justify="center">
-                    <MagicWand size={16} />
-                    <Text size="sm" fw={500}>
-                      {t('generation.regenerate')}
-                    </Text>
-                  </Group>
-                </Paper>
-              </UnstyledButton>
+              <Button
+                fullWidth
+                variant="light"
+                leftSection={<MagicWand size={16} />}
+                onClick={onRegenerate}
+              >
+                {t('generation.regenerate')}
+              </Button>
             )}
           </>
         )}

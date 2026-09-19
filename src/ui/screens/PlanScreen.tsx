@@ -49,6 +49,7 @@ import { MEAL_TYPES } from '../../domain/shared/MealEnums'
 import { GroceryUpdatePreview } from '../components/GroceryUpdatePreview'
 import { MealEditor } from '../components/MealEditor'
 import { MealSlotCard } from '../components/MealSlotCard'
+import { MEAL_TYPE_ICONS } from '../plans/mealTypeIcons'
 import { PlanWeekPicker } from '../components/PlanWeekPicker'
 import { PageTitle } from '../components/ScreenHeader'
 import { SoftPromptAlerts } from '../components/SoftPromptAlerts'
@@ -337,6 +338,7 @@ export function PlanScreen() {
   const dayEvents = cookingEventsOnDate(graph, activeDay)
   const dayPrompts = softPrompts.filter((p) => p.date === activeDay)
   const weekPrompts = softPrompts.filter((p) => !p.date)
+  const combinedPrompts = [...dayPrompts.map((p) => ({ ...p, date: undefined })), ...weekPrompts]
   const label = formatPlanWeekLabel(
     planWeekRelation(graph.plan.startDate, today, settings.weekStartDay),
     bcp47,
@@ -359,7 +361,7 @@ export function PlanScreen() {
 
   const groceryAction = (
     <Button
-      variant="default"
+      variant="light"
       radius="xl"
       size="compact-sm"
       leftSection={<ShoppingBag size={15} />}
@@ -371,7 +373,7 @@ export function PlanScreen() {
 
   const generateMealsAction = (
     <Button
-      variant="default"
+      variant="light"
       radius="xl"
       size="compact-sm"
       leftSection={<MagicWand size={15} />}
@@ -621,8 +623,7 @@ export function PlanScreen() {
               </Text>
             )}
 
-            <SoftPromptAlerts prompts={weekPrompts} />
-            <SoftPromptAlerts prompts={dayPrompts} omitDatePrefix />
+            <SoftPromptAlerts prompts={combinedPrompts} />
 
             {!isDayPlanned(graph, activeDay) && (
               <Text size="sm" c="dimmed">
@@ -634,10 +635,14 @@ export function PlanScreen() {
               {MEAL_TYPES.map((mealType) => {
                 const meals = displaysByMeal.get(mealType) ?? []
                 if (meals.length === 0) {
+                  const MealIcon = MEAL_TYPE_ICONS[mealType]
                   return (
-                    <Text key={mealType} size="sm" c="dimmed">
-                      {t('slot.noSlot')}
-                    </Text>
+                    <Group key={mealType} gap={6}>
+                      <MealIcon size={14} style={{ opacity: 0.4 }} />
+                      <Text size="sm" c="dimmed">
+                        {t('slot.noSlot')}
+                      </Text>
+                    </Group>
                   )
                 }
                 return meals.map((display) => (

@@ -139,7 +139,7 @@ export function GenerationPresetsBar({
             </>
           )}
           <Menu.Divider />
-          {dirty && <Menu.Label>{t('library.unsaved')}</Menu.Label>}
+          <Menu.Label>{dirty ? t('library.unsaved') : t('generation.presetActions')}</Menu.Label>
           <Menu.Item disabled={!canUpdate} onClick={() => void onUpdate()}>
             {t('generation.updatePreset')}
           </Menu.Item>
@@ -147,6 +147,7 @@ export function GenerationPresetsBar({
           <Menu.Item disabled={!canRenameOrDelete} onClick={openRename}>
             {t('action.rename')}
           </Menu.Item>
+          <Menu.Divider />
           <Menu.Item disabled={!canRenameOrDelete} color="error" onClick={confirmDelete}>
             {t('action.delete')}
           </Menu.Item>

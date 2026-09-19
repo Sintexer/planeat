@@ -112,6 +112,7 @@ export const ruMessages = {
   'generation.requestTweaks': 'Только этот подбор',
   'generation.requestTweaksHelp':
     'Изменения действуют на этот запуск. Сохраните пресет, если хотите использовать их снова.',
+  'generation.presetActions': 'Действия с пресетом',
   'generation.updatePreset': 'Обновить пресет',
   'generation.savePresetAsNew': 'Сохранить как новый',
   'generation.savePresetTitle': 'Сохранить как новый пресет',
