@@ -1,5 +1,6 @@
-import { Alert, Stack } from '@mantine/core'
-import { Info, Warning } from '@phosphor-icons/react'
+import { Alert, Group, Stack, Text, UnstyledButton } from '@mantine/core'
+import { CaretDown, CaretUp, Info, Warning } from '@phosphor-icons/react'
+import { useState } from 'react'
 import type { SoftPrompt } from '../../domain/plans/softPrompts'
 import { useLocalization } from '../localization/LocalizationContext'
 import type { Translate } from '../localization/t'
@@ -33,10 +34,40 @@ export function SoftPromptAlerts({
   prompts: SoftPrompt[]
   omitDatePrefix?: boolean
 }) {
-  const { t } = useLocalization()
+  const { t, tPlural } = useLocalization()
+  const [expanded, setExpanded] = useState(false)
   if (prompts.length === 0) return null
+
+  if (prompts.length > 1 && !expanded) {
+    const hasWarning = prompts.some((prompt) => prompt.severity === 'warning')
+    return (
+      <UnstyledButton onClick={() => setExpanded(true)} w="100%">
+        <Alert
+          color={hasWarning ? 'warning' : 'dark'}
+          variant="light"
+          icon={hasWarning ? <Warning size={16} /> : <Info size={16} />}
+        >
+          <Group justify="space-between" wrap="nowrap">
+            <Text size="sm">{tPlural('plan.tipsCount', prompts.length)}</Text>
+            <CaretDown size={14} />
+          </Group>
+        </Alert>
+      </UnstyledButton>
+    )
+  }
+
   return (
     <Stack gap="xs">
+      {prompts.length > 1 && (
+        <UnstyledButton onClick={() => setExpanded(false)} w="100%">
+          <Group gap={4} justify="flex-end">
+            <Text size="sm" c="dimmed">
+              {t('plan.hideTips')}
+            </Text>
+            <CaretUp size={14} />
+          </Group>
+        </UnstyledButton>
+      )}
       {prompts.map((prompt) => {
         const body = promptBody(prompt, t)
         const text = omitDatePrefix || !prompt.date ? body : `${prompt.date}: ${body}`

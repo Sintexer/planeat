@@ -1,10 +1,12 @@
 import type { PlanGraph } from '../../domain/plans/PlanGraph'
+import { hasUnallocatedRemainder } from '../../domain/plans/CookingEventAllocation'
 import type { CookingEvent } from '../../domain/plans/CookingEvent'
 import type { MealComponent } from '../../domain/plans/MealComponent'
 import type { MealSlot } from '../../domain/plans/MealSlot'
 import type { Recipe } from '../../domain/recipes/Recipe'
 import type { LocalDate } from '../../domain/shared/LocalDate'
 import { MEAL_TYPES } from '../../domain/shared/MealEnums'
+import type { Quantity } from '../../domain/shared/Quantity'
 import type { SimpleFood } from '../../domain/simpleFoods/SimpleFood'
 
 export { formatPlanDayHeading } from '../localization/formatDate'
@@ -72,6 +74,25 @@ export function componentLabel(item: SlotComponentDisplay, unknownLabel = ''): s
   if (item.cookingEvent) return item.cookingEvent.recipeSnapshot.name
   if (item.simpleFood) return item.simpleFood.name
   return unknownLabel
+}
+
+/**
+ * Whether this dish is where a batch was cooked ('prep') or is eating from one cooked
+ * elsewhere ('reuse'). Ground truth via `originSlotId` when present; for events that predate
+ * that field, falls back to the old same-day-blind heuristic (date comparison + remainder).
+ */
+export function dishMarker(
+  item: SlotComponentDisplay,
+  slot: MealSlot,
+  remainingByEventId: ReadonlyMap<string, Quantity | null>,
+): 'prep' | 'reuse' | null {
+  const event = item.cookingEvent
+  if (!event) return null
+  if (event.originSlotId !== undefined) {
+    return event.originSlotId === slot.id ? 'prep' : 'reuse'
+  }
+  if (event.scheduledDate !== slot.date) return 'reuse'
+  return hasUnallocatedRemainder(remainingByEventId.get(event.id) ?? null) ? 'prep' : null
 }
 
 export type { MealType } from '../../domain/shared/MealEnums'

@@ -189,3 +189,13 @@ Phase 7 sequenced generation (Sprints 28–38) is shipped: proposals only; apply
 ## Later (still out of Phase 7)
 
 Still out of scope unless separately backlogged: backends and sync, nutrition/barcode databases, food ontologies, pantry accounting, additional languages beyond English/Russian, local photo uploads, inferred culinary pairings, automatic grocery updates, cross-week leftover inventory.
+
+## Later — TODO: prep as a meal-level concept, not a day-level note
+
+Prep currently surfaces only as a disconnected day-level summary line ("Prep · 1 · Boiled potatoes") plus, as of the same-day-reuse fix, a tint/badge on the specific dish that did the cooking (`originSlotId` on `CookingEvent`, `dishMarker` in `src/ui/plans/slotDisplay.ts`). That badge only says "this is a prep dish" — it doesn't yet answer the follow-up questions a cook actually has:
+
+- **Emphasize the prep meal more strongly** than a small corner badge — it's the meal that determines what gets cooked and how much, so it should read as the "lead" item for that batch, not an equal-weight dish among others.
+- **Link forward/backward**: from the prep meal, show which other meals (same day or later) are eating from it; from a reuse meal, link back to the prep meal instead of just labeling it "Leftover."
+- **Show the production breakdown**: total output produced, how much this meal itself uses, and how the remainder is allocated across the other meals reusing it (the "1/3 used here, 2/3 split across two other meals" picture) — not just a single "N serving left" warning banner.
+
+Foundation already in place: `CookingEvent.originSlotId`, `CookingEventAllocation.ts` (`componentsForCookingEvent`, remaining-quantity math), `remainingByEventId`. This would mostly be a UI/interaction design task (e.g. a "batch detail" expansion or a dedicated view reachable from the prep badge) rather than a new data model.

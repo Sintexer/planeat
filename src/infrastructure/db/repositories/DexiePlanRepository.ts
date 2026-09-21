@@ -117,6 +117,7 @@ export class DexiePlanRepository implements PlanRepository {
             recipeSnapshot: structuredClone(input.recipeSnapshot),
             outputQuantity: input.outputQuantity,
             scheduledDate: input.scheduledDate,
+            originSlotId: input.slotId,
           }
           await this.db.cookingEvents.add(cookingEvent)
 

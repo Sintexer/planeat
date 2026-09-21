@@ -213,6 +213,7 @@ const cookingEventSchema = z.object({
   recipeSnapshot: recipeSnapshotSchema,
   outputQuantity: quantitySchema,
   scheduledDate: z.string(),
+  originSlotId: z.string().optional(),
 })
 
 const prepSessionSchema = z.object({

@@ -650,6 +650,7 @@ export function PlanScreen() {
                     key={display.slot.id}
                     display={display}
                     wontCarryOverEventIds={wontCarryOverEventIds}
+                    remainingByEventId={remainingByEventId}
                     onOpen={() => setEditorSlot(display.slot)}
                     onClear={() => void confirmClearSlot(planService, display.slot.id, t)}
                     onExclude={() => void confirmExcludeSlot(planService, display.slot.id, t)}

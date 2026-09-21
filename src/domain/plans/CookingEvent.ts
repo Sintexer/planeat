@@ -1,6 +1,7 @@
 import type { Recipe, RecipeId } from '../recipes/Recipe'
 import type { LocalDate } from '../shared/LocalDate'
 import type { Quantity } from '../shared/Quantity'
+import type { MealSlotId } from './MealSlot'
 import type { PlanId } from './Plan'
 import type { PrepSessionId } from './PrepSession'
 
@@ -21,4 +22,6 @@ export interface CookingEvent {
   recipeSnapshot: RecipeSnapshot
   outputQuantity: Quantity
   scheduledDate: LocalDate
+  /** The slot whose "cook new" action created this event. Absent on events created before this field existed. */
+  originSlotId?: MealSlotId
 }

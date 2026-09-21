@@ -27,6 +27,10 @@ export const enPlurals = {
     one: '{count} simple food',
     other: '{count} simple foods',
   },
+  'plan.tipsCount': {
+    one: '{count} planning tip',
+    other: '{count} planning tips',
+  },
 } as const satisfies Record<string, PluralForms>
 
 export type PluralId = keyof typeof enPlurals

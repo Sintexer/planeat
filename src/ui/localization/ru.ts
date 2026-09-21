@@ -305,8 +305,10 @@ export const ruMessages = {
   'plan.backToWeek': 'Неделя',
   'plan.gridMeals': 'Приёмы',
   'plan.leftover': 'Остаток',
+  'plan.prepDish': 'Приготовлено сегодня, остаток на потом',
   'plan.wontCarryOver': 'Не переносится',
   'plan.gridScrollLabel': 'Сетка недели, прокрутите, чтобы увидеть остальные дни',
+  'plan.hideTips': 'Скрыть советы',
   'mealType.breakfast': 'Завтрак',
   'mealType.lunch': 'Обед',
   'mealType.dinner': 'Ужин',
@@ -864,5 +866,11 @@ export const ruPlurals = {
     few: '{count} простых блюдах',
     many: '{count} простых блюдах',
     other: '{count} простых блюдах',
+  },
+  'plan.tipsCount': {
+    one: '{count} совет по планированию',
+    few: '{count} совета по планированию',
+    many: '{count} советов по планированию',
+    other: '{count} советов по планированию',
   },
 } as const satisfies Record<PluralId, PluralForms>

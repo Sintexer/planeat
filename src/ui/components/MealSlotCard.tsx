@@ -1,6 +1,7 @@
 import {
   ActionIcon,
   Badge,
+  Box,
   Button,
   Group,
   Paper,
@@ -9,18 +10,35 @@ import {
   Menu,
   UnstyledButton,
 } from '@mantine/core'
-import { DotsThree, LockSimple, MagicWand, Plus, Warning, X } from '@phosphor-icons/react'
+import {
+  ArrowUUpLeft,
+  DotsThree,
+  LockSimple,
+  MagicWand,
+  Plus,
+  Stack as StackIcon,
+  Warning,
+  X,
+} from '@phosphor-icons/react'
 import { mealTypeLabel } from '../localization/labels'
 import { RecipePhotoThumb } from './RecipePhotoThumb'
 import { useFormatQuantity } from '../localization/useFormatQuantity'
 import { useLocalization } from '../localization/LocalizationContext'
+import type { MealSlot } from '../../domain/plans/MealSlot'
+import type { Quantity } from '../../domain/shared/Quantity'
 import { MEAL_TYPE_ICONS } from '../plans/mealTypeIcons'
-import { componentLabel, type SlotComponentDisplay, type SlotDisplay } from '../plans/slotDisplay'
+import {
+  componentLabel,
+  dishMarker,
+  type SlotComponentDisplay,
+  type SlotDisplay,
+} from '../plans/slotDisplay'
 
 interface MealSlotCardProps {
   display: SlotDisplay
   /** IDs of cooking events with same-day/fresh-only leftovers that will be wasted after today. */
   wontCarryOverEventIds?: Set<string>
+  remainingByEventId: ReadonlyMap<string, Quantity | null>
   onOpen: () => void
   onClear: () => void
   onExclude: () => void
@@ -33,12 +51,14 @@ interface MealSlotCardProps {
 
 function DishRow({
   item,
-  mealDate,
+  slot,
+  remainingByEventId,
   wontCarryOver,
   onOpen,
 }: {
   item: SlotComponentDisplay
-  mealDate: string
+  slot: MealSlot
+  remainingByEventId: ReadonlyMap<string, Quantity | null>
   wontCarryOver: boolean
   onOpen: () => void
 }) {
@@ -46,12 +66,56 @@ function DishRow({
   const { t } = useLocalization()
   const label = componentLabel(item)
   const qty = formatQty(item.component.allocatedQuantity)
-  const isLeftover = item.cookingEvent !== undefined && item.cookingEvent.scheduledDate !== mealDate
+  const marker = dishMarker(item, slot, remainingByEventId)
+  const isLeftover = marker === 'reuse'
 
   return (
     <UnstyledButton onClick={onOpen} w="100%" style={{ textAlign: 'left' }}>
-      <Group wrap="nowrap" align="center" gap="sm">
-        <RecipePhotoThumb url={item.photoUrl} label={label} size={52} />
+      <Group
+        wrap="nowrap"
+        align="center"
+        gap="sm"
+        p={marker ? 6 : 0}
+        style={{
+          borderRadius: 8,
+          border:
+            marker === 'reuse' ? '1.5px dashed var(--mantine-color-default-border)' : undefined,
+          background:
+            marker === 'prep'
+              ? 'color-mix(in srgb, var(--mantine-color-primary-6) 8%, var(--mantine-color-body))'
+              : undefined,
+        }}
+      >
+        <Box style={{ position: 'relative', flexShrink: 0 }}>
+          <RecipePhotoThumb url={item.photoUrl} label={label} size={52} />
+          {marker && (
+            <Box
+              style={{
+                position: 'absolute',
+                top: -4,
+                left: -4,
+                width: 18,
+                height: 18,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background:
+                  marker === 'reuse'
+                    ? 'var(--mantine-color-dimmed)'
+                    : 'var(--mantine-color-primary-filled)',
+                color: 'white',
+              }}
+              aria-hidden
+            >
+              {marker === 'reuse' ? (
+                <ArrowUUpLeft size={10} weight="bold" />
+              ) : (
+                <StackIcon size={10} weight="fill" />
+              )}
+            </Box>
+          )}
+        </Box>
         <Stack gap={6} style={{ minWidth: 0, flex: 1 }}>
           <Text size="sm" fw={500} lineClamp={2}>
             {label}
@@ -171,6 +235,7 @@ function SlotMenu({
 export function MealSlotCard({
   display,
   wontCarryOverEventIds,
+  remainingByEventId,
   onOpen,
   onClear,
   onExclude,
@@ -241,7 +306,8 @@ export function MealSlotCard({
               <DishRow
                 key={item.component.id}
                 item={item}
-                mealDate={slot.date}
+                slot={slot}
+                remainingByEventId={remainingByEventId}
                 wontCarryOver={
                   item.cookingEvent !== undefined &&
                   (wontCarryOverEventIds?.has(item.cookingEvent.id) ?? false)

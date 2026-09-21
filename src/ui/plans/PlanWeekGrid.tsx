@@ -1,6 +1,6 @@
 import { Box, Paper, Text, UnstyledButton } from '@mantine/core'
-import { Note, Plus, Warning } from '@phosphor-icons/react'
-import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
+import { ArrowUUpLeft, Plus, Stack as StackIcon, Warning } from '@phosphor-icons/react'
+import { Fragment, useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import { hasUnallocatedRemainder, isCarryoverRisk } from '../../domain/plans/CookingEventAllocation'
 import type { MealSlot } from '../../domain/plans/MealSlot'
 import type { LocalDate } from '../../domain/shared/LocalDate'
@@ -10,7 +10,7 @@ import { mealTypeLabel } from '../localization/labels'
 import { useLocalization } from '../localization/LocalizationContext'
 import { RecipePhotoThumb } from '../components/RecipePhotoThumb'
 import { MEAL_TYPE_ICONS } from './mealTypeIcons'
-import { componentLabel, type SlotDisplay } from './slotDisplay'
+import { componentLabel, dishMarker, type SlotDisplay } from './slotDisplay'
 
 interface PlanWeekGridProps {
   weekDates: LocalDate[]
@@ -37,23 +37,20 @@ function displayForMeal(
   return displays?.find((d) => d.slot.mealType === mealType)
 }
 
-function cellMarkers(
+function cellHasWarning(
   display: SlotDisplay | undefined,
   remainingByEventId: ReadonlyMap<string, Quantity | null>,
-): { warning: boolean; note: boolean } {
-  if (!display) return { warning: false, note: false }
-  let warning = false
-  let note = false
+): boolean {
+  if (!display) return false
   for (const item of display.components) {
     const event = item.cookingEvent
     if (!event) continue
     const leftover = event.scheduledDate !== display.slot.date
     const risk = isCarryoverRisk(event.recipeSnapshot.reusePolicy)
     const unallocated = hasUnallocatedRemainder(remainingByEventId.get(event.id) ?? null)
-    if ((leftover && risk) || (!leftover && unallocated && risk)) warning = true
-    else if ((leftover && !risk) || (!leftover && unallocated && !risk)) note = true
+    if ((leftover && risk) || (!leftover && unallocated && risk)) return true
   }
-  return { warning, note: note && !warning }
+  return false
 }
 
 const stickyBg: CSSProperties = {
@@ -222,7 +219,7 @@ export function PlanWeekGrid({
           {MEAL_TYPES.map((mealType) => {
             const MealIcon = MEAL_TYPE_ICONS[mealType]
             return (
-              <Box key={mealType} style={{ display: 'contents' }}>
+              <Fragment key={mealType}>
                 <Box
                   style={{
                     ...stickyBg,
@@ -261,7 +258,7 @@ export function PlanWeekGrid({
                 {weekDates.map((date) => {
                   const display = displayForMeal(displaysByDate.get(date), mealType)
                   const isToday = date === today
-                  const { warning, note } = cellMarkers(display, remainingByEventId)
+                  const warning = cellHasWarning(display, remainingByEventId)
                   const components = display?.components ?? []
                   const empty = components.length === 0 && !display?.slot.excluded
                   return (
@@ -300,27 +297,6 @@ export function PlanWeekGrid({
                           <Warning size={9} weight="fill" color="white" />
                         </Box>
                       )}
-                      {note && (
-                        <Box
-                          style={{
-                            position: 'absolute',
-                            top: 4,
-                            right: 4,
-                            width: 16,
-                            height: 16,
-                            borderRadius: '50%',
-                            background: 'var(--mantine-color-dimmed)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            zIndex: 1,
-                          }}
-                          aria-label={t('catalog.leftovers')}
-                        >
-                          <Note size={9} weight="fill" color="white" />
-                        </Box>
-                      )}
-
                       {display?.slot.excluded && (
                         <UnstyledButton
                           onClick={() => onSelectDay(date)}
@@ -332,26 +308,74 @@ export function PlanWeekGrid({
                         </UnstyledButton>
                       )}
 
-                      {components.map((item) => (
-                        <UnstyledButton
-                          key={item.component.id}
-                          onClick={() => onSelectDay(date)}
-                          style={{ textAlign: 'left' }}
-                        >
-                          <Paper withBorder p={6} radius="md">
-                            <Box style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <RecipePhotoThumb
-                                url={item.photoUrl}
-                                label={componentLabel(item)}
-                                size={32}
-                              />
-                              <Text size="sm" fw={500} lineClamp={2} style={{ flex: 1 }}>
-                                {componentLabel(item)}
-                              </Text>
-                            </Box>
-                          </Paper>
-                        </UnstyledButton>
-                      ))}
+                      {components.map((item) => {
+                        const marker = display
+                          ? dishMarker(item, display.slot, remainingByEventId)
+                          : null
+                        return (
+                          <UnstyledButton
+                            key={item.component.id}
+                            onClick={() => onSelectDay(date)}
+                            style={{ textAlign: 'left' }}
+                          >
+                            <Paper
+                              radius="md"
+                              style={{
+                                position: 'relative',
+                                border:
+                                  marker === 'reuse'
+                                    ? '1.5px dashed var(--mantine-color-default-border)'
+                                    : '1px solid var(--mantine-color-default-border)',
+                                background:
+                                  marker === 'prep'
+                                    ? 'color-mix(in srgb, var(--mantine-color-primary-6) 8%, var(--mantine-color-body))'
+                                    : undefined,
+                              }}
+                              p={6}
+                            >
+                              <Box style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <RecipePhotoThumb
+                                  url={item.photoUrl}
+                                  label={componentLabel(item)}
+                                  size={32}
+                                />
+                                <Text size="sm" fw={500} lineClamp={2} style={{ flex: 1 }}>
+                                  {componentLabel(item)}
+                                </Text>
+                              </Box>
+                              {marker && (
+                                <Box
+                                  style={{
+                                    position: 'absolute',
+                                    top: 4,
+                                    left: 4,
+                                    width: 16,
+                                    height: 16,
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    background:
+                                      marker === 'reuse'
+                                        ? 'var(--mantine-color-dimmed)'
+                                        : 'var(--mantine-color-primary-filled)',
+                                    color: 'white',
+                                  }}
+                                  aria-label={
+                                    marker === 'reuse' ? t('plan.leftover') : t('plan.prepDish')
+                                  }
+                                >
+                                  {marker === 'reuse' ? (
+                                    <ArrowUUpLeft size={9} weight="bold" />
+                                  ) : (
+                                    <StackIcon size={9} weight="fill" />
+                                  )}
+                                </Box>
+                              )}
+                            </Paper>
+                          </UnstyledButton>
+                        )
+                      })}
 
                       {empty && display && (
                         <UnstyledButton
@@ -385,7 +409,7 @@ export function PlanWeekGrid({
                     </Box>
                   )
                 })}
-              </Box>
+              </Fragment>
             )
           })}
         </Box>
