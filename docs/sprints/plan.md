@@ -2,7 +2,7 @@
 
 No dates. Keep the app releasable after every sprint. Each sprint delivers **one visible improvement**, including its UI, domain changes, persistence, backup support, and tests.
 
-**Current position:** Sprints 1–35, 26C–27C, and checkpoints A/B/C/D are shipped. Lane A and Lane C are complete. Lane B remains optional. Next sequenced work is Sprint 36 — cards in [`generation.md`](generation.md).
+**Current position:** Sprints 1–38, 26C–27C, checkpoints A/B/C/D, and the batch-planning decision update are shipped. Lane A and Lane C are complete. Lane B remains optional. Nutrition stays a later path. Phase 7 cards: [`generation.md`](generation.md).
 
 Sprints 1–6 had no automated test runner. Vitest arrived in Sprint 8 (tags/backup). Measurement/grocery scenario tests landed in Sprint 13. Localization settings (`uiLocale`, `measurementPreference`) shipped before Phase 1; Sprint 14 applied them consistently to displayed quantities.
 
@@ -829,4 +829,6 @@ Sprint 37 is done: named generation presets on the same Sprint 30–35 policy mo
 
 Sprint 38 is done: worker throw/terminate is `worker-failed` and writes nothing; Cancel terminates and recreates the worker; `generationSessionId` in the fingerprint rejects a previous page session (`stale-proposal`). Named generation fixtures and handwritten seed/invariant tests (`generationQuality.test.ts`) cover partition, hard constraints, leftover accounting, fingerprint stale, budget, and reproducibility. `algorithmVersion` stays `'36'`. No Dexie or backup-format bump. Tests: `generationRunner.test.ts`, `generationQuality.test.ts`, `GenerationService.test.ts`.
 
-**Postponed (not next):** device runtime/memory budgets, cancel-latency targets, pruning/beam/worker-memory tuning, optional local-improvement pass. Do not raise search budget or add caches without a named-device measurement later. Optional Lane B remains. Phase 7 cards: [`generation.md`](generation.md).
+**Postponed (not next):** device runtime/memory budgets, cancel-latency targets, pruning/beam/worker-memory tuning, optional local-improvement pass. Do not raise search budget or add caches without a named-device measurement later. Optional Lane B remains. Nutrition stays later: keep ingredient quantities, yields, per-meal servings, explicit components, and production versus consumption; do not add nutrient models. Phase 7 cards: [`generation.md`](generation.md).
+
+Batch planning decisions are done (`algorithmVersion` `39`): recipe yield is no longer treated as a minimum batch; default extra consumption is one later meal (`generationBatchPolicy.maxExtraPlannedUses`, zero still means none); production is the sum of the meals that will eat it; mains that need a side only ship with a stored pairing or favorite. Preparation prefers a free day, later meals try a few reuse placements instead of the next open slot, and a busy-day leftover cannot hide a non-quick new side. Lunch and dinner share main recency, a reused main prefers a different known side, and a new cook prefers the least recently eaten eligible recipe. The preview lists a short preparation summary from the proposal. No new settings, batch entities, or search-budget change. Tests: `batches.test.ts`, `representativeWeeks.test.ts`.

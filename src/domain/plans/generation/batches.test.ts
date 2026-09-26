@@ -70,7 +70,7 @@ function cookCount(proposal: ReturnType<typeof runGenerationSearch>): number {
 describe('planned batch generation', () => {
   it('cooks once for Monday and Tuesday dinners', () => {
     const proposal = runGenerationSearch(input(), 'req-1', scaleQuantity)
-    expect(proposal.algorithmVersion).toBe('36')
+    expect(proposal.algorithmVersion).toBe('39')
     expect(proposal.assignments).toHaveLength(2)
     expect(proposal.unfilled).toHaveLength(0)
     expect(cookCount(proposal)).toBe(1)
@@ -172,7 +172,7 @@ describe('planned batch generation', () => {
     expect(extras).toHaveLength(0)
   })
 
-  it('allow-with-warning can keep remainder and report it', () => {
+  it('sizes a batch to the later meal override instead of leaving a remainder', () => {
     const proposal = runGenerationSearch(
       input({
         quantityOverrides: { 'slot-tue': { value: 1, unit: 'serving' } },
@@ -183,8 +183,102 @@ describe('planned batch generation', () => {
       scaleQuantity,
     )
     expect(proposal.assignments).toHaveLength(2)
-    const remainders = proposal.diagnostics.unallocatedRemainders ?? []
-    expect(remainders.length).toBeGreaterThan(0)
-    expect(remainders[0]?.remaining).toEqual({ value: 1, unit: 'serving' })
+    expect(proposal.diagnostics.unallocatedRemainders ?? []).toHaveLength(0)
+    const recipeComponent = proposal.assignments
+      .flatMap((row) => row.components)
+      .find((component) => component.type === 'recipe')
+    expect(recipeComponent).toMatchObject({
+      type: 'recipe',
+      outputQuantity: { value: 3, unit: 'serving' },
+      allocatedQuantity: { value: 2, unit: 'serving' },
+    })
+  })
+
+  it('does not raise a smaller meal up to recipe yield', () => {
+    const pieces = recipe({
+      yield: { value: 12, unit: 'piece' },
+      defaultPortionPerPerson: { value: 1, unit: 'piece' },
+    })
+    const proposal = runGenerationSearch(
+      input({
+        peopleCount: 6,
+        recipes: [pieces],
+        requestedSlots: [{ slot: slot(), componentCount: 0 }],
+      }),
+      'req-1',
+      scaleQuantity,
+    )
+    expect(proposal.assignments[0]?.components[0]).toMatchObject({
+      type: 'recipe',
+      outputQuantity: { value: 6, unit: 'piece' },
+      allocatedQuantity: { value: 6, unit: 'piece' },
+    })
+  })
+
+  it('cooks the sum of unequal meal portions', () => {
+    const pieces = recipe({
+      yield: { value: 12, unit: 'piece' },
+      defaultPortionPerPerson: { value: 1, unit: 'piece' },
+    })
+    const proposal = runGenerationSearch(
+      input({
+        recipes: [pieces],
+        requestedSlots: [
+          { slot: slot({ id: 'slot-mon', date: '2026-01-05' }), componentCount: 0 },
+          { slot: slot({ id: 'slot-wed', date: '2026-01-07' }), componentCount: 0 },
+        ],
+        quantityOverrides: {
+          'slot-mon': { value: 6, unit: 'piece' },
+          'slot-wed': { value: 4, unit: 'piece' },
+        },
+      }),
+      'req-1',
+      scaleQuantity,
+    )
+    const cooked = proposal.assignments
+      .flatMap((row) => row.components)
+      .find((component) => component.type === 'recipe')
+    const eaten = proposal.assignments
+      .flatMap((row) => row.components)
+      .filter((component) => component.type === 'leftover')
+    expect(cooked).toMatchObject({
+      outputQuantity: { value: 10, unit: 'piece' },
+      allocatedQuantity: { value: 6, unit: 'piece' },
+    })
+    expect(eaten.map((component) => component.allocatedQuantity)).toEqual([
+      { value: 4, unit: 'piece' },
+    ])
+  })
+
+  it('does not add a third meal unless extra uses allow it', () => {
+    const three = input({
+      requestedSlots: [
+        { slot: slot(), componentCount: 0 },
+        { slot: slot({ id: 'slot-tue', date: '2026-01-06' }), componentCount: 0 },
+        { slot: slot({ id: 'slot-wed', date: '2026-01-07' }), componentCount: 0 },
+      ],
+    })
+    const oneExtra = runGenerationSearch(three, 'req-1', scaleQuantity)
+    const heavy = runGenerationSearch(
+      input({
+        ...three,
+        batchPolicy: { maxExtraPlannedUses: 2, unallocatedProduction: 'disallow' },
+      }),
+      'req-2',
+      scaleQuantity,
+    )
+    const mealsFromFirstEvent = (proposal: ReturnType<typeof runGenerationSearch>) => {
+      const eventId = proposal.proposedCookingEvents?.[0]?.id
+      if (!eventId) return 0
+      return proposal.assignments.filter((row) =>
+        row.components.some(
+          (component) =>
+            (component.type === 'recipe' || component.type === 'leftover') &&
+            component.proposedEventId === eventId,
+        ),
+      ).length
+    }
+    expect(mealsFromFirstEvent(oneExtra)).toBeLessThanOrEqual(2)
+    expect(mealsFromFirstEvent(heavy)).toBe(3)
   })
 })

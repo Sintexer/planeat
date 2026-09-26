@@ -11,6 +11,7 @@ import type {
 import type { MealSlot, MealSlotId } from '../../domain/plans/MealSlot'
 import type { Quantity } from '../../domain/shared/Quantity'
 import { generationErrorMessage } from '../localization/errors'
+import { formatWeekdayOfDate } from '../localization/formatDate'
 import type { ScoreReason } from '../../domain/plans/generation/scoring'
 import { constraintReasonLabel, mealTypeLabel, scoreReasonLabel } from '../localization/labels'
 import type { Translate } from '../localization/t'
@@ -20,9 +21,10 @@ export async function openGenerateMealPreview(args: {
   generationService: GenerationService
   t: Translate
   formatQty: (quantity: Quantity) => string
+  locale?: string
   mode?: GenerationMode
 }): Promise<void> {
-  const { slotId, generationService, t, formatQty, mode = 'fill-empty' } = args
+  const { slotId, generationService, t, formatQty, locale, mode = 'fill-empty' } = args
   let slotIds = [slotId]
   if (mode === 'replace') {
     const inspected = await generationService.inspectReplaceDependents(slotIds)
@@ -43,7 +45,7 @@ export async function openGenerateMealPreview(args: {
     }
     return
   }
-  openProposalPreview({ proposal: ran.value, generationService, t, formatQty })
+  openProposalPreview({ proposal: ran.value, generationService, t, formatQty, locale })
 }
 
 export function confirmReplaceDependents(
@@ -67,8 +69,9 @@ export function openProposalPreview(args: {
   generationService: GenerationService
   t: Translate
   formatQty: (quantity: Quantity) => string
+  locale?: string
 }): void {
-  const { proposal, generationService, t, formatQty } = args
+  const { proposal, generationService, t, formatQty, locale = 'en' } = args
   const unfilledMealTypes = new Set(proposal.unfilled.map((row) => row.mealType))
   const dropCounts = proposal.diagnostics.dropCounts.filter((row) =>
     unfilledMealTypes.has(row.mealType),
@@ -83,6 +86,11 @@ export function openProposalPreview(args: {
     title: t('generation.previewTitle'),
     children: (
       <Stack gap="sm">
+        {(proposal.preparationSummary ?? []).map((row) => (
+          <Text size="sm" key={`${row.action}:${row.name}:${row.dates.join(',')}`}>
+            {summaryLine(t, row, locale)}
+          </Text>
+        ))}
         {(proposal.replacementPreview ?? []).map((row) => (
           <Text size="sm" key={`remove-${row.slotId}`}>
             {t('generation.previewRemove', {
@@ -215,6 +223,17 @@ export function openProposalPreview(args: {
       </Stack>
     ),
   })
+}
+
+function summaryLine(
+  t: Translate,
+  row: NonNullable<WeekGenerationProposal['preparationSummary']>[number],
+  locale: string,
+): string {
+  if (row.action === 'prepare') return t('generation.summaryPrepare', { name: row.name })
+  if (row.action === 'reheat') return t('generation.summaryReheat', { name: row.name })
+  const dates = row.dates.map((date) => formatWeekdayOfDate(date, locale, 'long')).join(', ')
+  return t('generation.summaryCookFor', { name: row.name, dates })
 }
 
 function componentKey(component: GeneratedComponent): string {

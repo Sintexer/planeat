@@ -42,6 +42,9 @@ export const ruMessages = {
   'generation.previewSourcePairing': 'Из сохранённой пары.',
   'generation.previewSourceLeftover': 'Остаток с {date}.',
   'generation.previewCookedBatch': '{name} на {meal}: сварить {cooked}, в этот приём {eaten}.',
+  'generation.summaryCookFor': 'Приготовить {name} ({dates})',
+  'generation.summaryPrepare': 'Подготовить {name}',
+  'generation.summaryReheat': 'Разогреть {name}',
   'generation.applied': 'Блюдо добавлено',
   'generation.noEligible': 'Нет полных блюд для этого приёма пищи.',
   'generation.slotNotEmpty': 'На этот приём уже есть блюдо.',
@@ -226,7 +229,7 @@ export const ruMessages = {
   'settings.maxPairingsPerRecipe': 'Пар на один рецепт',
   'settings.maxComponentsPerCandidate': 'Максимум блюд в одном подобранном приёме',
   'settings.batchPolicyHelp':
-    'Подбор может сварить больше порций для более поздних приёмов на этой неделе. Ноль — только на заполняемый приём. Неиспользованный остаток зависит от политики ниже.',
+    'По умолчанию подбор готовит на один следующий приём. Ноль — без запаса. Увеличьте предел, чтобы использовать заготовку ещё раз. Выход рецепта — не минимальная партия. Неиспользованный остаток зависит от политики ниже.',
   'settings.maxExtraPlannedUses': 'Дополнительные использования заготовки',
   'settings.unallocatedProduction': 'Неиспользованный избыток',
   'settings.unallocatedDisallow': 'Не оставлять неиспользованный избыток',

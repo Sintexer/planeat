@@ -1,7 +1,7 @@
 import type { Recipe } from '../../recipes/Recipe'
-import type { MealType } from '../../shared/MealEnums'
+import type { MealType, RecipeRole } from '../../shared/MealEnums'
 import type { LocalDate, WeekStartDay } from '../../shared/LocalDate'
-import { weekdayOf } from '../../shared/LocalDate'
+import { daysBetween, weekdayOf } from '../../shared/LocalDate'
 import type { SimpleFood } from '../../simpleFoods/SimpleFood'
 import { effortUnits } from '../prepEffort'
 import { compareCandidateRecipes } from './candidates'
@@ -39,27 +39,43 @@ export const DEFAULT_GENERATION_SOFT_PREFS: GenerationSoftPrefs = {
   generationPreferredTagIds: [],
 }
 
+export type EatenMeal = {
+  date: LocalDate
+  mealType: MealType
+  slotId: string
+  recipeId: string
+  role?: RecipeRole
+}
+
 export type ScoringContext = {
   date: LocalDate
   mealType: MealType
+  slotId?: string
   prefs: GenerationSoftPrefs
   weekRecipeIds: readonly string[]
   previousWeekRecipeIds: readonly string[]
   demandingCooksOnDate: number
   cookingEventCountOnDate: number
   tagNamesById: Readonly<Record<string, string>>
+  eaten?: readonly EatenMeal[]
+  /** Proposed event this slot was sized to consume. */
+  plannedEventId?: string
+  /** This day is a suitable place to start a new batch. */
+  batchAnchor?: boolean
+  busyDay?: boolean
+  maxExtraPlannedUses?: number
 }
 
 const SCORE_REASONS: { index: number; code: ScoreReasonCode; source?: ScoreReason['source'] }[] = [
   { index: 0, code: 'quick-day' },
   { index: 1, code: 'effort' },
   { index: 2, code: 'workload' },
-  { index: 3, code: 'repetition', source: 'this-week' },
-  { index: 4, code: 'planned-history', source: 'planned-history' },
-  { index: 5, code: 'effort' },
-  { index: 6, code: 'vegetable' },
-  { index: 7, code: 'preferred-tags' },
-  { index: 8, code: 'preferred-prep-day' },
+  { index: 5, code: 'repetition', source: 'this-week' },
+  { index: 7, code: 'planned-history', source: 'planned-history' },
+  { index: 8, code: 'effort' },
+  { index: 9, code: 'vegetable' },
+  { index: 10, code: 'preferred-tags' },
+  { index: 11, code: 'preferred-prep-day' },
 ]
 
 function asWeekdays(value: unknown): WeekStartDay[] {
@@ -129,6 +145,11 @@ export type ScoreableComposition = {
   recipes: readonly Recipe[]
   foods: readonly SimpleFood[]
   leftoverRecipes?: readonly Recipe[]
+  leftoverEventId?: string
+  extraUses?: number
+  sourceKind?: 'standalone' | 'favorite' | 'pairing' | 'leftover'
+  mainRecipeId?: string
+  sideKeys?: readonly string[]
 }
 
 export function scoreableFromRecipe(recipe: Recipe): ScoreableComposition {
@@ -147,6 +168,89 @@ function worstEffort(recipes: readonly Recipe[]): number {
   return Math.max(...recipes.map((recipe) => effortRankValue(recipe.effort)))
 }
 
+function mealScope(mealType: MealType): ReadonlySet<MealType> {
+  if (mealType === 'breakfast') return new Set(['breakfast'])
+  return new Set(['lunch', 'dinner'])
+}
+
+function scopedEaten(
+  ctx: ScoringContext,
+): readonly { recipeId: string; date: LocalDate; mealType: MealType; slotId: string }[] {
+  if (!ctx.eaten) {
+    return ctx.weekRecipeIds.map((recipeId) => ({
+      recipeId,
+      date: ctx.date,
+      mealType: ctx.mealType,
+      slotId: '',
+    }))
+  }
+  const scope = mealScope(ctx.mealType)
+  return ctx.eaten.filter((row) => scope.has(row.mealType))
+}
+
+function placementRank(composition: ScoreableComposition, ctx: ScoringContext): number {
+  const leftover = (composition.leftoverRecipes?.length ?? 0) > 0
+  if (leftover) return 0
+  const extras = composition.extraUses ?? 0
+  if (ctx.busyDay) {
+    if (composition.recipes.length === 0 && composition.foods.length > 0) return 1
+    if (composition.sourceKind === 'favorite' || composition.sourceKind === 'pairing') return 1
+    if (extras > 0) return 3
+    if (worstEffort(composition.recipes) === 0) return 2
+    return 4
+  }
+  if (extras > 0 && ctx.batchAnchor) return 1
+  return 2
+}
+
+function sameDayMainRepeat(composition: ScoreableComposition, ctx: ScoringContext): number {
+  if (!ctx.eaten || ctx.mealType === 'breakfast' || !composition.mainRecipeId) return 0
+  const eatenToday = ctx.eaten.some(
+    (row) =>
+      row.date === ctx.date &&
+      row.recipeId === composition.mainRecipeId &&
+      row.mealType !== 'breakfast' &&
+      row.slotId !== ctx.slotId,
+  )
+  return eatenToday ? 1 : 0
+}
+
+function sideRepeat(composition: ScoreableComposition, ctx: ScoringContext): number {
+  if (!ctx.eaten || !composition.mainRecipeId) return 0
+  const sides = composition.sideKeys ?? []
+  if (sides.length === 0) return 0
+  const lastMain = [...ctx.eaten]
+    .reverse()
+    .find(
+      (row) =>
+        row.recipeId === composition.mainRecipeId && mealScope(ctx.mealType).has(row.mealType),
+    )
+  if (!lastMain) return 0
+  const previousSides = ctx.eaten
+    .filter((row) => row.slotId === lastMain.slotId && row.recipeId !== composition.mainRecipeId)
+    .map((row) => row.recipeId)
+  return sides.some((id) => previousSides.includes(id)) ? 1 : 0
+}
+
+function recencyPenalty(composition: ScoreableComposition, ctx: ScoringContext): number {
+  if (!ctx.eaten) return 0
+  const ids = composition.mainRecipeId
+    ? [composition.mainRecipeId]
+    : composition.recipes.map((recipe) => recipe.id)
+  const scope = mealScope(ctx.mealType)
+  let worst = 0
+  for (const id of ids) {
+    const last = [...ctx.eaten]
+      .reverse()
+      .find((row) => row.recipeId === id && scope.has(row.mealType))
+    if (!last) continue
+    const gap = daysBetween(last.date, ctx.date)
+    const penalty = gap <= 1 ? 3 : gap === 2 ? 2 : 1
+    if (penalty > worst) worst = penalty
+  }
+  return worst
+}
+
 export function compositionScoreTuple(
   composition: ScoreableComposition,
   ctx: ScoringContext,
@@ -162,9 +266,10 @@ export function compositionScoreTuple(
     ctx.prefs.avoidMultipleDemandingPreps && demanding && ctx.demandingCooksOnDate >= 1 ? 1 : 0
   const nextUnits = effortUnits(ctx.cookingEventCountOnDate + cooks)
   const workload = cooks > 0 && nextUnits > ctx.prefs.maxBatchPrepUnits ? 1 : 0
+  const history = scopedEaten(ctx)
   let repetition = 0
   for (const recipe of scoredRecipes) {
-    const weekUses = ctx.weekRecipeIds.filter((id) => id === recipe.id).length
+    const weekUses = history.filter((row) => row.recipeId === recipe.id).length
     repetition += weekUses
     if (recipe.maxPreferredRepeats !== undefined && weekUses + 1 > recipe.maxPreferredRepeats) {
       repetition += 1
@@ -191,18 +296,30 @@ export function compositionScoreTuple(
       : 0
   const missingTime = recipes.some((recipe) => recipe.totalTimeMinutes === undefined) ? 1 : 0
   const effort = worstEffort(recipes)
+  const plannedMiss =
+    ctx.plannedEventId !== undefined && composition.leftoverEventId !== ctx.plannedEventId ? 1 : 0
+  const cap = ctx.maxExtraPlannedUses ?? 0
+  const used = composition.extraUses ?? 0
+  const extraShortfall = cap >= 2 && used > 0 ? Math.max(0, cap - used) : 0
 
   return [
     isQuickDay && effort > 0 ? 1 : 0,
     demandingStack,
     workload,
+    plannedMiss,
+    placementRank(composition, ctx),
     repetition,
+    sameDayMainRepeat(composition, ctx),
     historyUses,
     effort,
     vegMiss,
     tagMiss,
     offPrep,
     missingTime,
+    sideRepeat(composition, ctx),
+    recencyPenalty(composition, ctx),
+    cooks,
+    extraShortfall,
   ]
 }
 
@@ -289,7 +406,7 @@ export function scoreReasonsForComposition(
           row.recipes.some((recipe) => ctx.previousWeekRecipeIds.includes(recipe.id)),
       ))
   ) {
-    const historyIndex = 4
+    const historyIndex = 7
     const historyInfluenced = eligible.some((row) => {
       if (row.id === winner.id) return false
       return compositionScoreTuple(row, ctx)[historyIndex] > winnerTuple[historyIndex]

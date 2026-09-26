@@ -113,7 +113,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
   const { planService, mealFavoriteService, generationService } = useServices()
   const favorites = useMealFavorites()
   const formatQty = useFormatQuantity()
-  const { t } = useLocalization()
+  const { t, bcp47 } = useLocalization()
   const [addOpen, setAddOpen] = useState(false)
   const [insertFavoriteOpen, setInsertFavoriteOpen] = useState(false)
   const [editComponentId, setEditComponentId] = useState<MealComponentId | undefined>()
@@ -710,6 +710,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                   generationService,
                   t,
                   formatQty,
+                  locale: bcp47,
                 })
               }
             >
@@ -726,6 +727,7 @@ export function MealEditor({ opened, onClose, slot, graph, components }: MealEdi
                   generationService,
                   t,
                   formatQty,
+                  locale: bcp47,
                   mode: 'replace',
                 })
               }

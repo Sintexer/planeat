@@ -60,6 +60,15 @@ export const WEEKDAY_LABELS: Record<WeekStartDay, string> = {
   6: 'Saturday',
 }
 
+/** Whole local days from `earlier` to `later`. Negative when `later` is first. */
+export function daysBetween(earlier: LocalDate, later: LocalDate): number {
+  const [ay, am, ad] = earlier.split('-').map(Number)
+  const [by, bm, bd] = later.split('-').map(Number)
+  const start = Date.UTC(ay, am - 1, ad)
+  const end = Date.UTC(by, bm - 1, bd)
+  return Math.round((end - start) / 86_400_000)
+}
+
 /** Weekday of a local calendar date (0 = Sunday). */
 export function weekdayOf(date: LocalDate): WeekStartDay {
   const [y, m, d] = date.split('-').map(Number)

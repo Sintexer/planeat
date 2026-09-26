@@ -45,6 +45,10 @@ export type CompositionCandidate = {
   extraUses?: number
   extraQuantity?: Quantity
   proposedEventId?: string
+  /** Cooked recipe that receives extra output. Sides stay at one meal's portion. */
+  batchRecipeId?: string
+  /** Later requested slots this batch is sized to feed. */
+  plannedConsumerSlotIds?: readonly string[]
 }
 
 function matchesOccasion(mealTypes: readonly MealType[], mealType: MealType): boolean {
@@ -110,6 +114,90 @@ function compareCandidates(a: CompositionCandidate, b: CompositionCandidate): nu
   if (a.id < b.id) return -1
   if (a.id > b.id) return 1
   return 0
+}
+
+/** A main that is not also a complete dish needs a known side. Yield is unrelated. */
+export function requiresAccompaniment(recipe: { roles: readonly RecipeRole[] }): boolean {
+  return recipe.roles.includes('main') && !recipe.roles.includes('complete')
+}
+
+/** Stored pairings and favorite partners. Does not invent a side. */
+export function knownAccompanimentParts(
+  recipeId: string,
+  input: Pick<
+    GenerationInput,
+    'recipes' | 'simpleFoods' | 'favorites' | 'pairings' | 'policy' | 'compositionBounds'
+  >,
+  mealType: MealType,
+): CompositionPart[] {
+  const policy = input.policy ?? DEFAULT_GENERATION_HARD_POLICY
+  const bounds = mergeGenerationCompositionBounds(input.compositionBounds)
+  const recipeById = new Map((input.recipes ?? []).map((recipe) => [recipe.id, recipe]))
+  const foodById = new Map((input.simpleFoods ?? []).map((food) => [food.id, food]))
+  const parts: CompositionPart[] = []
+  const seen = new Set<string>()
+
+  const add = (part: CompositionPart) => {
+    if (parts.length >= bounds.maxPairingsPerRecipe) return
+    const key =
+      part.type === 'recipe'
+        ? `recipe:${part.recipe.id}`
+        : part.type === 'simple-food'
+          ? `food:${part.food.id}`
+          : `leftover:${part.eventId}`
+    if (seen.has(key)) return
+    seen.add(key)
+    parts.push(part)
+  }
+
+  const pairings = [...(input.pairings ?? [])]
+    .filter((pairing) => pairing.recipeId === recipeId)
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+  for (const pairing of pairings) {
+    if (pairing.target.type === 'recipe') {
+      const other = recipeById.get(pairing.target.id)
+      if (!other || other.id === recipeId) continue
+      if (!recipePartEligible(other, mealType, policy, false)) continue
+      add({ type: 'recipe', recipe: other })
+    } else {
+      const food = foodById.get(pairing.target.id)
+      if (!food || !foodPartEligible(food, mealType, policy, false)) continue
+      add({ type: 'simple-food', food })
+    }
+  }
+
+  for (const favorite of [...(input.favorites ?? [])].sort((a, b) =>
+    a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+  )) {
+    const includesMain = favorite.components.some(
+      (component) => component.type === 'recipe' && component.recipeId === recipeId,
+    )
+    if (!includesMain) continue
+    for (const component of favorite.components) {
+      if (component.type === 'recipe') {
+        if (component.recipeId === recipeId) continue
+        const other = recipeById.get(component.recipeId)
+        if (!other || !recipePartEligible(other, mealType, policy, false)) continue
+        add({
+          type: 'recipe',
+          recipe: other,
+          role: component.role,
+          favoriteQuantity: component.allocatedQuantity,
+        })
+      } else {
+        const food = foodById.get(component.simpleFoodId)
+        if (!food || !foodPartEligible(food, mealType, policy, false)) continue
+        add({
+          type: 'simple-food',
+          food,
+          role: component.role,
+          favoriteQuantity: component.allocatedQuantity,
+        })
+      }
+    }
+  }
+
+  return parts
 }
 
 export function enumerateCompositionCandidates(
@@ -237,12 +325,29 @@ export function enumerateCompositionCandidates(
         role: event.role ?? event.recipe.roles[0],
         proposed: event.proposed,
       }
-      if (!compositionAllowed([leftoverPart], policy, bounds)) continue
-      out.push({
-        id: `leftover:${event.id}`,
-        source: { type: 'leftover', cookingEventId: event.id },
-        parts: [leftoverPart],
-      })
+      const needsSide = requiresAccompaniment(event.recipe)
+      if (!needsSide && compositionAllowed([leftoverPart], policy, bounds)) {
+        out.push({
+          id: `leftover:${event.id}`,
+          source: { type: 'leftover', cookingEventId: event.id },
+          parts: [leftoverPart],
+        })
+      }
+      for (const side of knownAccompanimentParts(event.recipeId, input, mealType)) {
+        const parts = [leftoverPart, side]
+        if (!compositionAllowed(parts, policy, bounds)) continue
+        const sideKey =
+          side.type === 'recipe'
+            ? side.recipe.id
+            : side.type === 'simple-food'
+              ? side.food.id
+              : side.eventId
+        out.push({
+          id: `leftover:${event.id}:with:${sideKey}`,
+          source: { type: 'leftover', cookingEventId: event.id },
+          parts,
+        })
+      }
     }
   }
 
@@ -314,6 +419,19 @@ function validQuantity(quantity: Quantity | undefined | null): quantity is Quant
   )
 }
 
+function overrideForPart(
+  candidate: CompositionCandidate,
+  part: CompositionPart,
+  override: Quantity | undefined,
+  unit: string | undefined,
+): Quantity | undefined {
+  if (!override || !unit || override.unit !== unit || !(override.value > 0)) return undefined
+  if (candidate.parts.length === 1) return override
+  if (part.type === 'recipe' && candidate.batchRecipeId === part.recipe.id) return override
+  if (part.type === 'leftover') return override
+  return undefined
+}
+
 export function assignmentFromCandidate(
   candidate: CompositionCandidate,
   slotId: string,
@@ -323,24 +441,23 @@ export function assignmentFromCandidate(
   override?: Quantity,
   remainingByEventId?: ReadonlyMap<string, Quantity>,
 ): SlotAssignment | undefined {
-  const recipeParts = candidate.parts.filter((part) => part.type === 'recipe')
-  const leftoverParts = candidate.parts.filter((part) => part.type === 'leftover')
-  const useOverride =
-    override !== undefined &&
-    candidate.parts.length === 1 &&
-    (recipeParts.length === 1 || leftoverParts.length === 1)
   const components: GeneratedComponent[] = []
   for (const part of candidate.parts) {
     if (part.type === 'recipe') {
-      const quantity = useOverride
-        ? override
-        : (part.favoriteQuantity ?? scale(part.recipe.defaultPortionPerPerson, peopleCount))
+      const scaled =
+        part.favoriteQuantity ?? scale(part.recipe.defaultPortionPerPerson, peopleCount)
+      const quantity = overrideForPart(candidate, part, override, scaled?.unit) ?? scaled
       if (!validQuantity(quantity)) return undefined
       const extra = candidate.extraQuantity
-      const outputQuantity =
-        extra && extra.unit === quantity.unit
-          ? { value: quantity.value + extra.value, unit: quantity.unit }
-          : quantity
+      const receivesExtra =
+        !!extra &&
+        extra.unit === quantity.unit &&
+        (candidate.batchRecipeId !== undefined
+          ? candidate.batchRecipeId === part.recipe.id
+          : candidate.parts.filter((item) => item.type === 'recipe').length === 1)
+      const outputQuantity = receivesExtra
+        ? { value: quantity.value + extra.value, unit: quantity.unit }
+        : quantity
       if (!validQuantity(outputQuantity)) return undefined
       components.push({
         type: 'recipe',
@@ -349,16 +466,15 @@ export function assignmentFromCandidate(
         outputQuantity,
         allocatedQuantity: quantity,
         role: part.role ?? part.recipe.roles[0],
-        proposedEventId: candidate.proposedEventId,
+        proposedEventId: receivesExtra ? candidate.proposedEventId : undefined,
       })
     } else if (part.type === 'leftover') {
       const remaining = remainingByEventId?.get(part.eventId)
       if (!validQuantity(remaining)) return undefined
-      let desired = part.desiredQuantity
-      if (useOverride && override) {
-        if (override.unit !== remaining.unit) return undefined
-        desired = override
-      }
+      const scaled = scale(part.recipe.defaultPortionPerPerson, peopleCount)
+      let desired = scaled && scaled.unit === remaining.unit ? scaled : part.desiredQuantity
+      const slotOverride = overrideForPart(candidate, part, override, remaining.unit)
+      if (slotOverride) desired = slotOverride
       if (desired.unit !== remaining.unit) return undefined
       const allocated = {
         value: Math.min(desired.value, remaining.value),

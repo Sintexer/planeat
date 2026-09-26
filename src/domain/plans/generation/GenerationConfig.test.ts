@@ -147,7 +147,7 @@ describe('GenerationConfig', () => {
       expect(merged.avoidMultipleDemandingPreps).toBe(true)
     }
     expect(builtinGenerationPresetById('preset:balanced')?.config.generationBatchPolicy).toEqual({
-      maxExtraPlannedUses: 0,
+      maxExtraPlannedUses: 1,
       unallocatedProduction: 'disallow',
     })
     expect(
@@ -162,7 +162,7 @@ describe('GenerationConfig', () => {
     expect(
       builtinGenerationPresetById('preset:batch-cooking')?.config.generationBatchPolicy,
     ).toEqual({
-      maxExtraPlannedUses: 1,
+      maxExtraPlannedUses: 2,
       unallocatedProduction: 'disallow',
     })
   })
@@ -203,14 +203,25 @@ describe('GenerationConfig', () => {
     expect(config.generationPreferredTagIds).toContain('gone-tag')
   })
 
-  it('Batch cooking produces fewer cooking events than Balanced on a two-dinner fixture', () => {
+  it('Batch cooking produces fewer cooking events than Balanced on a three-dinner fixture', () => {
+    const third = {
+      slot: slot({ id: 'slot-wed', date: '2026-01-07' }),
+      componentCount: 0,
+    }
     const balanced = runGenerationSearch(
-      inputFromConfig(builtinGenerationPresetById('preset:balanced')!.config),
+      {
+        ...inputFromConfig(builtinGenerationPresetById('preset:balanced')!.config),
+        requestedSlots: [
+          ...inputFromConfig(builtinGenerationPresetById('preset:balanced')!.config).requestedSlots,
+          third,
+        ],
+      },
       'req-1',
       scaleQuantity,
     )
+    const batchInput = inputFromConfig(builtinGenerationPresetById('preset:batch-cooking')!.config)
     const batch = runGenerationSearch(
-      inputFromConfig(builtinGenerationPresetById('preset:batch-cooking')!.config),
+      { ...batchInput, requestedSlots: [...batchInput.requestedSlots, third] },
       'req-1',
       scaleQuantity,
     )
