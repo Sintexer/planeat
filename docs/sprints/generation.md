@@ -14,11 +14,11 @@ Do not delay household trials until Sprint 38. Use generated proposals from Spri
 
 ## Release gates
 
-| Gate                         | Sprints | Capability                                                                 |
-| ---------------------------- | ------- | -------------------------------------------------------------------------- |
-| **Initial generator**        | 28–29   | Safely fill empty meals with preview and explicit apply.                   |
-| **Preference-aware planner** | 30–32   | Respect restrictions and optimize across the week.                         |
-| **Household meal planner**   | 33–35   | Generate compositions, allocate leftovers, and schedule batches.           |
+| Gate                         | Sprints | Capability                                                                                                  |
+| ---------------------------- | ------- | ----------------------------------------------------------------------------------------------------------- |
+| **Initial generator**        | 28–29   | Safely fill empty meals with preview and explicit apply.                                                    |
+| **Preference-aware planner** | 30–32   | Respect restrictions and optimize across the week.                                                          |
+| **Household meal planner**   | 33–35   | Generate compositions, allocate leftovers, and schedule batches.                                            |
 | **Core-feature release**     | 36–38   | Selective regeneration, reusable configuration, and reliability. Device-validated performance is postponed. |
 
 ## Shared implementation requirements
@@ -513,6 +513,19 @@ Built-in set: **Balanced**, **Less cooking**, **More variety**, **Batch cooking*
 **Postponed:** named-device runtime/memory, cancel-latency target, pruning/eligibility caches/beam/budget/worker-memory tuning, optional local-improvement pass. Do not treat invented numbers as a gate. Household trials can continue on shipped generation; they are not a sequenced sprint.
 
 ---
+
+## Planning decisions — batches, placement, variety
+
+Shipped on top of the Sprint 28–38 engine. `algorithmVersion` is `39`. This is not a new optimizer, beam, capacity model, or settings surface.
+
+- Recipe yield scales ingredient math. It is not a minimum batch. A 12-piece yield can be cooked as the portions the meals actually need.
+- `generationBatchPolicy.maxExtraPlannedUses` defaults to **1** (one later consumption). Balanced uses that default. More variety stays at zero. Batch cooking allows two later meals. Zero still means no extra from a new batch. Production is the sum of those meals’ portions.
+- A main that is not `complete` is served only with a stored pairing or favorite side. The same rule applies when that main is reused.
+- New preparation prefers a free day (not a quick-meal day; a named prep day when the household set some). Later use tries an earlier slot, a spaced slot, and another lunch/dinner occasion, only as far as the recipe’s reuse policy allows. A busy-day leftover does not add a non-quick new side. If that later plate cannot be formed, the batch is smaller or not created.
+- Lunch and dinner share main recency. Reuse prefers a different known side. A new cook prefers the least recently eaten eligible recipe. Breakfast stays on its own rotation.
+- The proposal preview lists a short preparation summary (cook for these days, prepare a side, reheat). A reused main is not described as a day with no cooking when a side is still prepared.
+
+Representative weeks live in `representativeWeeks.test.ts`. Nutrition is unchanged and still later: quantities, yields, servings, explicit components, and production versus consumption stay as they are. No nutrient model.
 
 ## Intentionally still out of this phase
 

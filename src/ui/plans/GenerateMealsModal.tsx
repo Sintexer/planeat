@@ -73,7 +73,7 @@ export function GenerateMealsModal({
   onClose: () => void
 }) {
   const { generationService, generationPresetService } = useServices()
-  const { t } = useLocalization()
+  const { t, bcp47 } = useLocalization()
   const settings = useSettings()
   const recipes = useRecipes()
   const tags = useTags()
@@ -208,6 +208,7 @@ export function GenerateMealsModal({
       generationService,
       t,
       formatQty,
+      locale: bcp47,
     })
   }
 

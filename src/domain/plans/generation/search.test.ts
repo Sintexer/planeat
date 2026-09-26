@@ -142,7 +142,7 @@ describe('runGenerationSearch', () => {
     const b = runGenerationSearch(snapshot, 'req-b', scaleQuantity)
     expect(a.fingerprint).toBe(b.fingerprint)
     expect(a.assignments).toEqual(b.assignments)
-    expect(a.algorithmVersion).toBe('36')
+    expect(a.algorithmVersion).toBe('39')
   })
 
   it('uses a per-slot quantity override', () => {
@@ -314,6 +314,7 @@ describe('bounded weekly search', () => {
         { slot: dinner, componentCount: 0 },
       ],
       catalogs: { recipeIds: ['oats', 'pasta'], tagIds: [], ingredientIds: [] },
+      batchPolicy: { maxExtraPlannedUses: 0, unallocatedProduction: 'disallow' },
     })
 
   it('beats sequential greedy on a lookahead repetition fixture', () => {

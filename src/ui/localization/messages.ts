@@ -38,6 +38,9 @@ export const enMessages = {
   'generation.previewSourcePairing': 'From a saved pairing.',
   'generation.previewSourceLeftover': 'Leftover from {date}.',
   'generation.previewCookedBatch': '{name} for {meal}: cook {cooked}, this meal {eaten}.',
+  'generation.summaryCookFor': 'Cook {name} for {dates}',
+  'generation.summaryPrepare': 'Prepare {name}',
+  'generation.summaryReheat': 'Reheat {name}',
   'generation.applied': 'Meal added',
   'generation.noEligible': 'No complete recipes for this meal yet.',
   'generation.slotNotEmpty': 'This meal already has a dish.',
@@ -221,7 +224,7 @@ export const enMessages = {
   'settings.maxPairingsPerRecipe': 'Pairings considered per recipe',
   'settings.maxComponentsPerCandidate': 'Maximum dishes in one generated meal',
   'settings.batchPolicyHelp':
-    'Generate can cook extra portions for later meals this week. Zero means cook only for the meal being filled. Unused extra leftovers follow the remainder policy.',
+    'Generate can cook extra portions for one later meal by default. Zero means no extra. Raise the limit to reuse a batch more than once. Yield is not a minimum batch. Unused extra portions follow the remainder policy.',
   'settings.maxExtraPlannedUses': 'Extra planned leftover uses',
   'settings.unallocatedProduction': 'Unused extra portions',
   'settings.unallocatedDisallow': 'Do not leave unused extra portions',

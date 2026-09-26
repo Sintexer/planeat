@@ -1,4 +1,5 @@
 import type { GenerationConfig } from './GenerationConfig'
+import type { PreparationSummaryLine } from './preparationSummary'
 import type { Recipe } from '../../recipes/Recipe'
 import type { MealType, RecipeRole, ReusePolicy } from '../../shared/MealEnums'
 import type { Quantity } from '../../shared/Quantity'
@@ -24,7 +25,7 @@ import {
   type ScoreReason,
 } from './scoring'
 
-export const GENERATION_ALGORITHM_VERSION = '36'
+export const GENERATION_ALGORITHM_VERSION = '39'
 export const GENERATION_POLICY_VERSION = '31'
 
 export const GENERATION_MODES = ['fill-empty', 'replace'] as const
@@ -131,7 +132,7 @@ export type GenerationBatchPolicy = {
 }
 
 export const DEFAULT_GENERATION_BATCH_POLICY: GenerationBatchPolicy = {
-  maxExtraPlannedUses: 0,
+  maxExtraPlannedUses: 1,
   unallocatedProduction: 'disallow',
 }
 
@@ -301,6 +302,7 @@ export type WeekGenerationProposal = {
   presetId?: string
   generationConfig?: GenerationConfig
   generationSessionId?: string
+  preparationSummary?: readonly PreparationSummaryLine[]
 }
 
 /** Sprint 28 name: a week proposal, often with a single assignment. */

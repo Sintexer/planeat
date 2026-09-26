@@ -1,6 +1,11 @@
 import type { Quantity } from '../../shared/Quantity'
 import type { MealSlot } from '../MealSlot'
-import { isReuseAllowed } from '../CookingEventAllocation'
+import {
+  expandBatchPlacements,
+  filterPrepRestrictedCandidates,
+  isBusyDay,
+  shouldOfferBatchVariants,
+} from './batchPlacement'
 import {
   assignmentFromCandidate,
   enumerateCompositionCandidates,
@@ -8,6 +13,7 @@ import {
   leftoverRecipesInComposition,
   recipesInComposition,
   type CompositionCandidate,
+  type CompositionPart,
 } from './compositions'
 import { buildGenerationDiagnostics, DEFAULT_GENERATION_HARD_POLICY } from './constraints'
 import {
@@ -31,6 +37,7 @@ import {
   validateProposalAgainstLive,
   validateSlotForGeneration,
 } from './proposalValidation'
+import { preparationSummary } from './preparationSummary'
 import {
   addAssignmentToObjective,
   compositionScoreTuple,
@@ -39,6 +46,7 @@ import {
   DEFAULT_GENERATION_SOFT_PREFS,
   emptyWeekObjective,
   scoreReasonsForComposition,
+  type EatenMeal,
   type ScoreableComposition,
   type ScoringContext,
   type WeekObjective,
@@ -53,11 +61,13 @@ type SearchNode = {
   assignments: SlotAssignment[]
   unfilled: UnfilledSlot[]
   weekRecipeIds: string[]
+  eaten: EatenMeal[]
   demandingByDate: Map<string, number>
   cooksByDate: Map<string, number>
   remainingByEventId: Map<string, Quantity>
   leftoverEvents: Map<string, GenerationLeftoverEvent>
   proposedEventIds: Set<string>
+  plannedBySlot: Map<string, string>
   objective: WeekObjective
 }
 
@@ -107,25 +117,62 @@ function scoringContext(
   input: GenerationInput,
   row: RequestedGenerationSlot,
   node: SearchNode,
+  laterRows: readonly RequestedGenerationSlot[],
 ): ScoringContext {
+  const prefs = input.softPrefs ?? DEFAULT_GENERATION_SOFT_PREFS
+  const plannedEventId = node.plannedBySlot.get(row.slot.id)
   return {
     date: row.slot.date,
     mealType: row.slot.mealType,
-    prefs: input.softPrefs ?? DEFAULT_GENERATION_SOFT_PREFS,
+    slotId: row.slot.id,
+    prefs,
     weekRecipeIds: node.weekRecipeIds,
     previousWeekRecipeIds: input.previousWeekRecipeIds ?? [],
     demandingCooksOnDate: node.demandingByDate.get(row.slot.date) ?? 0,
     cookingEventCountOnDate: node.cooksByDate.get(row.slot.date) ?? 0,
     tagNamesById: input.tagNamesById ?? {},
+    eaten: node.eaten,
+    plannedEventId,
+    busyDay: isBusyDay(row.slot.date, prefs),
+    batchAnchor:
+      plannedEventId === undefined &&
+      shouldOfferBatchVariants(
+        row.slot.date,
+        laterRows.map((later) => later.slot.date),
+        prefs,
+      ),
+    maxExtraPlannedUses: mergeGenerationBatchPolicy(input.batchPolicy).maxExtraPlannedUses,
   }
 }
 
 function scoreable(candidate: CompositionCandidate): ScoreableComposition {
+  const leftover = candidate.parts.find((part) => part.type === 'leftover')
+  const cookedMains = candidate.parts.filter(
+    (part): part is Extract<CompositionPart, { type: 'recipe' }> =>
+      part.type === 'recipe' &&
+      (part.recipe.roles.includes('main') || part.recipe.roles.includes('complete')),
+  )
+  const main =
+    leftover?.type === 'leftover'
+      ? leftover.recipe.id
+      : cookedMains.length === 1
+        ? cookedMains[0]?.recipe.id
+        : undefined
+  const sideKeys = candidate.parts.flatMap((part) => {
+    if (part.type === 'recipe' && part.recipe.id !== main) return [part.recipe.id]
+    if (part.type === 'simple-food') return [part.food.id]
+    return []
+  })
   return {
     id: candidate.id,
     recipes: recipesInComposition(candidate),
     foods: foodsInComposition(candidate),
     leftoverRecipes: leftoverRecipesInComposition(candidate),
+    leftoverEventId: leftover?.type === 'leftover' ? leftover.eventId : undefined,
+    extraUses: candidate.extraUses,
+    sourceKind: candidate.source.type,
+    mainRecipeId: main,
+    sideKeys,
   }
 }
 
@@ -206,70 +253,6 @@ function cookingInputForNode(input: GenerationInput, node: SearchNode): Generati
       remaining: node.remainingByEventId.get(event.id) ?? event.remaining,
     })),
   }
-}
-
-function lookaheadDesired(
-  recipe: GenerationLeftoverEvent['recipe'],
-  cookDate: string,
-  laterRows: readonly RequestedGenerationSlot[],
-  input: GenerationInput,
-  scale: ScaleQuantity,
-  unit: string,
-): Quantity[] {
-  const out: Quantity[] = []
-  for (const later of laterRows) {
-    if (!recipe.mealTypes.includes(later.slot.mealType)) continue
-    if (!isReuseAllowed(recipe.reusePolicy, cookDate, later.slot.date)) continue
-    const desired = scale(recipe.defaultPortionPerPerson, input.peopleCount)
-    if (!desired || desired.value <= 0 || desired.unit !== unit) continue
-    const override = input.quantityOverrides?.[later.slot.id]
-    if (override && override.unit !== unit) continue
-    out.push(desired)
-  }
-  return out
-}
-
-function expandBatchVariants(
-  enumerated: readonly CompositionCandidate[],
-  input: GenerationInput,
-  row: RequestedGenerationSlot,
-  laterRows: readonly RequestedGenerationSlot[],
-  scale: ScaleQuantity,
-): CompositionCandidate[] {
-  const policy = mergeGenerationBatchPolicy(input.batchPolicy)
-  if (policy.maxExtraPlannedUses <= 0) return [...enumerated]
-  const out: CompositionCandidate[] = []
-  for (const candidate of enumerated) {
-    out.push(candidate)
-    if (candidate.source.type !== 'standalone') continue
-    if (candidate.parts.length !== 1 || candidate.parts[0]?.type !== 'recipe') continue
-    const recipe = candidate.parts[0].recipe
-    const thisQuantity =
-      input.quantityOverrides?.[row.slot.id] ??
-      scale(recipe.defaultPortionPerPerson, input.peopleCount)
-    if (!thisQuantity || thisQuantity.value <= 0) continue
-    const later = lookaheadDesired(
-      recipe,
-      row.slot.date,
-      laterRows,
-      input,
-      scale,
-      thisQuantity.unit,
-    )
-    const maxN = Math.min(policy.maxExtraPlannedUses, later.length)
-    for (let n = 1; n <= maxN; n++) {
-      const extraValue = later.slice(0, n).reduce((sum, quantity) => sum + quantity.value, 0)
-      if (extraValue <= 0) continue
-      out.push({
-        ...candidate,
-        id: `standalone:recipe:${recipe.id}:extra:${n}`,
-        extraUses: n,
-        extraQuantity: { value: extraValue, unit: thisQuantity.unit },
-        proposedEventId: `${row.slot.id}:${recipe.id}`,
-      })
-    }
-  }
-  return out
 }
 
 function proposedRemainders(node: SearchNode) {
@@ -377,6 +360,8 @@ function withUnfilled(
     remainingByEventId: new Map(node.remainingByEventId),
     leftoverEvents: new Map(node.leftoverEvents),
     proposedEventIds: new Set(node.proposedEventIds),
+    plannedBySlot: new Map(node.plannedBySlot),
+    eaten: [...node.eaten],
     weekRecipeIds: [...node.weekRecipeIds],
     assignments: [...node.assignments],
   }
@@ -409,6 +394,23 @@ function withAssignment(
   const remainingByEventId = new Map(node.remainingByEventId)
   const leftoverEvents = new Map(node.leftoverEvents)
   const proposedEventIds = new Set(node.proposedEventIds)
+  const plannedBySlot = new Map(node.plannedBySlot)
+  if (candidate.proposedEventId && candidate.plannedConsumerSlotIds) {
+    for (const slotId of candidate.plannedConsumerSlotIds) {
+      plannedBySlot.set(slotId, candidate.proposedEventId)
+    }
+  }
+  const eaten = [...node.eaten]
+  for (const component of assignment.components) {
+    if (component.type === 'simple-food') continue
+    eaten.push({
+      date: row.slot.date,
+      mealType: row.slot.mealType,
+      slotId: row.slot.id,
+      recipeId: component.recipeId,
+      role: component.role,
+    })
+  }
   cooksByDate.set(row.slot.date, (cooksByDate.get(row.slot.date) ?? 0) + recipes.length)
   const demandingAdded = recipes.filter((recipe) => recipe.effort === 'demanding').length
   if (demandingAdded > 0) {
@@ -478,6 +480,8 @@ function withAssignment(
     remainingByEventId,
     leftoverEvents,
     proposedEventIds,
+    plannedBySlot,
+    eaten,
     objective: addAssignmentToObjective(node.objective, compositionScoreTuple(scored, ctx)),
   }
 }
@@ -486,6 +490,7 @@ function initialNode(input: GenerationInput): SearchNode {
   const weekRecipeIds = [
     ...(input.fixedMeals ?? []).flatMap((meal) => (meal.recipeId ? [meal.recipeId] : [])),
   ]
+  const eaten: EatenMeal[] = []
   const demandingByDate = new Map<string, number>()
   const cooksByDate = new Map<string, number>()
   for (const meal of input.fixedMeals ?? []) {
@@ -493,12 +498,22 @@ function initialNode(input: GenerationInput): SearchNode {
     if (meal.recipe?.effort === 'demanding') {
       demandingByDate.set(meal.date, (demandingByDate.get(meal.date) ?? 0) + 1)
     }
+    if (meal.recipeId) {
+      eaten.push({
+        date: meal.date,
+        mealType: meal.mealType,
+        slotId: meal.slotId,
+        recipeId: meal.recipeId,
+        role: meal.recipe?.roles[0],
+      })
+    }
   }
   return {
     nextSlotIndex: 0,
     assignments: [],
     unfilled: [],
     weekRecipeIds,
+    eaten,
     demandingByDate,
     cooksByDate,
     remainingByEventId: new Map(
@@ -511,6 +526,7 @@ function initialNode(input: GenerationInput): SearchNode {
       ]),
     ),
     proposedEventIds: new Set(),
+    plannedBySlot: new Map(),
     objective: emptyWeekObjective(),
   }
 }
@@ -564,6 +580,10 @@ function finishProposal(
     presetId: input.presetId,
     generationConfig: input.generationConfig,
     generationSessionId: input.generationSessionId,
+    preparationSummary: preparationSummary(
+      node.assignments,
+      new Map(requested.map((row) => [row.slot.id, row.slot.date])),
+    ),
   }
   const issue = validateProposalAgainstLive(proposal, input)
   if (issue) {
@@ -596,10 +616,11 @@ export function weekObjectiveForAssignments(
   const bySlot = new Map(assignments.map((row) => [row.slotId, row]))
   let node = initialNode(input)
   let objective = emptyWeekObjective()
-  for (const row of requested) {
+  for (let index = 0; index < requested.length; index++) {
+    const row = requested[index]
     const assignment = bySlot.get(row.slot.id)
     if (!assignment) continue
-    const ctx = scoringContext(input, row, node)
+    const ctx = scoringContext(input, row, node, requested.slice(index + 1))
     const eligible = enumerateCompositionCandidates(input, row.slot.mealType, row.slot.date)
     const candidate = eligible.find((item) =>
       assignment.components.every((component, index) => {
@@ -655,17 +676,27 @@ export function runGenerationSearch(
         next.push(child)
         continue
       }
-      const ctx = scoringContext(input, row, parent)
-      const eligible = expandBatchVariants(
+      const laterRows = requested.slice(slotIndex + 1)
+      const prefs = input.softPrefs ?? DEFAULT_GENERATION_SOFT_PREFS
+      const ctx = scoringContext(input, row, parent, laterRows)
+      const enumerated = filterPrepRestrictedCandidates(
         enumerateCompositionCandidates(
           cookingInputForNode(input, parent),
           row.slot.mealType,
           row.slot.date,
         ),
+        row.slot.date,
+        prefs,
+        parent.demandingByDate.get(row.slot.date) ?? 0,
+      )
+      const eligible = expandBatchPlacements(
+        enumerated,
         input,
         row,
-        requested.slice(slotIndex + 1),
+        laterRows,
         scale,
+        new Set(parent.plannedBySlot.keys()),
+        parent.demandingByDate,
       ).filter((candidate) => leftoverFitsRemaining(candidate, parent.remainingByEventId))
       if (eligible.length === 0) {
         const child = withUnfilled(parent, row.slot, 'no-eligible-candidates')

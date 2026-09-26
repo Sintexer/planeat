@@ -643,6 +643,7 @@ export function PlanScreen() {
                               generationService,
                               t,
                               formatQty,
+                              locale: bcp47,
                             })
                         : undefined
                     }
@@ -656,6 +657,7 @@ export function PlanScreen() {
                               generationService,
                               t,
                               formatQty,
+                              locale: bcp47,
                               mode: 'replace',
                             })
                         : undefined
